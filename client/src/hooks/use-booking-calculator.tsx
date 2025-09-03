@@ -145,21 +145,32 @@ export function useBookingCalculator() {
     });
   }, [calculateTotal]);
 
-  // Update total whenever calculation changes
-  useState(() => {
-    setCalculation(prev => ({
-      ...prev,
-      totalPrice: calculateTotal(),
-    }));
-  });
+  // Update total whenever calculation changes using useEffect
+  const [eventHours, setEventHours] = useState(2);
+  
+  const updateEventHours = useCallback((hours: number) => {
+    const newHours = Math.max(packages.event.minimumHours, hours);
+    setEventHours(newHours);
+    
+    if (calculation.serviceType === 'event') {
+      const newBasePrice = packages.event.baseRate * newHours;
+      setCalculation(prev => ({
+        ...prev,
+        basePrice: newBasePrice,
+        totalPrice: calculateTotal(),
+      }));
+    }
+  }, [calculation.serviceType, calculateTotal, packages.event]);
 
   return {
     calculation,
     packages,
+    eventHours,
     updateService,
     updatePackage,
     updatePeople,
     updateTransportation,
+    updateEventHours,
     toggleAddon,
     calculateTotal,
   };

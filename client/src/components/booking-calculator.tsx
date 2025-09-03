@@ -34,7 +34,7 @@ const bookingFormSchema = z.object({
 type BookingFormData = z.infer<typeof bookingFormSchema>;
 
 export default function BookingCalculator() {
-  const { calculation, updateService, updatePackage, updatePeople, updateTransportation, toggleAddon } = useBookingCalculator();
+  const { calculation, packages, eventHours, updateService, updatePackage, updatePeople, updateTransportation, updateEventHours, toggleAddon } = useBookingCalculator();
   const { toast } = useToast();
 
   const form = useForm<BookingFormData>({
@@ -208,6 +208,148 @@ export default function BookingCalculator() {
                 onClick={() => updatePackage('platinum')}
               />
             </div>
+          </div>
+        )}
+
+        {/* Wedding Packages */}
+        {calculation.serviceType === 'wedding' && (
+          <div className="mb-12">
+            <h3 className="text-2xl font-bold mb-6 text-center">Wedding Packages</h3>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <PackageCard
+                name="Bronze"
+                price={packages.wedding.photography.bronze}
+                color="bronze"
+                features={[
+                  { text: "Professional photographer", icon: "camera" },
+                  { text: "Basic editing", icon: "edit" },
+                  { text: "Digital gallery", icon: "globe" }
+                ]}
+                isSelected={calculation.packageType === 'bronze'}
+                onClick={() => updatePackage('bronze')}
+              />
+              <PackageCard
+                name="Silver"
+                price={packages.wedding.photography.silver}
+                color="silver"
+                features={[
+                  { text: "Extended photography", icon: "camera" },
+                  { text: "Enhanced editing", icon: "edit" },
+                  { text: "Online gallery", icon: "globe" },
+                  { text: "Print release", icon: "print" }
+                ]}
+                isSelected={calculation.packageType === 'silver'}
+                onClick={() => updatePackage('silver')}
+              />
+              <PackageCard
+                name="Gold"
+                price={packages.wedding.photography.gold}
+                color="gold"
+                features={[
+                  { text: "Full day coverage", icon: "camera" },
+                  { text: "Professional editing", icon: "edit" },
+                  { text: "Premium gallery", icon: "globe" },
+                  { text: "USB drive", icon: "storage" },
+                  { text: "Print package", icon: "print" }
+                ]}
+                isSelected={calculation.packageType === 'gold'}
+                onClick={() => updatePackage('gold')}
+              />
+              <PackageCard
+                name="Platinum"
+                price={packages.wedding.photography.platinum}
+                color="platinum"
+                features={[
+                  { text: "2 photographers", icon: "camera" },
+                  { text: "Luxury experience", icon: "star" },
+                  { text: "Same-day preview", icon: "preview" },
+                  { text: "Premium albums", icon: "book" },
+                  { text: "All inclusions", icon: "check" }
+                ]}
+                isSelected={calculation.packageType === 'platinum'}
+                onClick={() => updatePackage('platinum')}
+              />
+            </div>
+            
+            {/* Videography Add-on for Wedding */}
+            <div className="mt-8">
+              <Card className="p-6 hover-3d">
+                <h4 className="text-lg font-semibold mb-4">Add Videography</h4>
+                <div className="grid md:grid-cols-4 gap-4">
+                  {Object.entries(packages.wedding.videography).map(([tier, price]) => (
+                    <div 
+                      key={tier}
+                      className={`p-4 border rounded-lg cursor-pointer transition-all duration-300 hover:border-primary ${
+                        calculation.addons.includes(`videography-${tier}`) 
+                          ? 'border-primary bg-primary/10' 
+                          : 'border-border'
+                      }`}
+                      onClick={() => toggleAddon(`videography-${tier}`)}
+                    >
+                      <div className="text-center">
+                        <h5 className="font-semibold text-sm mb-1 capitalize">{tier}</h5>
+                        <p className="text-2xl font-bold text-primary">${price}</p>
+                        <p className="text-xs text-muted-foreground">Video Package</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Event Packages */}
+        {calculation.serviceType === 'event' && (
+          <div className="mb-12">
+            <h3 className="text-2xl font-bold mb-6 text-center">Event Coverage</h3>
+            <Card className="p-6 hover-3d">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div>
+                  <h4 className="text-lg font-semibold mb-4">Hours of Coverage</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Duration: {eventHours} hours</Label>
+                      <span className="text-lg font-semibold">${packages.event.baseRate}/hour</span>
+                    </div>
+                    <div className="space-y-2">
+                      <input
+                        type="range"
+                        min={packages.event.minimumHours}
+                        max="12"
+                        value={eventHours}
+                        onChange={(e) => updateEventHours(parseInt(e.target.value))}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 slider"
+                        data-testid="slider-event-hours"
+                      />
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>{packages.event.minimumHours}h</span>
+                        <span>12h</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Minimum {packages.event.minimumHours} hours required. Additional hours at ${packages.event.baseRate}/hour.
+                    </p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="text-lg font-semibold mb-4">Event Pricing</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span>Photography ({eventHours} hours)</span>
+                      <span>${packages.event.baseRate * eventHours}</span>
+                    </div>
+                    <div className="border-t pt-3">
+                      <div className="flex justify-between font-semibold">
+                        <span>Base Price</span>
+                        <span>${packages.event.baseRate * eventHours}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
         )}
 
