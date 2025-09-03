@@ -52,6 +52,9 @@ The application implements a simple access-based system:
 The system implements sophisticated pricing calculation:
 - **Service Types**: Photoshoot, wedding, event with different pricing structures
 - **Package Tiers**: Bronze, Silver, Gold, Platinum with varying features
+- **People Charges**: $50 per additional person (only applies to photoshoots, not weddings or events)
+- **Wedding Packages**: Bronze $500/2hrs/200+ images, Silver $800/4hrs/500+ images, Gold $1250/8hrs/extensive coverage, Platinum $2500/full day with premium deliverables
+- **Event Pricing**: $150/hour with 2-hour minimum, no per-person charges
 - **Add-ons**: Video services, express delivery, drone photography
 - **Transportation**: Parish-based fee calculation across Jamaica's 14 parishes
 

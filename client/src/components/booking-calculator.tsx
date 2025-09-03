@@ -354,40 +354,43 @@ export default function BookingCalculator() {
         )}
 
         {/* People Counter and Location */}
-        <div className="grid md:grid-cols-2 gap-8 mb-8">
-          <Card className="p-6 hover-3d">
-            <h4 className="text-lg font-semibold mb-4 flex items-center">
-              <Users className="mr-2 text-primary" />
-              Number of People
-            </h4>
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="outline"
-                size="icon"
-                className="magnetic-btn"
-                onClick={() => updatePeople(calculation.peopleCount - 1)}
-                disabled={calculation.peopleCount <= 1}
-                data-testid="decrease-people"
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="text-2xl font-bold counter-animation" data-testid="people-count">
-                {calculation.peopleCount}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="magnetic-btn"
-                onClick={() => updatePeople(calculation.peopleCount + 1)}
-                data-testid="increase-people"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Additional people: <span className="font-semibold text-primary">$50 each</span>
-            </p>
-          </Card>
+        <div className={`grid ${calculation.serviceType === 'photoshoot' ? 'md:grid-cols-2' : 'grid-cols-1'} gap-8 mb-8`}>
+          {/* Only show people counter for photoshoots */}
+          {calculation.serviceType === 'photoshoot' && (
+            <Card className="p-6 hover-3d">
+              <h4 className="text-lg font-semibold mb-4 flex items-center">
+                <Users className="mr-2 text-primary" />
+                Number of People
+              </h4>
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="magnetic-btn"
+                  onClick={() => updatePeople(calculation.peopleCount - 1)}
+                  disabled={calculation.peopleCount <= 1}
+                  data-testid="decrease-people"
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="text-2xl font-bold counter-animation" data-testid="people-count">
+                  {calculation.peopleCount}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="magnetic-btn"
+                  onClick={() => updatePeople(calculation.peopleCount + 1)}
+                  data-testid="increase-people"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Additional people: <span className="font-semibold text-primary">$50 each</span>
+              </p>
+            </Card>
+          )}
 
           <Card className="p-6 hover-3d">
             <h4 className="text-lg font-semibold mb-4 flex items-center">

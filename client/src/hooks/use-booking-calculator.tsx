@@ -56,8 +56,8 @@ export function useBookingCalculator() {
   const calculateTotal = useCallback(() => {
     let total = calculation.basePrice;
     
-    // Add people cost (additional people after first)
-    if (calculation.peopleCount > 1) {
+    // Add people cost (additional people after first) - only for photoshoots
+    if (calculation.serviceType === 'photoshoot' && calculation.peopleCount > 1) {
       total += (calculation.peopleCount - 1) * 50;
     }
     
