@@ -12,6 +12,8 @@ export interface IStorage {
   makeUserAdmin(userId: string): Promise<User | undefined>;
   getAdminCount(): Promise<number>;
   getGalleryById(id: string): Promise<Gallery | undefined>;
+  getUserBookings(userEmail: string): Promise<Booking[]>;
+  getUserGalleries(userEmail: string): Promise<Gallery[]>;
   
   // Booking operations
   createBooking(booking: InsertBooking): Promise<Booking>;
@@ -157,6 +159,26 @@ export class DatabaseStorage implements IStorage {
   async getGalleryById(id: string): Promise<Gallery | undefined> {
     const [gallery] = await db.select().from(galleries).where(eq(galleries.id, id));
     return gallery;
+  }
+
+  async getUserBookings(userEmail: string): Promise<Booking[]> {
+    return await db.select().from(bookings).where(eq(bookings.email, userEmail)).orderBy(bookings.createdAt);
+  }
+
+  async getUserGalleries(userEmail: string): Promise<Gallery[]> {
+    // Get galleries for bookings made by this user
+    const userBookings = await this.getUserBookings(userEmail);
+    const bookingIds = userBookings.map(booking => booking.id);
+    
+    if (bookingIds.length === 0) {
+      return [];
+    }
+    
+    // Get galleries associated with these bookings
+    const userGalleries = await db.select().from(galleries)
+      .where(sql`${galleries.bookingId} IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`);
+    
+    return userGalleries;
   }
 }
 

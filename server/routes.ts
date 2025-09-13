@@ -238,6 +238,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User routes for viewing their own data
+  app.get('/api/user/bookings', isAuthenticated, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.claims?.email || (req as any).user?.email;
+      if (!userEmail) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+      
+      const userBookings = await storage.getUserBookings(userEmail);
+      res.json(userBookings);
+    } catch (error) {
+      console.error('Error fetching user bookings:', error);
+      res.status(500).json({ error: 'Failed to fetch user bookings' });
+    }
+  });
+
+  app.get('/api/user/galleries', isAuthenticated, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.claims?.email || (req as any).user?.email;
+      if (!userEmail) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+      
+      const userGalleries = await storage.getUserGalleries(userEmail);
+      res.json(userGalleries);
+    } catch (error) {
+      console.error('Error fetching user galleries:', error);
+      res.status(500).json({ error: 'Failed to fetch user galleries' });
+    }
+  });
+
   // Secure admin gallery routes
   app.patch('/api/admin/gallery/:id/images', isAdmin, async (req, res) => {
     try {
