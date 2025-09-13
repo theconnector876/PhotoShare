@@ -351,6 +351,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public booking endpoint for payment purposes (no auth required)
+  app.get("/api/bookings/:id/payment", async (req, res) => {
+    try {
+      const booking = await storage.getBooking(req.params.id);
+      
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      // Return only payment-relevant fields for security
+      const paymentBooking = {
+        id: booking.id,
+        clientName: booking.clientName,
+        serviceType: booking.serviceType,
+        packageType: booking.packageType,
+        shootDate: booking.shootDate,
+        totalPrice: booking.totalPrice,
+        depositAmount: booking.depositAmount,
+        balanceDue: booking.balanceDue,
+        depositPaid: booking.depositPaid,
+        balancePaid: booking.balancePaid
+      };
+
+      res.json(paymentBooking);
+    } catch (error) {
+      console.error('Error fetching booking for payment:', error);
+      res.status(500).json({ error: "Failed to fetch booking" });
+    }
+  });
+
   // Stripe webhook to handle payment success
   app.post('/api/stripe/webhook', async (req, res) => {
     const sig = req.headers['stripe-signature'];

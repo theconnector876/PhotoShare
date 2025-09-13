@@ -123,8 +123,8 @@ export default function Payment() {
       try {
         setIsLoading(true);
         
-        // Get booking details
-        const bookingResponse = await apiRequest('GET', `/api/bookings/${bookingId}`);
+        // Get booking details (public payment endpoint)
+        const bookingResponse = await apiRequest('GET', `/api/bookings/${bookingId}/payment`);
         const bookingData = await bookingResponse.json();
         setBooking(bookingData);
 
