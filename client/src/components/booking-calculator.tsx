@@ -75,13 +75,35 @@ export default function BookingCalculator() {
       return apiRequest('POST', '/api/bookings', bookingData);
     },
     onSuccess: async (response) => {
-      const result = await response.json();
-      toast({
-        title: "Booking Confirmed!",
-        description: "Redirecting to payment...",
-      });
-      // Redirect to payment page with booking ID
-      window.location.href = `/payment?booking=${result.booking.id}&type=deposit`;
+      try {
+        console.log('Booking response:', response);
+        const result = await response.json();
+        console.log('Booking result:', result);
+        
+        if (!result.booking || !result.booking.id) {
+          throw new Error('Invalid booking response structure');
+        }
+
+        toast({
+          title: "Booking Confirmed!",
+          description: "Redirecting to payment...",
+        });
+        
+        // Small delay to show toast before redirect
+        setTimeout(() => {
+          const paymentUrl = `/payment?booking=${result.booking.id}&type=deposit`;
+          console.log('Redirecting to:', paymentUrl);
+          window.location.href = paymentUrl;
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Error in booking success:', error);
+        toast({
+          title: "Booking Created!",
+          description: "There was an issue with payment redirect. Please contact us to complete payment.",
+          variant: "destructive",
+        });
+      }
     },
     onError: () => {
       toast({
