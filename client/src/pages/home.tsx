@@ -66,6 +66,23 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
+            <Link href="/booking?service=photoshoot" data-testid="link-service-photoshoot">
+              <Card className="package-card rounded-2xl p-8 hover-3d cursor-pointer group" data-testid="service-portrait">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-accent to-primary rounded-full flex items-center justify-center mx-auto mb-6 group-hover:rotate-12 transition-transform duration-300">
+                    <Users className="text-white text-2xl" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-4 font-serif">Portrait Sessions</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Personal and professional portraits in stunning Jamaican locations
+                  </p>
+                  <div className="text-sm text-muted-foreground">
+                    Starting from <span className="text-2xl font-bold text-accent">$150</span>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+
             <Link href="/booking?service=wedding" data-testid="link-service-wedding">
               <Card className="package-card rounded-2xl p-8 hover-3d cursor-pointer group" data-testid="service-wedding">
                 <div className="text-center">
@@ -95,23 +112,6 @@ export default function Home() {
                   </p>
                   <div className="text-sm text-muted-foreground">
                     Starting from <span className="text-2xl font-bold text-secondary">$150</span>/hour
-                  </div>
-                </div>
-              </Card>
-            </Link>
-
-            <Link href="/booking?service=photoshoot" data-testid="link-service-photoshoot">
-              <Card className="package-card rounded-2xl p-8 hover-3d cursor-pointer group" data-testid="service-portrait">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-r from-accent to-primary rounded-full flex items-center justify-center mx-auto mb-6 group-hover:rotate-12 transition-transform duration-300">
-                    <Users className="text-white text-2xl" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-4 font-serif">Portrait Sessions</h3>
-                  <p className="text-muted-foreground mb-6">
-                    Personal and professional portraits in stunning Jamaican locations
-                  </p>
-                  <div className="text-sm text-muted-foreground">
-                    Starting from <span className="text-2xl font-bold text-accent">$150</span>
                   </div>
                 </div>
               </Card>
