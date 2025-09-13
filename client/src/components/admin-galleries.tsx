@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ImageIcon, FolderIcon, UploadIcon } from "lucide-react";
-import { ObjectUploader } from "@/components/ObjectUploader";
+// import { ObjectUploader } from "@/components/ObjectUploader"; // Temporarily disabled due to dependency issue
 import { isUnauthorizedError } from "@/lib/authUtils";
-import type { UploadResult } from "@uppy/core";
+// import type { UploadResult } from "@uppy/core"; // Temporarily disabled
 
 interface Gallery {
   id: string;
@@ -80,7 +80,7 @@ export function AdminGalleries() {
     }
   };
 
-  const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+  const handleUploadComplete = (result: any) => { // UploadResult type temporarily disabled
     if (result.successful && result.successful.length > 0 && selectedGallery) {
       const uploadedFile = result.successful[0];
       const imageURL = uploadedFile.uploadURL;
@@ -216,16 +216,10 @@ export function AdminGalleries() {
                                 <SelectItem value="final">Final</SelectItem>
                               </SelectContent>
                             </Select>
-                            <ObjectUploader
-                              maxNumberOfFiles={10}
-                              maxFileSize={20971520} // 20MB
-                              onGetUploadParameters={handleGetUploadParameters}
-                              onComplete={handleUploadComplete}
-                              buttonClassName="h-9"
-                            >
+                            <Button size="sm" variant="outline" disabled>
                               <UploadIcon className="w-4 h-4 mr-2" />
-                              Add to {uploadType}
-                            </ObjectUploader>
+                              Add to {uploadType} (Upload temporarily disabled)
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"

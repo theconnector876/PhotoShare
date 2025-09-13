@@ -6,13 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useBookingCalculator } from "@/hooks/use-booking-calculator";
 import PackageCard from "@/components/package-card";
-import { Camera, Heart, Users, Plus, Minus } from "lucide-react";
+import { Camera, Heart, Users, Plus, Minus, ChevronDown, Shield, AlertTriangle, Clock, DollarSign, CheckCircle } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +37,7 @@ type BookingFormData = z.infer<typeof bookingFormSchema>;
 export default function BookingCalculator() {
   const { calculation, packages, eventHours, updateService, updatePackage, updatePeople, updateTransportation, updateEventHours, toggleAddon } = useBookingCalculator();
   const { toast } = useToast();
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   const form = useForm<BookingFormData>({
     resolver: zodResolver(bookingFormSchema),
@@ -680,31 +682,188 @@ export default function BookingCalculator() {
                 </div>
               </div>
 
-              <Card className="bg-muted p-6">
-                <FormField
-                  control={form.control}
-                  name="contractAccepted"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          data-testid="checkbox-contract-accepted"
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-semibold cursor-pointer">
-                          I acknowledge that I have read, understand, and agree to the terms and conditions.
-                        </FormLabel>
-                        <p className="text-sm text-muted-foreground">
-                          By checking this box, you agree to The Connector's photography contract terms, including usage rights, delivery timeline, and payment policies.
-                        </p>
-                        <FormMessage />
+              {/* Terms and Conditions Section */}
+              <Card className="bg-muted">
+                <Collapsible open={isTermsOpen} onOpenChange={setIsTermsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full p-6 justify-between text-left hover:bg-transparent"
+                      data-testid="button-terms-toggle"
+                    >
+                      <div className="flex items-center">
+                        <Shield className="text-primary mr-3" size={20} />
+                        <span className="font-semibold">Terms & Conditions</span>
                       </div>
-                    </FormItem>
-                  )}
-                />
+                      <ChevronDown 
+                        className={`h-5 w-5 transition-transform ${isTermsOpen ? 'rotate-180' : ''}`} 
+                      />
+                    </Button>
+                  </CollapsibleTrigger>
+                  
+                  <CollapsibleContent className="px-6 pb-4">
+                    <div className="space-y-4 text-sm">
+                      <p className="text-muted-foreground leading-relaxed">
+                        This contract pertains to the provision of services and products for a PHOTOGRAPHY/PRODUCTIONS event 
+                        scheduled to occur at the specified time and venue by The Connector Photography.
+                      </p>
+
+                      {/* Key Terms Summary */}
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="bg-background p-4 rounded-lg">
+                          <div className="flex items-center mb-2">
+                            <CheckCircle className="text-green-500 mr-2" size={16} />
+                            <h4 className="font-semibold">Service Provision</h4>
+                          </div>
+                          <p className="text-muted-foreground text-xs">
+                            We deliver a minimum number of photos as stipulated in your chosen package.
+                          </p>
+                        </div>
+
+                        <div className="bg-background p-4 rounded-lg">
+                          <div className="flex items-center mb-2">
+                            <DollarSign className="text-jamaica-gold mr-2" size={16} />
+                            <h4 className="font-semibold">Payment Terms</h4>
+                          </div>
+                          <p className="text-muted-foreground text-xs">
+                            50% deposit required to secure your event date. Deposits are non-refundable.
+                          </p>
+                        </div>
+
+                        <div className="bg-background p-4 rounded-lg">
+                          <div className="flex items-center mb-2">
+                            <Clock className="text-blue-500 mr-2" size={16} />
+                            <h4 className="font-semibold">Delivery Schedule</h4>
+                          </div>
+                          <p className="text-muted-foreground text-xs">
+                            Final packages delivered 2-4 weeks after your event.
+                          </p>
+                        </div>
+
+                        <div className="bg-background p-4 rounded-lg">
+                          <div className="flex items-center mb-2">
+                            <AlertTriangle className="text-orange-500 mr-2" size={16} />
+                            <h4 className="font-semibold">Overtime Charges</h4>
+                          </div>
+                          <p className="text-muted-foreground text-xs">
+                            Additional $100 per hour if agreed timeframe is exceeded.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Detailed Terms */}
+                      <div className="space-y-3 max-h-64 overflow-y-auto bg-background p-4 rounded-lg">
+                        <div>
+                          <h5 className="font-semibold text-primary mb-1">1. Service Provision</h5>
+                          <p className="text-muted-foreground text-xs">
+                            The Photographer(s)/Producer(s) agree(s) to deliver a minimum number of photos as stipulated in the chosen package. 
+                            No more than this specified number of images is required to be provided.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h5 className="font-semibold text-primary mb-1">2. Post-Processing</h5>
+                          <p className="text-muted-foreground text-xs">
+                            Post-processing or digital image editing services will be performed on the photos and/or video footage 
+                            as artistically necessary, depending on the selected package.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h5 className="font-semibold text-primary mb-1">3. Image Usage Rights</h5>
+                          <p className="text-muted-foreground text-xs">
+                            The Client(s) grant(s) permission to the Photographer(s)/Producer(s) and its assigns, licensees, and sub-licensees 
+                            to utilize the likeness, images, and video footage of the Client(s) for various purposes, including commercial use, 
+                            advertising, and personal use.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h5 className="font-semibold text-primary mb-1">4. Payment Terms</h5>
+                          <p className="text-muted-foreground text-xs">
+                            The Client(s) agree(s) to pay a 50% deposit on event confirmation. Payments can be made via check or cash. 
+                            The deposit is non-refundable, even in case of date rescheduling or event cancellation.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h5 className="font-semibold text-primary mb-1">5. Delivery Timeline</h5>
+                          <p className="text-muted-foreground text-xs">
+                            Final delivery of edited photos/videos will be provided within 2-4 weeks following the event. 
+                            Platinum package clients receive same-day preview images.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h5 className="font-semibold text-primary mb-1">6. Overtime Policy</h5>
+                          <p className="text-muted-foreground text-xs">
+                            If the event exceeds the agreed-upon timeframe, additional charges of $100 per hour will apply. 
+                            The Client(s) is/are responsible for any damage to equipment caused by event attendees.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h5 className="font-semibold text-primary mb-1">7. Assignment & Subcontracting</h5>
+                          <p className="text-muted-foreground text-xs">
+                            Client(s) acknowledge(s) that the specific Photographer(s)/Producer(s) assigned to the event may vary. 
+                            The Photographer(s)/Producer(s) may subcontract second shooters or assign other qualified photographers.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h5 className="font-semibold text-primary mb-1">8. Cancellation Policy</h5>
+                          <p className="text-muted-foreground text-xs">
+                            In the event of cancellation by the Client(s), the deposit is non-refundable. 
+                            If cancellation occurs due to photographer unavailability, a full refund will be provided.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h5 className="font-semibold text-primary mb-1">9. Liability</h5>
+                          <p className="text-muted-foreground text-xs">
+                            The Photographer(s)/Producer(s) shall not be held liable for any damages or losses beyond the total contract value. 
+                            Equipment backup and insurance are maintained for professional reliability.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h5 className="font-semibold text-primary mb-1">10. Governing Law</h5>
+                          <p className="text-muted-foreground text-xs">
+                            This contract shall be governed by the laws of The Connector Photography's operating jurisdiction.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+
+                {/* Contract Acceptance Checkbox */}
+                <div className="px-6 pb-6">
+                  <FormField
+                    control={form.control}
+                    name="contractAccepted"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="checkbox-contract-accepted"
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="font-semibold cursor-pointer">
+                            I acknowledge that I have read, understand, and agree to the terms and conditions above.
+                          </FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            By checking this box, you agree to The Connector's photography contract terms, including usage rights, delivery timeline, and payment policies.
+                          </p>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </Card>
 
               <FormField
