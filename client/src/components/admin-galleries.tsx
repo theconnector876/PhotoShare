@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ImageIcon, FolderIcon, UploadIcon } from "lucide-react";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import { isUnauthorizedError } from "@/lib/authUtils";
+import type { UploadResult } from "@uppy/core";
 
 interface Gallery {
   id: string;
@@ -18,10 +24,74 @@ interface Gallery {
 }
 
 export function AdminGalleries() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedGallery, setSelectedGallery] = useState<Gallery | null>(null);
+  const [uploadType, setUploadType] = useState<'gallery' | 'selected' | 'final'>('gallery');
+
   const { data: galleries, isLoading } = useQuery<Gallery[]>({
     queryKey: ["/api/admin/galleries"],
     retry: false,
   });
+
+  const addImageMutation = useMutation({
+    mutationFn: async ({ galleryId, imageURL, type }: { galleryId: string; imageURL: string; type: string }) => {
+      await apiRequest('/api/admin/gallery-images', 'PUT', { galleryId, imageURL, type });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
+      toast({
+        title: "Image Added",
+        description: "Image has been added to the gallery successfully.",
+      });
+      setSelectedGallery(null);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to add image to gallery.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleGetUploadParameters = async () => {
+    try {
+      const response = await apiRequest('/api/admin/objects/upload', 'POST', {});
+      return response;
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to get upload parameters.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    if (result.successful && result.successful.length > 0 && selectedGallery) {
+      const uploadedFile = result.successful[0];
+      const imageURL = uploadedFile.uploadURL;
+      
+      addImageMutation.mutate({
+        galleryId: selectedGallery.id,
+        imageURL: imageURL || '',
+        type: uploadType
+      });
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -124,14 +194,47 @@ export function AdminGalleries() {
                         Created on {formatDate(gallery.createdAt)}
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          data-testid={`button-upload-${gallery.id}`}
-                        >
-                          <UploadIcon className="w-4 h-4 mr-2" />
-                          Upload Images
-                        </Button>
+                        {!selectedGallery ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedGallery(gallery)}
+                            data-testid={`button-upload-${gallery.id}`}
+                          >
+                            <UploadIcon className="w-4 h-4 mr-2" />
+                            Upload Images
+                          </Button>
+                        ) : selectedGallery.id === gallery.id ? (
+                          <div className="flex items-center gap-2">
+                            <Select value={uploadType} onValueChange={(value: any) => setUploadType(value)}>
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="gallery">Gallery</SelectItem>
+                                <SelectItem value="selected">Selected</SelectItem>
+                                <SelectItem value="final">Final</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <ObjectUploader
+                              maxNumberOfFiles={10}
+                              maxFileSize={20971520} // 20MB
+                              onGetUploadParameters={handleGetUploadParameters}
+                              onComplete={handleUploadComplete}
+                              buttonClassName="h-9"
+                            >
+                              <UploadIcon className="w-4 h-4 mr-2" />
+                              Add to {uploadType}
+                            </ObjectUploader>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedGallery(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : null}
                         <Button
                           variant="outline"
                           size="sm"

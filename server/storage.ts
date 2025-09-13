@@ -11,6 +11,7 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   makeUserAdmin(userId: string): Promise<User | undefined>;
   getAdminCount(): Promise<number>;
+  getGalleryById(id: string): Promise<Gallery | undefined>;
   
   // Booking operations
   createBooking(booking: InsertBooking): Promise<Booking>;
@@ -151,6 +152,11 @@ export class DatabaseStorage implements IStorage {
   async getAdminCount(): Promise<number> {
     const result = await db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.isAdmin, true));
     return result[0].count;
+  }
+
+  async getGalleryById(id: string): Promise<Gallery | undefined> {
+    const [gallery] = await db.select().from(galleries).where(eq(galleries.id, id));
+    return gallery;
   }
 }
 

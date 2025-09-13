@@ -64,18 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/gallery/:id/images", async (req, res) => {
-    try {
-      const { images, type } = req.body;
-      const gallery = await storage.updateGalleryImages(req.params.id, images, type);
-      if (!gallery) {
-        return res.status(404).json({ error: "Gallery not found" });
-      }
-      res.json(gallery);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update gallery images" });
-    }
-  });
+  // Removed public gallery update route - moved to admin-only for security
 
   // Contact routes
   app.post("/api/contact", async (req, res) => {
@@ -88,14 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/contact", async (req, res) => {
-    try {
-      const messages = await storage.getAllContactMessages();
-      res.json(messages);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch contact messages" });
-    }
-  });
+  // Removed public contact GET route - moved to admin-only for security
 
   // Package pricing endpoint
   app.get("/api/packages", async (req, res) => {
@@ -199,6 +181,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error making user admin:', error);
       res.status(500).json({ error: 'Failed to make user admin' });
+    }
+  });
+
+  // Object storage endpoints for admin uploads
+  app.post('/api/admin/objects/upload', isAdmin, async (req, res) => {
+    try {
+      // For now, return a mock upload URL since object storage setup needs to be completed
+      // In production, this would use ObjectStorageService.getObjectEntityUploadURL()
+      const mockUploadURL = `https://storage.googleapis.com/mock-bucket/uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      res.json({ 
+        method: "PUT" as const,
+        url: mockUploadURL 
+      });
+    } catch (error) {
+      console.error('Error generating upload URL:', error);
+      res.status(500).json({ error: 'Failed to generate upload URL' });
+    }
+  });
+
+  app.put('/api/admin/gallery-images', isAdmin, async (req, res) => {
+    try {
+      const galleryImageSchema = z.object({
+        galleryId: z.string(),
+        imageURL: z.string(),
+        type: z.enum(['gallery', 'selected', 'final'])
+      });
+      
+      const { galleryId, imageURL, type } = galleryImageSchema.parse(req.body);
+
+      // Fixed: Use getGalleryById instead of getGalleryByBookingId
+      const gallery = await storage.getGalleryById(galleryId);
+      if (!gallery) {
+        return res.status(404).json({ error: 'Gallery not found' });
+      }
+
+      const currentImages = {
+        gallery: gallery.galleryImages || [],
+        selected: gallery.selectedImages || [],
+        final: gallery.finalImages || []
+      };
+
+      const updatedImages = [...currentImages[type], imageURL];
+      const updatedGallery = await storage.updateGalleryImages(gallery.id, updatedImages, type);
+
+      res.json({
+        objectPath: imageURL,
+        gallery: updatedGallery
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error adding gallery image:', error);
+      res.status(500).json({ error: 'Failed to add gallery image' });
+    }
+  });
+
+  // Secure admin gallery routes
+  app.patch('/api/admin/gallery/:id/images', isAdmin, async (req, res) => {
+    try {
+      const updateGallerySchema = z.object({
+        images: z.array(z.string()),
+        type: z.enum(['gallery', 'selected', 'final'])
+      });
+      
+      const { images, type } = updateGallerySchema.parse(req.body);
+      const gallery = await storage.updateGalleryImages(req.params.id, images, type);
+      if (!gallery) {
+        return res.status(404).json({ error: "Gallery not found" });
+      }
+      res.json(gallery);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update gallery images" });
     }
   });
 
