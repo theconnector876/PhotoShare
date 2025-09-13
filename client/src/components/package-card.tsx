@@ -17,6 +17,7 @@ interface PackageCardProps {
   images?: number;
   locations?: number;
   showImagePlus?: boolean;
+  imageDescription?: string;
 }
 
 export default function PackageCard({ 
@@ -29,7 +30,8 @@ export default function PackageCard({
   duration,
   images,
   locations,
-  showImagePlus = false 
+  showImagePlus = false,
+  imageDescription = "retouched images"
 }: PackageCardProps) {
   const colorClasses = {
     bronze: 'text-orange-600 hover:border-orange-600',
@@ -66,7 +68,7 @@ export default function PackageCard({
             {images && (
               <div className="flex items-center" data-testid={`images-${name.toLowerCase()}`}>
                 <i className={`fas fa-images w-4 mr-2 ${colorClasses[color]}`}></i> 
-                {images}{showImagePlus ? '+' : ''} retouched images
+                {images}{showImagePlus ? '+' : ''} {imageDescription}
               </div>
             )}
             {locations && (

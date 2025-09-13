@@ -223,6 +223,7 @@ export default function BookingCalculator() {
                 images={200}
                 color="bronze"
                 showImagePlus={true}
+                imageDescription="high-resolution images"
                 features={[
                   { text: "Professional photographer", icon: "camera" },
                   { text: "Basic editing", icon: "edit" },
@@ -238,6 +239,7 @@ export default function BookingCalculator() {
                 images={500}
                 color="silver"
                 showImagePlus={true}
+                imageDescription="professional images"
                 features={[
                   { text: "Extended photography", icon: "camera" },
                   { text: "Enhanced editing", icon: "edit" },
@@ -254,6 +256,7 @@ export default function BookingCalculator() {
                 images={800}
                 color="gold"
                 showImagePlus={true}
+                imageDescription="premium images"
                 features={[
                   { text: "Full day coverage", icon: "camera" },
                   { text: "Professional editing", icon: "edit" },
@@ -271,6 +274,7 @@ export default function BookingCalculator() {
                 images={1000}
                 color="platinum"
                 showImagePlus={true}
+                imageDescription="luxury images"
                 features={[
                   { text: "2 photographers", icon: "camera" },
                   { text: "Full day coverage", icon: "clock" },
