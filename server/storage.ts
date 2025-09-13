@@ -1,10 +1,15 @@
-import { type User, type InsertUser, type Booking, type InsertBooking, type Gallery, type InsertGallery, type ContactMessage, type InsertContactMessage } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { 
+  users, bookings, galleries, contactMessages,
+  type User, type UpsertUser, type Booking, type InsertBooking, 
+  type Gallery, type InsertGallery, type ContactMessage, type InsertContactMessage 
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  makeUserAdmin(userId: string): Promise<User | undefined>;
   
   // Booking operations
   createBooking(booking: InsertBooking): Promise<Booking>;
@@ -23,134 +28,124 @@ export interface IStorage {
   getAllContactMessages(): Promise<ContactMessage[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private bookings: Map<string, Booking>;
-  private galleries: Map<string, Gallery>;
-  private contactMessages: Map<string, ContactMessage>;
-
-  constructor() {
-    this.users = new Map();
-    this.bookings = new Map();
-    this.galleries = new Map();
-    this.contactMessages = new Map();
-  }
+export class DatabaseStorage implements IStorage {
+  constructor() {}
 
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+  async makeUserAdmin(userId: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ isAdmin: true, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
     return user;
   }
 
   async createBooking(insertBooking: InsertBooking): Promise<Booking> {
-    const id = randomUUID();
-    const booking: Booking = {
-      ...insertBooking,
-      id,
-      status: "pending",
-      createdAt: new Date(),
-      numberOfPeople: insertBooking.numberOfPeople || 1,
-      transportationFee: insertBooking.transportationFee || 35,
-      addons: insertBooking.addons || [],
-      referralSource: insertBooking.referralSource || [],
-      contractAccepted: insertBooking.contractAccepted || false,
-    };
-    this.bookings.set(id, booking);
+    const [booking] = await db
+      .insert(bookings)
+      .values(insertBooking)
+      .returning();
     return booking;
   }
 
   async getBooking(id: string): Promise<Booking | undefined> {
-    return this.bookings.get(id);
+    const [booking] = await db.select().from(bookings).where(eq(bookings.id, id));
+    return booking;
   }
 
   async getAllBookings(): Promise<Booking[]> {
-    return Array.from(this.bookings.values()).sort(
-      (a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
-    );
+    return await db.select().from(bookings).orderBy(bookings.createdAt);
   }
 
   async updateBookingStatus(id: string, status: string): Promise<Booking | undefined> {
-    const booking = this.bookings.get(id);
-    if (booking) {
-      booking.status = status;
-      this.bookings.set(id, booking);
-      return booking;
-    }
-    return undefined;
+    const [booking] = await db
+      .update(bookings)
+      .set({ status })
+      .where(eq(bookings.id, id))
+      .returning();
+    return booking;
   }
 
   async createGallery(insertGallery: InsertGallery): Promise<Gallery> {
-    const id = randomUUID();
-    const gallery: Gallery = {
-      ...insertGallery,
-      id,
-      status: "pending",
-      createdAt: new Date(),
-      bookingId: insertGallery.bookingId || null,
-      galleryImages: insertGallery.galleryImages || [],
-      selectedImages: insertGallery.selectedImages || [],
-      finalImages: insertGallery.finalImages || [],
-    };
-    this.galleries.set(id, gallery);
+    const [gallery] = await db
+      .insert(galleries)
+      .values(insertGallery)
+      .returning();
     return gallery;
   }
 
   async getGalleryByAccess(email: string, accessCode: string): Promise<Gallery | undefined> {
-    return Array.from(this.galleries.values()).find(
-      (gallery) => gallery.clientEmail === email && gallery.accessCode === accessCode
-    );
+    const [gallery] = await db
+      .select()
+      .from(galleries)
+      .where(and(
+        eq(galleries.clientEmail, email),
+        eq(galleries.accessCode, accessCode)
+      ));
+    return gallery;
   }
 
   async getGalleryByBookingId(bookingId: string): Promise<Gallery | undefined> {
-    return Array.from(this.galleries.values()).find(
-      (gallery) => gallery.bookingId === bookingId
-    );
+    const [gallery] = await db
+      .select()
+      .from(galleries)
+      .where(eq(galleries.bookingId, bookingId));
+    return gallery;
   }
 
   async updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined> {
-    const gallery = this.galleries.get(id);
-    if (gallery) {
-      if (type === 'gallery') {
-        gallery.galleryImages = images;
-      } else if (type === 'selected') {
-        gallery.selectedImages = images;
-      } else if (type === 'final') {
-        gallery.finalImages = images;
-      }
-      this.galleries.set(id, gallery);
-      return gallery;
+    let updateData: any = {};
+    if (type === 'gallery') {
+      updateData.galleryImages = images;
+    } else if (type === 'selected') {
+      updateData.selectedImages = images;
+    } else if (type === 'final') {
+      updateData.finalImages = images;
     }
-    return undefined;
+    
+    const [gallery] = await db
+      .update(galleries)
+      .set(updateData)
+      .where(eq(galleries.id, id))
+      .returning();
+    return gallery;
   }
 
   async createContactMessage(insertMessage: InsertContactMessage): Promise<ContactMessage> {
-    const id = randomUUID();
-    const message: ContactMessage = {
-      ...insertMessage,
-      id,
-      status: "unread",
-      createdAt: new Date(),
-    };
-    this.contactMessages.set(id, message);
+    const [message] = await db
+      .insert(contactMessages)
+      .values(insertMessage)
+      .returning();
     return message;
   }
 
   async getAllContactMessages(): Promise<ContactMessage[]> {
-    return Array.from(this.contactMessages.values()).sort(
-      (a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
-    );
+    return await db.select().from(contactMessages).orderBy(contactMessages.createdAt);
+  }
+
+  async getAllGalleries(): Promise<Gallery[]> {
+    return await db.select().from(galleries).orderBy(galleries.createdAt);
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
