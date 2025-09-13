@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 export interface BookingCalculation {
   serviceType: 'photoshoot' | 'wedding' | 'event';
@@ -10,16 +10,36 @@ export interface BookingCalculation {
   totalPrice: number;
 }
 
-export function useBookingCalculator() {
-  const [calculation, setCalculation] = useState<BookingCalculation>({
-    serviceType: 'photoshoot',
+function getServiceTypeFromURL(): 'photoshoot' | 'wedding' | 'event' {
+  if (typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const serviceParam = urlParams.get('service');
+    if (serviceParam && ['photoshoot', 'wedding', 'event'].includes(serviceParam)) {
+      return serviceParam as 'photoshoot' | 'wedding' | 'event';
+    }
+  }
+  return 'photoshoot';
+}
+
+function getInitialState(serviceType: 'photoshoot' | 'wedding' | 'event'): BookingCalculation {
+  const basePrice = serviceType === 'photoshoot' ? 150 : serviceType === 'wedding' ? 500 : 300;
+  const transportationFee = 35;
+  
+  return {
+    serviceType,
     packageType: 'bronze',
-    basePrice: 150,
+    basePrice,
     peopleCount: 1,
-    transportationFee: 35,
+    transportationFee,
     addons: [],
-    totalPrice: 185,
-  });
+    totalPrice: basePrice + transportationFee,
+  };
+}
+
+export function useBookingCalculator() {
+  const [calculation, setCalculation] = useState<BookingCalculation>(() => 
+    getInitialState(getServiceTypeFromURL())
+  );
 
   const packages = {
     photoshoot: {
@@ -53,7 +73,35 @@ export function useBookingCalculator() {
     clearKayak: 100,
   };
 
-  const calculateTotal = useCallback(() => {
+  const [eventHours, setEventHours] = useState(2);
+
+  // Watch for URL changes and update service type accordingly
+  useEffect(() => {
+    const handleURLChange = () => {
+      const newServiceType = getServiceTypeFromURL();
+      if (newServiceType !== calculation.serviceType) {
+        const newState = getInitialState(newServiceType);
+        setCalculation(newState);
+        // Reset event hours when switching to event service
+        if (newServiceType === 'event') {
+          setEventHours(packages.event.minimumHours);
+        }
+      }
+    };
+
+    // Listen for popstate events (back/forward navigation)
+    window.addEventListener('popstate', handleURLChange);
+    // Also listen for custom events when navigation happens programmatically
+    window.addEventListener('pushstate', handleURLChange);
+
+    return () => {
+      window.removeEventListener('popstate', handleURLChange);
+      window.removeEventListener('pushstate', handleURLChange);
+    };
+  }, [calculation.serviceType]);
+
+  // Automatically calculate total whenever relevant values change
+  useEffect(() => {
     let total = calculation.basePrice;
     
     // Add people cost (additional people after first) - only for photoshoots
@@ -68,13 +116,20 @@ export function useBookingCalculator() {
     calculation.addons.forEach(addon => {
       if (addon === 'drone') {
         total += calculation.serviceType === 'wedding' ? addonPrices.droneWedding : addonPrices.dronePhotoshoot;
+      } else if (addon.startsWith('videography-')) {
+        const tier = addon.split('-')[1];
+        const price = packages.wedding.videography[tier as keyof typeof packages.wedding.videography];
+        if (price) total += price;
       } else if (addonPrices[addon as keyof typeof addonPrices]) {
         total += addonPrices[addon as keyof typeof addonPrices];
       }
     });
 
-    return total;
-  }, [calculation]);
+    // Only update if the total actually changed to avoid unnecessary re-renders
+    if (calculation.totalPrice !== total) {
+      setCalculation(prev => ({ ...prev, totalPrice: total }));
+    }
+  }, [calculation.basePrice, calculation.peopleCount, calculation.transportationFee, calculation.addons, calculation.serviceType]);
 
   const updateService = useCallback((serviceType: 'photoshoot' | 'wedding' | 'event') => {
     let newPackageType = 'bronze';
@@ -93,9 +148,14 @@ export function useBookingCalculator() {
       serviceType,
       packageType: newPackageType,
       basePrice: newBasePrice,
-      totalPrice: calculateTotal(),
+      addons: [], // Reset addons when switching service types
     }));
-  }, [calculateTotal]);
+
+    // Reset event hours when switching to event service
+    if (serviceType === 'event') {
+      setEventHours(packages.event.minimumHours);
+    }
+  }, []);
 
   const updatePackage = useCallback((packageType: string) => {
     let newBasePrice = 150;
@@ -111,25 +171,22 @@ export function useBookingCalculator() {
       ...prev,
       packageType,
       basePrice: newBasePrice,
-      totalPrice: calculateTotal(),
     }));
-  }, [calculation.serviceType, calculateTotal]);
+  }, [calculation.serviceType]);
 
   const updatePeople = useCallback((count: number) => {
     setCalculation(prev => ({
       ...prev,
       peopleCount: Math.max(1, count),
-      totalPrice: calculateTotal(),
     }));
-  }, [calculateTotal]);
+  }, []);
 
   const updateTransportation = useCallback((fee: number) => {
     setCalculation(prev => ({
       ...prev,
       transportationFee: fee,
-      totalPrice: calculateTotal(),
     }));
-  }, [calculateTotal]);
+  }, []);
 
   const toggleAddon = useCallback((addon: string) => {
     setCalculation(prev => {
@@ -140,13 +197,9 @@ export function useBookingCalculator() {
       return {
         ...prev,
         addons: newAddons,
-        totalPrice: calculateTotal(),
       };
     });
-  }, [calculateTotal]);
-
-  // Update total whenever calculation changes using useEffect
-  const [eventHours, setEventHours] = useState(2);
+  }, []);
   
   const updateEventHours = useCallback((hours: number) => {
     const newHours = Math.max(packages.event.minimumHours, hours);
@@ -157,10 +210,9 @@ export function useBookingCalculator() {
       setCalculation(prev => ({
         ...prev,
         basePrice: newBasePrice,
-        totalPrice: calculateTotal(),
       }));
     }
-  }, [calculation.serviceType, calculateTotal, packages.event]);
+  }, [calculation.serviceType]);
 
   return {
     calculation,
@@ -172,6 +224,5 @@ export function useBookingCalculator() {
     updateTransportation,
     updateEventHours,
     toggleAddon,
-    calculateTotal,
   };
 }
