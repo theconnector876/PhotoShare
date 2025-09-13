@@ -16,6 +16,7 @@ interface PackageCardProps {
   duration?: number;
   images?: number;
   locations?: number;
+  showImagePlus?: boolean;
 }
 
 export default function PackageCard({ 
@@ -27,7 +28,8 @@ export default function PackageCard({
   color,
   duration,
   images,
-  locations 
+  locations,
+  showImagePlus = false 
 }: PackageCardProps) {
   const colorClasses = {
     bronze: 'text-orange-600 hover:border-orange-600',
@@ -58,13 +60,13 @@ export default function PackageCard({
             {duration && (
               <div className="flex items-center" data-testid={`duration-${name.toLowerCase()}`}>
                 <i className={`fas fa-clock w-4 mr-2 ${colorClasses[color]}`}></i> 
-                {duration} minutes
+                {duration === 0 ? 'Full Day Coverage' : duration <= 24 ? `${duration} hours` : `${duration} minutes`}
               </div>
             )}
             {images && (
               <div className="flex items-center" data-testid={`images-${name.toLowerCase()}`}>
                 <i className={`fas fa-images w-4 mr-2 ${colorClasses[color]}`}></i> 
-                {images} retouched images
+                {images}{showImagePlus ? '+' : ''} retouched images
               </div>
             )}
             {locations && (

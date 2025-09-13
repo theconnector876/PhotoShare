@@ -219,7 +219,10 @@ export default function BookingCalculator() {
               <PackageCard
                 name="Bronze"
                 price={packages.wedding.photography.bronze}
+                duration={2}
+                images={200}
                 color="bronze"
+                showImagePlus={true}
                 features={[
                   { text: "Professional photographer", icon: "camera" },
                   { text: "Basic editing", icon: "edit" },
@@ -231,7 +234,10 @@ export default function BookingCalculator() {
               <PackageCard
                 name="Silver"
                 price={packages.wedding.photography.silver}
+                duration={4}
+                images={500}
                 color="silver"
+                showImagePlus={true}
                 features={[
                   { text: "Extended photography", icon: "camera" },
                   { text: "Enhanced editing", icon: "edit" },
@@ -244,7 +250,10 @@ export default function BookingCalculator() {
               <PackageCard
                 name="Gold"
                 price={packages.wedding.photography.gold}
+                duration={8}
+                images={800}
                 color="gold"
+                showImagePlus={true}
                 features={[
                   { text: "Full day coverage", icon: "camera" },
                   { text: "Professional editing", icon: "edit" },
@@ -258,13 +267,17 @@ export default function BookingCalculator() {
               <PackageCard
                 name="Platinum"
                 price={packages.wedding.photography.platinum}
+                duration={0}
+                images={1000}
                 color="platinum"
+                showImagePlus={true}
                 features={[
                   { text: "2 photographers", icon: "camera" },
-                  { text: "Luxury experience", icon: "star" },
-                  { text: "Same-day preview", icon: "preview" },
-                  { text: "Premium albums", icon: "book" },
-                  { text: "All inclusions", icon: "check" }
+                  { text: "Full day coverage", icon: "clock" },
+                  { text: "Canvas print (24x36)", icon: "image" },
+                  { text: "Photo book (8x10)", icon: "book" },
+                  { text: "Engagement shoot", icon: "heart" },
+                  { text: "Flash drive", icon: "storage" }
                 ]}
                 isSelected={calculation.packageType === 'platinum'}
                 onClick={() => updatePackage('platinum')}

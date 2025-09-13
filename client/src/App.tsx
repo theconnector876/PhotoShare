@@ -10,6 +10,7 @@ import Booking from "@/pages/booking";
 import About from "@/pages/about";
 import Contact from "@/pages/contact";
 import Gallery from "@/pages/gallery";
+import Terms from "@/pages/terms";
 import Navigation from "@/components/navigation";
 import ConstellationBackground from "@/components/constellation-background";
 
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/about" component={About} />
       <Route path="/contact" component={Contact} />
       <Route path="/gallery" component={Gallery} />
+      <Route path="/terms" component={Terms} />
       <Route component={NotFound} />
     </Switch>
   );

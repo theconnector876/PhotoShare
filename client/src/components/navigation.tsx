@@ -14,6 +14,7 @@ export default function Navigation() {
     { href: "/booking", label: "Book Now" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },
+    { href: "/terms", label: "Terms" },
   ];
 
   const NavLink = ({ href, label, mobile = false }: { href: string; label: string; mobile?: boolean }) => {
