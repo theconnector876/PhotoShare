@@ -10,10 +10,8 @@ import { ArrowLeft, CreditCard } from "lucide-react";
 
 // Make sure to call `loadStripe` outside of a component's render to avoid
 // recreating the `Stripe` object on every render.
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
-}
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
 
 const PaymentForm = ({ bookingId, amount, onSuccess }: { bookingId: string; amount: number; onSuccess: () => void }) => {
   const stripe = useStripe();
@@ -94,6 +92,26 @@ export default function Payment() {
   const urlParams = new URLSearchParams(location.split('?')[1] || '');
   const bookingId = urlParams.get('booking');
   const paymentType = urlParams.get('type') || 'deposit'; // 'deposit' or 'balance'
+
+  // Check for Stripe configuration early
+  if (!stripePublicKey) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8 text-center">
+            <h2 className="text-xl font-semibold mb-4">Payment Setup Required</h2>
+            <p className="text-muted-foreground mb-4">
+              Payment processing is not configured yet. Please contact us to complete your booking.
+            </p>
+            <Button onClick={() => navigate('/')} className="mt-4">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Go Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (!bookingId) {
@@ -257,19 +275,25 @@ export default function Payment() {
             </div>
 
             {/* Payment Form */}
-            <Elements stripe={stripePromise} options={{ clientSecret }}>
-              <PaymentForm 
-                bookingId={booking.id}
-                amount={amount}
-                onSuccess={() => {
-                  toast({
-                    title: "Payment Successful",
-                    description: `Your ${paymentType} payment has been processed successfully!`,
-                  });
-                  navigate('/dashboard');
-                }}
-              />
-            </Elements>
+            {stripePromise ? (
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <PaymentForm 
+                  bookingId={booking.id}
+                  amount={amount}
+                  onSuccess={() => {
+                    toast({
+                      title: "Payment Successful",
+                      description: `Your ${paymentType} payment has been processed successfully!`,
+                    });
+                    navigate('/dashboard');
+                  }}
+                />
+              </Elements>
+            ) : (
+              <div className="text-center p-4 border-2 border-destructive rounded-lg">
+                <p className="text-destructive">Payment processing is not available. Please contact us directly.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
