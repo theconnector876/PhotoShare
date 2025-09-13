@@ -39,6 +39,7 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       secure: true,
+      sameSite: "lax", // CSRF protection
       maxAge: sessionTtl,
     },
   });
@@ -57,13 +58,22 @@ function updateUserSession(
 async function upsertUser(
   claims: any,
 ) {
+  // Check if this is the first user and make them admin if so
+  const existingAdmins = await storage.getAdminCount();
+  const isFirstUser = existingAdmins === 0;
+  
   await storage.upsertUser({
     id: claims["sub"],
     email: claims["email"],
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
+    isAdmin: isFirstUser, // First user becomes admin automatically
   });
+  
+  if (isFirstUser) {
+    console.log(`First admin user created: ${claims["email"]}`);
+  }
 }
 
 export async function setupAuth(app: Express) {

@@ -1,10 +1,30 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
 import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema } from "@shared/schema";
 import { z } from "zod";
 
+// Admin-specific validation schemas
+const statusUpdateSchema = z.object({
+  status: z.enum(["pending", "confirmed", "completed", "cancelled"])
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
   // Booking routes
   app.post("/api/bookings", async (req, res) => {
     try {
@@ -28,39 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/bookings", async (req, res) => {
-    try {
-      const bookings = await storage.getAllBookings();
-      res.json(bookings);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch bookings" });
-    }
-  });
-
-  app.get("/api/bookings/:id", async (req, res) => {
-    try {
-      const booking = await storage.getBooking(req.params.id);
-      if (!booking) {
-        return res.status(404).json({ error: "Booking not found" });
-      }
-      res.json(booking);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch booking" });
-    }
-  });
-
-  app.patch("/api/bookings/:id/status", async (req, res) => {
-    try {
-      const { status } = req.body;
-      const booking = await storage.updateBookingStatus(req.params.id, status);
-      if (!booking) {
-        return res.status(404).json({ error: "Booking not found" });
-      }
-      res.json(booking);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update booking status" });
-    }
-  });
+  // Removed public booking endpoints - these are now admin-only for security
 
   // Gallery routes
   app.post("/api/gallery/access", async (req, res) => {
@@ -149,6 +137,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     };
 
     res.json({ packages, addons, transportationFees });
+  });
+
+  // Admin endpoints
+  app.get('/api/admin/bookings', isAdmin, async (req, res) => {
+    try {
+      const bookings = await storage.getAllBookings();
+      res.json(bookings);
+    } catch (error) {
+      console.error('Error fetching admin bookings:', error);
+      res.status(500).json({ error: 'Failed to fetch bookings' });
+    }
+  });
+
+  app.patch('/api/admin/bookings/:id/status', isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = statusUpdateSchema.parse(req.body);
+      const booking = await storage.updateBookingStatus(id, validatedData.status);
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+      res.json(booking);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid status value', details: error.errors });
+      }
+      console.error('Error updating booking status:', error);
+      res.status(500).json({ error: 'Failed to update booking status' });
+    }
+  });
+
+  app.get('/api/admin/galleries', isAdmin, async (req, res) => {
+    try {
+      const galleries = await storage.getAllGalleries();
+      res.json(galleries);
+    } catch (error) {
+      console.error('Error fetching admin galleries:', error);
+      res.status(500).json({ error: 'Failed to fetch galleries' });
+    }
+  });
+
+  app.get('/api/admin/contacts', isAdmin, async (req, res) => {
+    try {
+      const messages = await storage.getAllContactMessages();
+      res.json(messages);
+    } catch (error) {
+      console.error('Error fetching admin contacts:', error);
+      res.status(500).json({ error: 'Failed to fetch contact messages' });
+    }
+  });
+
+  app.post('/api/admin/make-admin/:userId', isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.makeUserAdmin(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error('Error making user admin:', error);
+      res.status(500).json({ error: 'Failed to make user admin' });
+    }
   });
 
   const httpServer = createServer(app);
