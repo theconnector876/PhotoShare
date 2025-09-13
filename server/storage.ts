@@ -14,6 +14,9 @@ export interface IStorage {
   getGalleryById(id: string): Promise<Gallery | undefined>;
   getUserBookings(userEmail: string): Promise<Booking[]>;
   getUserGalleries(userEmail: string): Promise<Gallery[]>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  updateBookingStripeIntentId(bookingId: string, intentId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
+  updateBookingPaymentStatus(bookingId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
   
   // Booking operations
   createBooking(booking: InsertBooking): Promise<Booking>;
@@ -179,6 +182,39 @@ export class DatabaseStorage implements IStorage {
       .where(sql`${galleries.bookingId} IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`);
     
     return userGalleries;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async updateBookingStripeIntentId(bookingId: string, intentId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined> {
+    const updateData = type === 'deposit' 
+      ? { stripeDepositIntentId: intentId }
+      : { stripeBalanceIntentId: intentId };
+    
+    const [updatedBooking] = await db
+      .update(bookings)
+      .set(updateData)
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    
+    return updatedBooking;
+  }
+
+  async updateBookingPaymentStatus(bookingId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined> {
+    const updateData = type === 'deposit' 
+      ? { depositPaid: true }
+      : { balancePaid: true };
+    
+    const [updatedBooking] = await db
+      .update(bookings)
+      .set(updateData)
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    
+    return updatedBooking;
   }
 }
 

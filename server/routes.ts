@@ -4,6 +4,14 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
 import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema } from "@shared/schema";
 import { z } from "zod";
+import Stripe from "stripe";
+
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2023-10-16",
+});
 
 // Admin-specific validation schemas
 const statusUpdateSchema = z.object({
@@ -267,6 +275,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching user galleries:', error);
       res.status(500).json({ error: 'Failed to fetch user galleries' });
     }
+  });
+
+  // Stripe payment routes
+  app.post("/api/create-payment-intent", async (req, res) => {
+    try {
+      const { bookingId, paymentType } = req.body;
+      
+      if (!bookingId || !paymentType || !['deposit', 'balance'].includes(paymentType)) {
+        return res.status(400).json({ error: 'Missing or invalid payment data' });
+      }
+
+      // Fetch booking to get server-side amount and validate payment state
+      const booking = await storage.getBooking(bookingId);
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+
+      let amount: number;
+      if (paymentType === 'deposit') {
+        if (booking.depositPaid) {
+          return res.status(400).json({ error: 'Deposit already paid' });
+        }
+        amount = booking.depositAmount;
+      } else {
+        if (!booking.depositPaid) {
+          return res.status(400).json({ error: 'Deposit must be paid first' });
+        }
+        if (booking.balancePaid) {
+          return res.status(400).json({ error: 'Balance already paid' });
+        }
+        amount = booking.balanceDue;
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount), // Amount already in cents
+        currency: "usd",
+        metadata: {
+          bookingId,
+          paymentType,
+        },
+      });
+
+      // Store PaymentIntent ID on booking
+      if (paymentType === 'deposit') {
+        await storage.updateBookingStripeIntentId(bookingId, paymentIntent.id, 'deposit');
+      } else {
+        await storage.updateBookingStripeIntentId(bookingId, paymentIntent.id, 'balance');
+      }
+
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error: any) {
+      console.error('Error creating payment intent:', error);
+      res.status(500).json({ error: "Error creating payment intent: " + error.message });
+    }
+  });
+
+  app.get("/api/bookings/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.claims?.email || (req as any).user?.email;
+      const booking = await storage.getBooking(req.params.id);
+      
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      // Check if user owns this booking or is admin
+      const user = await storage.getUserByEmail(userEmail);
+      if (booking.email !== userEmail && !user?.isAdmin) {
+        return res.status(403).json({ error: "Unauthorized access to booking" });
+      }
+
+      res.json(booking);
+    } catch (error) {
+      console.error('Error fetching booking:', error);
+      res.status(500).json({ error: "Failed to fetch booking" });
+    }
+  });
+
+  // Stripe webhook to handle payment success
+  app.post('/api/stripe/webhook', async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig as string, process.env.STRIPE_WEBHOOK_SECRET || '');
+    } catch (err: any) {
+      console.log(`Webhook signature verification failed.`, err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Handle the event
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object;
+        const { bookingId, paymentType } = paymentIntent.metadata;
+        
+        if (bookingId && paymentType) {
+          await storage.updateBookingPaymentStatus(bookingId, paymentType as 'deposit' | 'balance');
+          console.log(`Payment ${paymentType} successful for booking ${bookingId}`);
+        }
+        break;
+      }
+      case 'payment_intent.payment_failed': {
+        const paymentIntent = event.data.object;
+        console.log(`Payment failed for booking ${paymentIntent.metadata.bookingId}`);
+        break;
+      }
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
+
+    res.json({ received: true });
   });
 
   // Secure admin gallery routes

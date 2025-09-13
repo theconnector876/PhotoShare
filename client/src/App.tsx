@@ -13,6 +13,7 @@ import Gallery from "@/pages/gallery";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import { AdminDashboard } from "@/pages/admin-dashboard";
+import Payment from "@/pages/payment";
 import Navigation from "@/components/navigation";
 import ConstellationBackground from "@/components/constellation-background";
 
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/admin" component={AdminDashboard} />
+      <Route path="/payment" component={Payment} />
       <Route component={NotFound} />
     </Switch>
   );

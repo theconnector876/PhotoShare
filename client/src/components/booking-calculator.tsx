@@ -58,6 +58,9 @@ export default function BookingCalculator() {
 
   const createBookingMutation = useMutation({
     mutationFn: async (data: BookingFormData) => {
+      const depositAmount = Math.round(calculation.totalPrice * 0.5);
+      const balanceDue = calculation.totalPrice - depositAmount;
+      
       const bookingData = {
         ...data,
         serviceType: calculation.serviceType,
@@ -65,17 +68,20 @@ export default function BookingCalculator() {
         transportationFee: calculation.transportationFee,
         addons: calculation.addons,
         totalPrice: calculation.totalPrice,
+        depositAmount,
+        balanceDue,
       };
       
       return apiRequest('POST', '/api/bookings', bookingData);
     },
-    onSuccess: () => {
+    onSuccess: async (response) => {
+      const result = await response.json();
       toast({
         title: "Booking Confirmed!",
-        description: "We'll contact you soon to confirm the details. Check your email for booking information.",
+        description: "Redirecting to payment...",
       });
-      form.reset();
-      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      // Redirect to payment page with booking ID
+      window.location.href = `/payment?booking=${result.booking.id}&type=deposit`;
     },
     onError: () => {
       toast({
