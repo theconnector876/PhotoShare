@@ -736,7 +736,7 @@ export default function BookingCalculator() {
                             <h4 className="font-semibold">Delivery Schedule</h4>
                           </div>
                           <p className="text-muted-foreground text-xs">
-                            Final packages delivered 2-4 weeks after your event.
+                            Portrait sessions & events: 5-7 business days. Weddings: 2-4 weeks.
                           </p>
                         </div>
 
@@ -789,7 +789,7 @@ export default function BookingCalculator() {
                         <div>
                           <h5 className="font-semibold text-primary mb-1">5. Delivery Timeline</h5>
                           <p className="text-muted-foreground text-xs">
-                            Final delivery of edited photos/videos will be provided within 2-4 weeks following the event. 
+                            Final delivery timeline: Portrait sessions and events - 5-7 business days. Weddings - 2-4 weeks following the event. 
                             Platinum package clients receive same-day preview images.
                           </p>
                         </div>
