@@ -1,7 +1,8 @@
 import { 
-  users, bookings, galleries, contactMessages,
+  users, bookings, galleries, contactMessages, catalogues, reviews,
   type User, type UpsertUser, type Booking, type InsertBooking, 
-  type Gallery, type InsertGallery, type ContactMessage, type InsertContactMessage 
+  type Gallery, type InsertGallery, type ContactMessage, type InsertContactMessage,
+  type Catalogue, type InsertCatalogue, type Review, type InsertReview
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
@@ -33,6 +34,24 @@ export interface IStorage {
   // Contact operations
   createContactMessage(message: InsertContactMessage): Promise<ContactMessage>;
   getAllContactMessages(): Promise<ContactMessage[]>;
+  
+  // Catalogue operations
+  createCatalogue(catalogue: InsertCatalogue): Promise<Catalogue>;
+  getCatalogue(id: string): Promise<Catalogue | undefined>;
+  getAllCatalogues(): Promise<Catalogue[]>;
+  getPublishedCatalogues(): Promise<Catalogue[]>;
+  getCataloguesByServiceType(serviceType: string): Promise<Catalogue[]>;
+  publishCatalogue(id: string): Promise<Catalogue | undefined>;
+  unpublishCatalogue(id: string): Promise<Catalogue | undefined>;
+  
+  // Review operations
+  createReview(review: InsertReview): Promise<Review>;
+  getReview(id: string): Promise<Review | undefined>;
+  getApprovedReviews(): Promise<Review[]>;
+  getApprovedReviewsByCatalogue(catalogueId: string): Promise<Review[]>;
+  getGeneralReviews(): Promise<Review[]>;
+  approveReview(id: string): Promise<Review | undefined>;
+  getAllReviews(): Promise<Review[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -215,6 +234,114 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return updatedBooking;
+  }
+
+  // Catalogue operations
+  async createCatalogue(insertCatalogue: InsertCatalogue): Promise<Catalogue> {
+    const [catalogue] = await db
+      .insert(catalogues)
+      .values(insertCatalogue)
+      .returning();
+    return catalogue;
+  }
+
+  async getCatalogue(id: string): Promise<Catalogue | undefined> {
+    const [catalogue] = await db.select().from(catalogues).where(eq(catalogues.id, id));
+    return catalogue;
+  }
+
+  async getAllCatalogues(): Promise<Catalogue[]> {
+    return await db.select().from(catalogues).orderBy(catalogues.createdAt);
+  }
+
+  async getPublishedCatalogues(): Promise<Catalogue[]> {
+    return await db.select().from(catalogues)
+      .where(eq(catalogues.isPublished, true))
+      .orderBy(catalogues.publishedAt);
+  }
+
+  async getCataloguesByServiceType(serviceType: string): Promise<Catalogue[]> {
+    return await db.select().from(catalogues)
+      .where(and(
+        eq(catalogues.serviceType, serviceType),
+        eq(catalogues.isPublished, true)
+      ))
+      .orderBy(catalogues.publishedAt);
+  }
+
+  async publishCatalogue(id: string): Promise<Catalogue | undefined> {
+    const [catalogue] = await db
+      .update(catalogues)
+      .set({ 
+        isPublished: true,
+        publishedAt: new Date()
+      })
+      .where(eq(catalogues.id, id))
+      .returning();
+    return catalogue;
+  }
+
+  async unpublishCatalogue(id: string): Promise<Catalogue | undefined> {
+    const [catalogue] = await db
+      .update(catalogues)
+      .set({ 
+        isPublished: false,
+        publishedAt: null
+      })
+      .where(eq(catalogues.id, id))
+      .returning();
+    return catalogue;
+  }
+
+  // Review operations
+  async createReview(insertReview: InsertReview): Promise<Review> {
+    const [review] = await db
+      .insert(reviews)
+      .values(insertReview)
+      .returning();
+    return review;
+  }
+
+  async getReview(id: string): Promise<Review | undefined> {
+    const [review] = await db.select().from(reviews).where(eq(reviews.id, id));
+    return review;
+  }
+
+  async getApprovedReviews(): Promise<Review[]> {
+    return await db.select().from(reviews)
+      .where(eq(reviews.isApproved, true))
+      .orderBy(reviews.createdAt);
+  }
+
+  async getApprovedReviewsByCatalogue(catalogueId: string): Promise<Review[]> {
+    return await db.select().from(reviews)
+      .where(and(
+        eq(reviews.catalogueId, catalogueId),
+        eq(reviews.isApproved, true)
+      ))
+      .orderBy(reviews.createdAt);
+  }
+
+  async getGeneralReviews(): Promise<Review[]> {
+    return await db.select().from(reviews)
+      .where(and(
+        eq(reviews.reviewType, 'general'),
+        eq(reviews.isApproved, true)
+      ))
+      .orderBy(reviews.createdAt);
+  }
+
+  async approveReview(id: string): Promise<Review | undefined> {
+    const [review] = await db
+      .update(reviews)
+      .set({ isApproved: true })
+      .where(eq(reviews.id, id))
+      .returning();
+    return review;
+  }
+
+  async getAllReviews(): Promise<Review[]> {
+    return await db.select().from(reviews).orderBy(reviews.createdAt);
   }
 }
 
