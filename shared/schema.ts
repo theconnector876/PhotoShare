@@ -76,6 +76,31 @@ export const contactMessages = pgTable("contact_messages", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const catalogues = pgTable("catalogues", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").references(() => bookings.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  serviceType: text("service_type").notNull(), // photoshoot, wedding, event
+  coverImage: text("cover_image").notNull(), // main display image for portfolio
+  images: text("images").array().default([]), // all images in the catalogue
+  isPublished: boolean("is_published").notNull().default(false), // admin control
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const reviews = pgTable("reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  catalogueId: varchar("catalogue_id").references(() => catalogues.id), // null for general reviews
+  clientName: text("client_name").notNull(),
+  clientEmail: text("client_email").notNull(),
+  rating: integer("rating").notNull(), // 1-5 stars
+  reviewText: text("review_text").notNull(),
+  reviewType: text("review_type").notNull().default("general"), // "catalogue" or "general"
+  isApproved: boolean("is_approved").notNull().default(false), // admin approval for display
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,
   createdAt: true,
@@ -92,6 +117,17 @@ export const insertContactMessageSchema = createInsertSchema(contactMessages).om
   id: true,
   createdAt: true,
   status: true,
+});
+
+export const insertCatalogueSchema = createInsertSchema(catalogues).omit({
+  id: true,
+  createdAt: true,
+  publishedAt: true,
+});
+
+export const insertReviewSchema = createInsertSchema(reviews).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -116,3 +152,9 @@ export type InsertGallery = z.infer<typeof insertGallerySchema>;
 
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
+
+export type Catalogue = typeof catalogues.$inferSelect;
+export type InsertCatalogue = z.infer<typeof insertCatalogueSchema>;
+
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = z.infer<typeof insertReviewSchema>;
