@@ -13,11 +13,13 @@ import {
   UsersIcon,
   CheckCircleIcon,
   ClockIcon,
-  XCircleIcon
+  XCircleIcon,
+  FolderIcon
 } from "lucide-react";
 import { AdminBookings } from "@/components/admin-bookings";
 import { AdminGalleries } from "@/components/admin-galleries";
 import { AdminContacts } from "@/components/admin-contacts";
+import { AdminCatalogues } from "@/components/admin-catalogues";
 
 export function AdminDashboard() {
   const { toast } = useToast();
@@ -69,6 +71,11 @@ export function AdminDashboard() {
     enabled: isAdmin,
   });
 
+  const { data: catalogues } = useQuery<any[]>({
+    queryKey: ["/api/admin/catalogues"],
+    enabled: isAdmin,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
@@ -88,6 +95,8 @@ export function AdminDashboard() {
   const confirmedBookings = bookings?.filter((b: any) => b.status === 'confirmed').length || 0;
   const pendingGalleries = galleries?.filter((g: any) => g.status === 'pending').length || 0;
   const unreadContacts = contacts?.filter((c: any) => c.status === 'unread').length || 0;
+  const publishedCatalogues = catalogues?.filter((c: any) => c.isPublished).length || 0;
+  const draftCatalogues = catalogues?.filter((c: any) => !c.isPublished).length || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 p-4">
@@ -119,7 +128,7 @@ export function AdminDashboard() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
@@ -179,11 +188,26 @@ export function AdminDashboard() {
               </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Published Catalogues</CardTitle>
+              <FolderIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600" data-testid="stat-published-catalogues">
+                {publishedCatalogues}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Live on portfolio
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="bookings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="bookings" data-testid="tab-bookings">
               <CalendarIcon className="w-4 h-4 mr-2" />
               Bookings
@@ -211,6 +235,15 @@ export function AdminDashboard() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="catalogues" data-testid="tab-catalogues">
+              <FolderIcon className="w-4 h-4 mr-2" />
+              Catalogues
+              {draftCatalogues > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {draftCatalogues}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings">
@@ -223,6 +256,10 @@ export function AdminDashboard() {
 
           <TabsContent value="contacts">
             <AdminContacts />
+          </TabsContent>
+
+          <TabsContent value="catalogues">
+            <AdminCatalogues />
           </TabsContent>
         </Tabs>
       </div>
