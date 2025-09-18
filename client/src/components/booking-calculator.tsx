@@ -35,7 +35,7 @@ const bookingFormSchema = z.object({
 type BookingFormData = z.infer<typeof bookingFormSchema>;
 
 export default function BookingCalculator() {
-  const { calculation, packages, eventHours, updateService, updatePackage, updatePeople, updateTransportation, updateEventHours, toggleAddon } = useBookingCalculator();
+  const { calculation, packages, eventHours, updateService, updatePackage, updatePeople, updateTransportation, updateEventHours, toggleAddon, toggleVideoPackage, updateVideoPackage } = useBookingCalculator();
   const { toast } = useToast();
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
@@ -65,6 +65,9 @@ export default function BookingCalculator() {
         ...data,
         serviceType: calculation.serviceType,
         packageType: calculation.packageType,
+        hasPhotoPackage: calculation.hasPhotoPackage,
+        hasVideoPackage: calculation.hasVideoPackage,
+        videoPackageType: calculation.videoPackageType,
         transportationFee: calculation.transportationFee,
         addons: calculation.addons,
         totalPrice: calculation.totalPrice,
@@ -191,14 +194,14 @@ export default function BookingCalculator() {
         {/* Package Selection */}
         {calculation.serviceType === 'photoshoot' && (
           <div className="mb-12">
-            <h3 className="text-2xl font-bold mb-6 text-center">Photoshoot Packages</h3>
+            <h3 className="text-2xl font-bold mb-6 text-center">Photography Packages</h3>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <PackageCard
                 name="Bronze"
-                price={150}
-                duration={45}
-                images={6}
-                locations={1}
+                price={packages.photoshoot.photography.bronze.price}
+                duration={packages.photoshoot.photography.bronze.duration}
+                images={packages.photoshoot.photography.bronze.images}
+                locations={packages.photoshoot.photography.bronze.locations}
                 color="bronze"
                 features={[]}
                 isSelected={calculation.packageType === 'bronze'}
@@ -206,10 +209,10 @@ export default function BookingCalculator() {
               />
               <PackageCard
                 name="Silver"
-                price={200}
-                duration={60}
-                images={10}
-                locations={1}
+                price={packages.photoshoot.photography.silver.price}
+                duration={packages.photoshoot.photography.silver.duration}
+                images={packages.photoshoot.photography.silver.images}
+                locations={packages.photoshoot.photography.silver.locations}
                 color="silver"
                 features={[]}
                 isSelected={calculation.packageType === 'silver'}
@@ -217,10 +220,10 @@ export default function BookingCalculator() {
               />
               <PackageCard
                 name="Gold"
-                price={300}
-                duration={120}
-                images={15}
-                locations={1}
+                price={packages.photoshoot.photography.gold.price}
+                duration={packages.photoshoot.photography.gold.duration}
+                images={packages.photoshoot.photography.gold.images}
+                locations={packages.photoshoot.photography.gold.locations}
                 color="gold"
                 features={[]}
                 isSelected={calculation.packageType === 'gold'}
@@ -228,15 +231,55 @@ export default function BookingCalculator() {
               />
               <PackageCard
                 name="Platinum"
-                price={500}
-                duration={150}
-                images={25}
-                locations={2}
+                price={packages.photoshoot.photography.platinum.price}
+                duration={packages.photoshoot.photography.platinum.duration}
+                images={packages.photoshoot.photography.platinum.images}
+                locations={packages.photoshoot.photography.platinum.locations}
                 color="platinum"
                 features={[]}
                 isSelected={calculation.packageType === 'platinum'}
                 onClick={() => updatePackage('platinum')}
               />
+            </div>
+            
+            {/* Video Package Add-on for Photoshoot */}
+            <div className="mt-8">
+              <Card className="p-6 hover-3d">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-semibold">Add Videography Package</h4>
+                  <Button
+                    variant={calculation.hasVideoPackage ? "default" : "outline"}
+                    onClick={toggleVideoPackage}
+                    className="magnetic-btn"
+                    data-testid="toggle-video-package"
+                  >
+                    {calculation.hasVideoPackage ? "✓ Video Added" : "Add Video"}
+                  </Button>
+                </div>
+                
+                {calculation.hasVideoPackage && (
+                  <div className="grid md:grid-cols-4 gap-4">
+                    {Object.entries(packages.photoshoot.videography).map(([tier, price]) => (
+                      <div 
+                        key={tier}
+                        className={`p-4 border rounded-lg cursor-pointer transition-all duration-300 hover:border-primary ${
+                          calculation.videoPackageType === tier 
+                            ? 'border-primary bg-primary/10' 
+                            : 'border-border'
+                        }`}
+                        onClick={() => updateVideoPackage(tier)}
+                        data-testid={`video-package-${tier}`}
+                      >
+                        <div className="text-center">
+                          <h5 className="font-semibold text-sm mb-1 capitalize">{tier}</h5>
+                          <p className="text-2xl font-bold text-primary">${price}</p>
+                          <p className="text-xs text-muted-foreground">Video Package</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
             </div>
           </div>
         )}
@@ -318,29 +361,43 @@ export default function BookingCalculator() {
               />
             </div>
             
-            {/* Videography Add-on for Wedding */}
+            {/* Video Package Add-on for Wedding */}
             <div className="mt-8">
               <Card className="p-6 hover-3d">
-                <h4 className="text-lg font-semibold mb-4">Add Videography</h4>
-                <div className="grid md:grid-cols-4 gap-4">
-                  {Object.entries(packages.wedding.videography).map(([tier, price]) => (
-                    <div 
-                      key={tier}
-                      className={`p-4 border rounded-lg cursor-pointer transition-all duration-300 hover:border-primary ${
-                        calculation.addons.includes(`videography-${tier}`) 
-                          ? 'border-primary bg-primary/10' 
-                          : 'border-border'
-                      }`}
-                      onClick={() => toggleAddon(`videography-${tier}`)}
-                    >
-                      <div className="text-center">
-                        <h5 className="font-semibold text-sm mb-1 capitalize">{tier}</h5>
-                        <p className="text-2xl font-bold text-primary">${price}</p>
-                        <p className="text-xs text-muted-foreground">Video Package</p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-semibold">Add Videography Package</h4>
+                  <Button
+                    variant={calculation.hasVideoPackage ? "default" : "outline"}
+                    onClick={toggleVideoPackage}
+                    className="magnetic-btn"
+                    data-testid="toggle-video-package"
+                  >
+                    {calculation.hasVideoPackage ? "✓ Video Added" : "Add Video"}
+                  </Button>
                 </div>
+                
+                {calculation.hasVideoPackage && (
+                  <div className="grid md:grid-cols-4 gap-4">
+                    {Object.entries(packages.wedding.videography).map(([tier, price]) => (
+                      <div 
+                        key={tier}
+                        className={`p-4 border rounded-lg cursor-pointer transition-all duration-300 hover:border-primary ${
+                          calculation.videoPackageType === tier 
+                            ? 'border-primary bg-primary/10' 
+                            : 'border-border'
+                        }`}
+                        onClick={() => updateVideoPackage(tier)}
+                        data-testid={`video-package-${tier}`}
+                      >
+                        <div className="text-center">
+                          <h5 className="font-semibold text-sm mb-1 capitalize">{tier}</h5>
+                          <p className="text-2xl font-bold text-primary">${price}</p>
+                          <p className="text-xs text-muted-foreground">Video Package</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Card>
             </div>
           </div>
@@ -357,12 +414,12 @@ export default function BookingCalculator() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <Label>Duration: {eventHours} hours</Label>
-                      <span className="text-lg font-semibold">${packages.event.baseRate}/hour</span>
+                      <span className="text-lg font-semibold">${packages.event.photography.baseRate}/hour</span>
                     </div>
                     <div className="space-y-2">
                       <input
                         type="range"
-                        min={packages.event.minimumHours}
+                        min={packages.event.photography.minimumHours}
                         max="12"
                         value={eventHours}
                         onChange={(e) => updateEventHours(parseInt(e.target.value))}
@@ -370,12 +427,12 @@ export default function BookingCalculator() {
                         data-testid="slider-event-hours"
                       />
                       <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>{packages.event.minimumHours}h</span>
+                        <span>{packages.event.photography.minimumHours}h</span>
                         <span>12h</span>
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Minimum {packages.event.minimumHours} hours required. Additional hours at ${packages.event.baseRate}/hour.
+                      Minimum {packages.event.photography.minimumHours} hours required. Additional hours at ${packages.event.photography.baseRate}/hour.
                     </p>
                   </div>
                 </div>
@@ -385,18 +442,44 @@ export default function BookingCalculator() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span>Photography ({eventHours} hours)</span>
-                      <span>${packages.event.baseRate * eventHours}</span>
+                      <span>${packages.event.photography.baseRate * eventHours}</span>
                     </div>
+                    {calculation.hasVideoPackage && (
+                      <div className="flex justify-between">
+                        <span>Videography ({eventHours} hours)</span>
+                        <span>${packages.event.videography.baseRate * eventHours}</span>
+                      </div>
+                    )}
                     <div className="border-t pt-3">
                       <div className="flex justify-between font-semibold">
-                        <span>Base Price</span>
-                        <span>${packages.event.baseRate * eventHours}</span>
+                        <span>Total Price</span>
+                        <span>${(packages.event.photography.baseRate * eventHours) + (calculation.hasVideoPackage ? packages.event.videography.baseRate * eventHours : 0)}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </Card>
+            
+            {/* Video Package Add-on for Events */}
+            <div className="mt-8">
+              <Card className="p-6 hover-3d">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-lg font-semibold">Add Event Videography</h4>
+                    <p className="text-sm text-muted-foreground">Professional video coverage at ${packages.event.videography.baseRate}/hour</p>
+                  </div>
+                  <Button
+                    variant={calculation.hasVideoPackage ? "default" : "outline"}
+                    onClick={toggleVideoPackage}
+                    className="magnetic-btn"
+                    data-testid="toggle-video-package"
+                  >
+                    {calculation.hasVideoPackage ? "✓ Video Added" : "Add Video"}
+                  </Button>
+                </div>
+              </Card>
+            </div>
           </div>
         )}
 

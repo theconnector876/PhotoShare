@@ -33,6 +33,9 @@ export const bookings = pgTable("bookings", {
   contactNumber: text("contact_number").notNull(),
   serviceType: text("service_type").notNull(), // photoshoot, wedding, event
   packageType: text("package_type").notNull(), // bronze, silver, gold, platinum
+  hasPhotoPackage: boolean("has_photo_package").notNull().default(true),
+  hasVideoPackage: boolean("has_video_package").notNull().default(false),
+  videoPackageType: text("video_package_type"), // bronze, silver, gold, platinum (null if no video)
   numberOfPeople: integer("number_of_people").notNull().default(1),
   shootDate: text("shoot_date").notNull(),
   shootTime: text("shoot_time").notNull(),
