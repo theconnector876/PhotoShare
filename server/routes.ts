@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
-import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema } from "@shared/schema";
+import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema } from "@shared/schema";
 import { z } from "zod";
 import Stripe from "stripe";
 
@@ -15,6 +15,48 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const statusUpdateSchema = z.object({
   status: z.enum(["pending", "confirmed", "completed", "cancelled"])
 });
+
+// Catalogue validation schemas
+const catalogueSchema = insertCatalogueSchema;
+
+// Review validation schemas
+const reviewSchema = insertReviewSchema.extend({
+  rating: z.number().min(1).max(5),
+  reviewType: z.enum(["catalogue", "general"]),
+  catalogueId: z.string().optional()
+}).refine((data) => {
+  // If reviewType is "catalogue", catalogueId must be provided
+  if (data.reviewType === "catalogue" && !data.catalogueId) {
+    return false;
+  }
+  return true;
+}, {
+  message: "catalogueId is required when reviewType is 'catalogue'"
+});
+
+// Safe DTOs for public responses
+const createSafeCatalogueDTO = (catalogue: any) => ({
+  id: catalogue.id,
+  title: catalogue.title,
+  description: catalogue.description,
+  serviceType: catalogue.serviceType,
+  coverImage: catalogue.coverImage,
+  images: catalogue.images,
+  createdAt: catalogue.createdAt,
+  publishedAt: catalogue.publishedAt
+});
+
+const createSafeReviewDTO = (review: any) => ({
+  id: review.id,
+  clientName: review.clientName,
+  rating: review.rating,
+  reviewText: review.reviewText,
+  reviewType: review.reviewType,
+  createdAt: review.createdAt
+});
+
+// Email normalization utility
+const normalizeEmail = (email: string) => email.toLowerCase().trim();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
@@ -436,6 +478,199 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid request data', details: error.errors });
       }
       res.status(500).json({ error: "Failed to update gallery images" });
+    }
+  });
+
+  // ===== CATALOGUE ROUTES =====
+
+  // Public routes for published catalogues
+  app.get('/api/catalogues', async (req, res) => {
+    try {
+      const { serviceType } = req.query;
+      let catalogues;
+      
+      if (serviceType && typeof serviceType === 'string') {
+        catalogues = await storage.getCataloguesByServiceType(serviceType);
+      } else {
+        catalogues = await storage.getPublishedCatalogues();
+      }
+      
+      res.json(catalogues.map(createSafeCatalogueDTO));
+    } catch (error) {
+      console.error('Error fetching catalogues:', error);
+      res.status(500).json({ error: 'Failed to fetch catalogues' });
+    }
+  });
+
+  app.get('/api/catalogues/:id', async (req, res) => {
+    try {
+      const catalogue = await storage.getCatalogue(req.params.id);
+      if (!catalogue) {
+        return res.status(404).json({ error: 'Catalogue not found' });
+      }
+      
+      // Only return published catalogues for public access
+      if (!catalogue.isPublished) {
+        return res.status(404).json({ error: 'Catalogue not found' });
+      }
+      
+      res.json(createSafeCatalogueDTO(catalogue));
+    } catch (error) {
+      console.error('Error fetching catalogue:', error);
+      res.status(500).json({ error: 'Failed to fetch catalogue' });
+    }
+  });
+
+  // Admin routes for catalogue management
+  app.get('/api/admin/catalogues', isAdmin, async (req, res) => {
+    try {
+      const catalogues = await storage.getAllCatalogues();
+      res.json(catalogues);
+    } catch (error) {
+      console.error('Error fetching admin catalogues:', error);
+      res.status(500).json({ error: 'Failed to fetch catalogues' });
+    }
+  });
+
+  app.post('/api/admin/catalogues', isAdmin, async (req, res) => {
+    try {
+      const catalogueData = catalogueSchema.parse(req.body);
+      const catalogue = await storage.createCatalogue(catalogueData);
+      res.json(catalogue);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid catalogue data', details: error.errors });
+      }
+      console.error('Error creating catalogue:', error);
+      res.status(500).json({ error: 'Failed to create catalogue' });
+    }
+  });
+
+  app.patch('/api/admin/catalogues/:id/publish', isAdmin, async (req, res) => {
+    try {
+      const catalogue = await storage.publishCatalogue(req.params.id);
+      if (!catalogue) {
+        return res.status(404).json({ error: 'Catalogue not found' });
+      }
+      res.json(catalogue);
+    } catch (error) {
+      console.error('Error publishing catalogue:', error);
+      res.status(500).json({ error: 'Failed to publish catalogue' });
+    }
+  });
+
+  app.patch('/api/admin/catalogues/:id/unpublish', isAdmin, async (req, res) => {
+    try {
+      const catalogue = await storage.unpublishCatalogue(req.params.id);
+      if (!catalogue) {
+        return res.status(404).json({ error: 'Catalogue not found' });
+      }
+      res.json(catalogue);
+    } catch (error) {
+      console.error('Error unpublishing catalogue:', error);
+      res.status(500).json({ error: 'Failed to unpublish catalogue' });
+    }
+  });
+
+  // ===== REVIEW ROUTES =====
+
+  // Public routes for reviews
+  app.get('/api/reviews/general', async (req, res) => {
+    try {
+      const reviews = await storage.getGeneralReviews();
+      res.json(reviews.map(createSafeReviewDTO));
+    } catch (error) {
+      console.error('Error fetching general reviews:', error);
+      res.status(500).json({ error: 'Failed to fetch reviews' });
+    }
+  });
+
+  app.get('/api/reviews/catalogue/:catalogueId', async (req, res) => {
+    try {
+      // First verify the catalogue exists and is published
+      const catalogue = await storage.getCatalogue(req.params.catalogueId);
+      if (!catalogue || !catalogue.isPublished) {
+        return res.status(404).json({ error: 'Catalogue not found' });
+      }
+
+      const reviews = await storage.getApprovedReviewsByCatalogue(req.params.catalogueId);
+      res.json(reviews.map(createSafeReviewDTO));
+    } catch (error) {
+      console.error('Error fetching catalogue reviews:', error);
+      res.status(500).json({ error: 'Failed to fetch catalogue reviews' });
+    }
+  });
+
+  // Route for clients to submit reviews (requires authentication and authorization)
+  app.post('/api/reviews', isAuthenticated, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.claims?.email || (req as any).user?.email;
+      if (!userEmail) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      const reviewData = reviewSchema.parse({
+        ...req.body,
+        clientEmail: normalizeEmail(userEmail)
+      });
+
+      // For catalogue reviews, verify the user is authorized to review that catalogue
+      if (reviewData.reviewType === 'catalogue' && reviewData.catalogueId) {
+        const catalogue = await storage.getCatalogue(reviewData.catalogueId);
+        if (!catalogue) {
+          return res.status(404).json({ error: 'Catalogue not found' });
+        }
+
+        // Require catalogue to have a booking linkage for client authorization
+        if (!catalogue.bookingId) {
+          return res.status(403).json({ error: 'This catalogue is not available for client reviews' });
+        }
+
+        // Get the booking associated with this catalogue to verify client authorization
+        const booking = await storage.getBooking(catalogue.bookingId);
+        if (!booking || booking.email !== userEmail) {
+          return res.status(403).json({ error: 'You are not authorized to review this catalogue' });
+        }
+
+        // Check if user already reviewed this catalogue (any review, not just approved)
+        const existingReview = await storage.getReviewByCatalogueAndEmail(reviewData.catalogueId, normalizeEmail(userEmail));
+        if (existingReview) {
+          return res.status(400).json({ error: 'You have already reviewed this catalogue' });
+        }
+      }
+
+      const review = await storage.createReview(reviewData);
+      res.json(review);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid review data', details: error.errors });
+      }
+      console.error('Error creating review:', error);
+      res.status(500).json({ error: 'Failed to create review' });
+    }
+  });
+
+  // Admin routes for review management
+  app.get('/api/admin/reviews', isAdmin, async (req, res) => {
+    try {
+      const reviews = await storage.getAllReviews();
+      res.json(reviews);
+    } catch (error) {
+      console.error('Error fetching admin reviews:', error);
+      res.status(500).json({ error: 'Failed to fetch reviews' });
+    }
+  });
+
+  app.patch('/api/admin/reviews/:id/approve', isAdmin, async (req, res) => {
+    try {
+      const review = await storage.approveReview(req.params.id);
+      if (!review) {
+        return res.status(404).json({ error: 'Review not found' });
+      }
+      res.json(review);
+    } catch (error) {
+      console.error('Error approving review:', error);
+      res.status(500).json({ error: 'Failed to approve review' });
     }
   });
 

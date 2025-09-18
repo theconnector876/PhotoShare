@@ -52,6 +52,7 @@ export interface IStorage {
   getGeneralReviews(): Promise<Review[]>;
   approveReview(id: string): Promise<Review | undefined>;
   getAllReviews(): Promise<Review[]>;
+  getReviewByCatalogueAndEmail(catalogueId: string, email: string): Promise<Review | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -342,6 +343,15 @@ export class DatabaseStorage implements IStorage {
 
   async getAllReviews(): Promise<Review[]> {
     return await db.select().from(reviews).orderBy(reviews.createdAt);
+  }
+
+  async getReviewByCatalogueAndEmail(catalogueId: string, email: string): Promise<Review | undefined> {
+    const [review] = await db.select().from(reviews)
+      .where(and(
+        eq(reviews.catalogueId, catalogueId),
+        eq(reviews.clientEmail, email.toLowerCase().trim())
+      ));
+    return review;
   }
 }
 
