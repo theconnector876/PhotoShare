@@ -347,9 +347,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Booking not found' });
       }
 
-      // CRITICAL: Only allow payments for confirmed bookings
-      if (booking.status !== 'confirmed') {
-        return res.status(400).json({ error: 'Booking must be confirmed before payment can be processed' });
+      // CRITICAL: Only allow payments for confirmed or pending bookings
+      if (booking.status !== 'confirmed' && booking.status !== 'pending') {
+        return res.status(400).json({ error: 'Booking must be confirmed or pending to process payment' });
       }
 
       // Calculate amounts server-side to ensure integrity
@@ -373,48 +373,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create Lemon Squeezy checkout with custom pricing
-      const checkout = await createCheckout({
-        data: {
-          type: 'checkouts',
-          attributes: {
-            custom_price: Math.round(amount * 100), // Convert dollars to cents
-            checkout_options: {
-              button_color: '#10B981', // Jamaica green theme
-              embed: true // Enable overlay
-            },
-            checkout_data: {
-              custom: {
-                booking_id: bookingId,
-                payment_type: paymentType,
-                client_name: booking.clientName,
-                service_type: booking.serviceType
-              }
+      const checkout = await createCheckout(
+        process.env.LEMONSQUEEZY_STORE_ID!,
+        parseInt(process.env.LEMONSQUEEZY_VARIANT_ID!),
+        {
+          checkoutOptions: {
+            embed: true, // Enable overlay
+            media: false,
+            logo: true,
+            buttonColor: '#10B981' // Jamaica green theme
+          },
+          checkoutData: {
+            email: booking.email,
+            custom: {
+              booking_id: bookingId,
+              payment_type: paymentType,
+              client_name: booking.clientName,
+              service_type: booking.serviceType,
+              amount_override: Math.round(amount * 100) // Amount in cents for custom pricing
             }
           },
-          relationships: {
-            store: {
-              data: { type: 'stores', id: process.env.LEMONSQUEEZY_STORE_ID }
-            },
-            variant: {
-              data: { type: 'variants', id: process.env.LEMONSQUEEZY_VARIANT_ID }
-            }
+          productOptions: {
+            enabledVariants: [parseInt(process.env.LEMONSQUEEZY_VARIANT_ID!)],
+            redirectUrl: `${process.env.REPLIT_DOMAINS || 'http://localhost:5000'}/payment-success?booking=${bookingId}`,
+            receiptButtonText: 'View Booking',
+            receiptThankYouNote: 'Thank you for your booking with The Connector Photography!'
           }
         }
-      });
+      );
 
       if (checkout.error) {
         console.error('Lemon Squeezy checkout creation error:', checkout.error);
         return res.status(500).json({ error: 'Failed to create checkout' });
       }
 
-      // Store checkout ID on booking
-      if (paymentType === 'deposit') {
-        await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkout.data.id, 'deposit');
-      } else {
-        await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkout.data.id, 'balance');
+      const checkoutData = checkout.data?.data;
+      if (!checkoutData) {
+        return res.status(500).json({ error: 'Failed to create checkout - no data returned' });
       }
 
-      res.json({ checkoutUrl: checkout.data.attributes.url });
+      // Store checkout ID on booking
+      if (paymentType === 'deposit') {
+        await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkoutData.id, 'deposit');
+      } else {
+        await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkoutData.id, 'balance');
+      }
+
+      res.json({ checkoutUrl: checkoutData.attributes.url });
     } catch (error: any) {
       console.error('Error creating checkout:', error);
       res.status(500).json({ error: "Error creating checkout: " + error.message });
@@ -452,9 +457,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Booking not found" });
       }
 
-      // SECURITY: Only show payment info for confirmed bookings
-      if (booking.status !== 'confirmed') {
-        return res.status(403).json({ error: "Payment information only available for confirmed bookings" });
+      // SECURITY: Only show payment info for confirmed or pending bookings
+      if (booking.status !== 'confirmed' && booking.status !== 'pending') {
+        return res.status(403).json({ error: "Payment information only available for confirmed or pending bookings" });
       }
 
       // Return only payment-relevant fields for security with server-calculated amounts
