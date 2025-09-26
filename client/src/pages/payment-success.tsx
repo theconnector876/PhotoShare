@@ -90,7 +90,7 @@ export function PaymentSuccess() {
     );
   }
 
-  const formatPrice = (amount: number) => `$${(amount / 100).toFixed(2)}`;
+  const formatPrice = (amount: number) => `$${amount.toFixed(2)}`;
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",

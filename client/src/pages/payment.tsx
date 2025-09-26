@@ -1,5 +1,3 @@
-import { useStripe, Elements, PaymentElement, useElements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import { useEffect, useState } from 'react';
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -8,83 +6,68 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useLocation } from "wouter";
 import { ArrowLeft, CreditCard } from "lucide-react";
 
-// Make sure to call `loadStripe` outside of a component's render to avoid
-// recreating the `Stripe` object on every render.
-const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
-
-const PaymentForm = ({ bookingId, amount, onSuccess }: { bookingId: string; amount: number; onSuccess: () => void }) => {
-  const stripe = useStripe();
-  const elements = useElements();
+// Lemon Squeezy checkout button component
+const LemonSqueezyCheckout = ({ checkoutUrl, amount, paymentType, onError }: { 
+  checkoutUrl: string; 
+  amount: number; 
+  paymentType: string;
+  onError: (error: string) => void;
+}) => {
   const { toast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!stripe || !elements) {
-      return;
-    }
-
-    setIsProcessing(true);
-
+  const handleCheckout = () => {
     try {
-      const { error } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/payment-success?booking=${bookingId}`,
-        },
-      });
-
-      if (error) {
-        toast({
-          title: "Payment Failed",
-          description: error.message,
-          variant: "destructive",
-        });
+      setIsLoading(true);
+      
+      // Check if Lemon.js is available
+      if (typeof window !== 'undefined' && (window as any).LemonSqueezy) {
+        // Open Lemon Squeezy checkout overlay
+        (window as any).LemonSqueezy.Url.Open(checkoutUrl);
       } else {
-        onSuccess();
+        // Fallback: open in new tab
+        window.open(checkoutUrl, '_blank');
       }
-    } catch (err) {
+      
+      // Show success message
       toast({
-        title: "Payment Error",
-        description: "Something went wrong processing your payment",
-        variant: "destructive",
+        title: "Opening Payment",
+        description: "You will be redirected to complete your payment securely with Lemon Squeezy",
       });
+    } catch (error) {
+      console.error('Error opening checkout:', error);
+      onError('Failed to open payment checkout');
     } finally {
-      setIsProcessing(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <PaymentElement />
-      <Button 
-        type="submit" 
-        disabled={!stripe || isProcessing} 
-        className="w-full"
-        data-testid="button-submit-payment"
-      >
-        {isProcessing ? (
-          <>
-            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-            Processing...
-          </>
-        ) : (
-          <>
-            <CreditCard className="w-4 h-4 mr-2" />
-            Pay ${(amount / 100).toFixed(2)}
-          </>
-        )}
-      </Button>
-    </form>
+    <Button 
+      onClick={handleCheckout}
+      disabled={isLoading}
+      className="w-full"
+      data-testid="button-submit-payment"
+    >
+      {isLoading ? (
+        <>
+          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+          Opening Payment...
+        </>
+      ) : (
+        <>
+          <CreditCard className="w-4 h-4 mr-2" />
+          Pay ${amount.toFixed(2)}
+        </>
+      )}
+    </Button>
   );
 };
 
 export default function Payment() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
-  const [clientSecret, setClientSecret] = useState("");
+  const [checkoutUrl, setCheckoutUrl] = useState("");
   const [booking, setBooking] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -93,25 +76,25 @@ export default function Payment() {
   const bookingId = urlParams.get('booking');
   const paymentType = urlParams.get('type') || 'deposit'; // 'deposit' or 'balance'
 
-  // Check for Stripe configuration early
-  if (!stripePublicKey) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <h2 className="text-xl font-semibold mb-4">Payment Setup Required</h2>
-            <p className="text-muted-foreground mb-4">
-              Payment processing is not configured yet. Please contact us to complete your booking.
-            </p>
-            <Button onClick={() => navigate('/')} className="mt-4">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Go Home
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Load Lemon.js script
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !(window as any).LemonSqueezy) {
+      const script = document.createElement('script');
+      script.src = 'https://app.lemonsqueezy.com/js/lemon.js';
+      script.defer = true;
+      script.onload = () => {
+        // Initialize Lemon.js
+        if ((window as any).createLemonSqueezy) {
+          (window as any).createLemonSqueezy();
+        }
+      };
+      document.head.appendChild(script);
+
+      return () => {
+        document.head.removeChild(script);
+      };
+    }
+  }, []);
 
   useEffect(() => {
     if (!bookingId) {
@@ -164,13 +147,13 @@ export default function Payment() {
           }
         }
 
-        // Create payment intent
-        const paymentResponse = await apiRequest('POST', '/api/create-payment-intent', {
+        // Create Lemon Squeezy checkout
+        const checkoutResponse = await apiRequest('POST', '/api/create-checkout', {
           bookingId,
           paymentType
         });
-        const paymentData = await paymentResponse.json();
-        setClientSecret(paymentData.clientSecret);
+        const checkoutData = await checkoutResponse.json();
+        setCheckoutUrl(checkoutData.checkoutUrl);
       } catch (error) {
         console.error('Error:', error);
         toast({
@@ -195,7 +178,7 @@ export default function Payment() {
     );
   }
 
-  if (!clientSecret || !booking) {
+  if (!checkoutUrl || !booking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -251,15 +234,15 @@ export default function Payment() {
                 </div>
                 <div className="flex justify-between">
                   <span>Total Amount:</span>
-                  <span>${(booking.totalPrice / 100).toFixed(2)}</span>
+                  <span>${booking.totalPrice.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Deposit:</span>
-                  <span>${(booking.depositAmount / 100).toFixed(2)} {booking.depositPaid ? '✓ Paid' : ''}</span>
+                  <span>${booking.depositAmount.toFixed(2)} {booking.depositPaid ? '✓ Paid' : ''}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Balance:</span>
-                  <span>${(booking.balanceDue / 100).toFixed(2)} {booking.balancePaid ? '✓ Paid' : ''}</span>
+                  <span>${booking.balanceDue.toFixed(2)} {booking.balancePaid ? '✓ Paid' : ''}</span>
                 </div>
               </div>
             </div>
@@ -270,30 +253,53 @@ export default function Payment() {
                 {paymentType === 'balance' ? 'Final Payment Amount' : 'Deposit Amount'}
               </p>
               <p className="text-2xl font-bold text-primary">
-                ${(amount / 100).toFixed(2)}
+                ${amount.toFixed(2)}
               </p>
             </div>
 
-            {/* Payment Form */}
-            {stripePromise ? (
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <PaymentForm 
-                  bookingId={booking.id}
-                  amount={amount}
-                  onSuccess={() => {
-                    toast({
-                      title: "Payment Successful",
-                      description: `Your ${paymentType} payment has been processed successfully!`,
-                    });
-                    navigate('/dashboard');
-                  }}
-                />
-              </Elements>
-            ) : (
-              <div className="text-center p-4 border-2 border-destructive rounded-lg">
-                <p className="text-destructive">Payment processing is not available. Please contact us directly.</p>
+            {/* Payment Info */}
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <CreditCard className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-green-800 mb-1">Secure Payment</h4>
+                  <p className="text-sm text-green-700">
+                    Your payment will be processed securely through Lemon Squeezy. 
+                    You'll be redirected to complete your payment and can return here afterward.
+                  </p>
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* Lemon Squeezy Checkout Button */}
+            <LemonSqueezyCheckout 
+              checkoutUrl={checkoutUrl}
+              amount={amount}
+              paymentType={paymentType}
+              onError={(error) => {
+                toast({
+                  title: "Payment Error",
+                  description: error,
+                  variant: "destructive",
+                });
+              }}
+            />
+
+            {/* Alternative Payment Notice */}
+            <div className="text-center text-sm text-muted-foreground">
+              <p>
+                Having trouble? Contact us at{' '}
+                <a href="mailto:theconnectorphotography@gmail.com" className="text-primary hover:underline">
+                  theconnectorphotography@gmail.com
+                </a>{' '}
+                or{' '}
+                <a href="tel:18763881801" className="text-primary hover:underline">
+                  (876) 388-1801
+                </a>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
