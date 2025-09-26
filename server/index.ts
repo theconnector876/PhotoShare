@@ -3,6 +3,11 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// CRITICAL: Stripe webhook needs raw body for signature verification
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+
+// Standard middleware for other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

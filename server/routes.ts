@@ -332,12 +332,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Booking not found' });
       }
 
+      // CRITICAL: Only allow payments for confirmed bookings
+      if (booking.status !== 'confirmed') {
+        return res.status(400).json({ error: 'Booking must be confirmed before payment can be processed' });
+      }
+
+      // Calculate amounts server-side to ensure integrity
+      const serverDepositAmount = Math.round(booking.totalPrice * 0.5);
+      const serverBalanceDue = booking.totalPrice - serverDepositAmount;
+
       let amount: number;
       if (paymentType === 'deposit') {
         if (booking.depositPaid) {
           return res.status(400).json({ error: 'Deposit already paid' });
         }
-        amount = booking.depositAmount;
+        amount = serverDepositAmount; // Use server-calculated 50% deposit
       } else {
         if (!booking.depositPaid) {
           return res.status(400).json({ error: 'Deposit must be paid first' });
@@ -345,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (booking.balancePaid) {
           return res.status(400).json({ error: 'Balance already paid' });
         }
-        amount = booking.balanceDue;
+        amount = serverBalanceDue; // Use server-calculated balance
       }
 
       const paymentIntent = await stripe.paymentIntents.create({
@@ -402,16 +411,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Booking not found" });
       }
 
-      // Return only payment-relevant fields for security
+      // SECURITY: Only show payment info for confirmed bookings
+      if (booking.status !== 'confirmed') {
+        return res.status(403).json({ error: "Payment information only available for confirmed bookings" });
+      }
+
+      // Return only payment-relevant fields for security with server-calculated amounts
+      const serverDepositAmount = Math.round(booking.totalPrice * 0.5);
+      const serverBalanceDue = booking.totalPrice - serverDepositAmount;
+      
       const paymentBooking = {
         id: booking.id,
         clientName: booking.clientName,
         serviceType: booking.serviceType,
         packageType: booking.packageType,
         shootDate: booking.shootDate,
+        status: booking.status,
         totalPrice: booking.totalPrice,
-        depositAmount: booking.depositAmount,
-        balanceDue: booking.balanceDue,
+        depositAmount: serverDepositAmount, // Server-calculated for consistency
+        balanceDue: serverBalanceDue, // Server-calculated for consistency
         depositPaid: booking.depositPaid,
         balancePaid: booking.balancePaid
       };
