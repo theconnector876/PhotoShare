@@ -17,6 +17,7 @@ import { Camera, Heart, Users, Plus, Minus, ChevronDown, Shield, AlertTriangle, 
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 const bookingFormSchema = z.object({
   clientName: z.string().min(1, "Client name is required"),
@@ -37,6 +38,7 @@ type BookingFormData = z.infer<typeof bookingFormSchema>;
 export default function BookingCalculator() {
   const { calculation, packages, eventHours, updateService, updatePackage, updatePeople, updateTransportation, updateEventHours, toggleAddon, toggleVideoPackage, updateVideoPackage } = useBookingCalculator();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   const form = useForm<BookingFormData>({
@@ -96,7 +98,7 @@ export default function BookingCalculator() {
         setTimeout(() => {
           const paymentUrl = `/payment?booking=${result.booking.id}&type=deposit`;
           console.log('Redirecting to:', paymentUrl);
-          window.location.href = paymentUrl;
+          navigate(paymentUrl);
         }, 1000);
         
       } catch (error) {
