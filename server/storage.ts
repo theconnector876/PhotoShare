@@ -16,7 +16,8 @@ export interface IStorage {
   getUserBookings(userEmail: string): Promise<Booking[]>;
   getUserGalleries(userEmail: string): Promise<Gallery[]>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  updateBookingStripeIntentId(bookingId: string, intentId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
+  updateBookingLemonSqueezyCheckoutId(bookingId: string, checkoutId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
+  updateBookingLemonSqueezyOrderId(bookingId: string, orderId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
   updateBookingPaymentStatus(bookingId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
   
   // Booking operations
@@ -209,10 +210,24 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateBookingStripeIntentId(bookingId: string, intentId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined> {
+  async updateBookingLemonSqueezyCheckoutId(bookingId: string, checkoutId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined> {
     const updateData = type === 'deposit' 
-      ? { stripeDepositIntentId: intentId }
-      : { stripeBalanceIntentId: intentId };
+      ? { lemonSqueezyDepositCheckoutId: checkoutId }
+      : { lemonSqueezyBalanceCheckoutId: checkoutId };
+    
+    const [updatedBooking] = await db
+      .update(bookings)
+      .set(updateData)
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    
+    return updatedBooking;
+  }
+
+  async updateBookingLemonSqueezyOrderId(bookingId: string, orderId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined> {
+    const updateData = type === 'deposit' 
+      ? { lemonSqueezyDepositOrderId: orderId }
+      : { lemonSqueezyBalanceOrderId: orderId };
     
     const [updatedBooking] = await db
       .update(bookings)

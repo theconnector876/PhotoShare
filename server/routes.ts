@@ -4,12 +4,27 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
 import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema } from "@shared/schema";
 import { z } from "zod";
-import Stripe from "stripe";
+import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+if (!process.env.LEMONSQUEEZY_API_KEY) {
+  throw new Error('Missing required Lemon Squeezy secret: LEMONSQUEEZY_API_KEY');
 }
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Configure Lemon Squeezy
+lemonSqueezySetup({
+  apiKey: process.env.LEMONSQUEEZY_API_KEY,
+  onError: (error) => console.error('Lemon Squeezy Error:', error),
+});
+
+if (!process.env.LEMONSQUEEZY_STORE_ID) {
+  throw new Error('Missing required Lemon Squeezy store ID: LEMONSQUEEZY_STORE_ID');
+}
+if (!process.env.LEMONSQUEEZY_VARIANT_ID) {
+  throw new Error('Missing required Lemon Squeezy variant ID: LEMONSQUEEZY_VARIANT_ID');
+}
+if (!process.env.LEMONSQUEEZY_WEBHOOK_SECRET) {
+  throw new Error('Missing required Lemon Squeezy webhook secret: LEMONSQUEEZY_WEBHOOK_SECRET');
+}
 
 // Admin-specific validation schemas
 const statusUpdateSchema = z.object({
@@ -317,7 +332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Stripe payment routes
+  // Lemon Squeezy payment routes
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
       const { bookingId, paymentType } = req.body;
@@ -357,26 +372,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount = serverBalanceDue; // Use server-calculated balance
       }
 
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount), // Amount already in cents
-        currency: "usd",
-        metadata: {
-          bookingId,
-          paymentType,
-        },
+      // Create Lemon Squeezy checkout with custom pricing
+      const checkout = await createCheckout({
+        data: {
+          type: 'checkouts',
+          attributes: {
+            custom_price: Math.round(amount * 100), // Convert dollars to cents
+            checkout_options: {
+              button_color: '#10B981', // Jamaica green theme
+              embed: true // Enable overlay
+            },
+            checkout_data: {
+              custom: {
+                booking_id: bookingId,
+                payment_type: paymentType,
+                client_name: booking.clientName,
+                service_type: booking.serviceType
+              }
+            }
+          },
+          relationships: {
+            store: {
+              data: { type: 'stores', id: process.env.LEMONSQUEEZY_STORE_ID }
+            },
+            variant: {
+              data: { type: 'variants', id: process.env.LEMONSQUEEZY_VARIANT_ID }
+            }
+          }
+        }
       });
 
-      // Store PaymentIntent ID on booking
-      if (paymentType === 'deposit') {
-        await storage.updateBookingStripeIntentId(bookingId, paymentIntent.id, 'deposit');
-      } else {
-        await storage.updateBookingStripeIntentId(bookingId, paymentIntent.id, 'balance');
+      if (checkout.error) {
+        console.error('Lemon Squeezy checkout creation error:', checkout.error);
+        return res.status(500).json({ error: 'Failed to create checkout' });
       }
 
-      res.json({ clientSecret: paymentIntent.client_secret });
+      // Store checkout ID on booking
+      if (paymentType === 'deposit') {
+        await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkout.data.id, 'deposit');
+      } else {
+        await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkout.data.id, 'balance');
+      }
+
+      res.json({ checkoutUrl: checkout.data.attributes.url });
     } catch (error: any) {
-      console.error('Error creating payment intent:', error);
-      res.status(500).json({ error: "Error creating payment intent: " + error.message });
+      console.error('Error creating checkout:', error);
+      res.status(500).json({ error: "Error creating checkout: " + error.message });
     }
   });
 
@@ -441,40 +482,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Stripe webhook to handle payment success
-  app.post('/api/stripe/webhook', async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-
+  // Lemon Squeezy webhook to handle payment success
+  app.post('/api/lemonsqueezy/webhook', async (req, res) => {
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig as string, process.env.STRIPE_WEBHOOK_SECRET || '');
-    } catch (err: any) {
-      console.log(`Webhook signature verification failed.`, err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
+      const signature = req.headers['x-signature'] as string;
+      
+      if (!signature) {
+        return res.status(400).json({ error: 'Missing signature header' });
+      }
 
-    // Handle the event
-    switch (event.type) {
-      case 'payment_intent.succeeded': {
-        const paymentIntent = event.data.object;
-        const { bookingId, paymentType } = paymentIntent.metadata;
-        
-        if (bookingId && paymentType) {
-          await storage.updateBookingPaymentStatus(bookingId, paymentType as 'deposit' | 'balance');
-          console.log(`Payment ${paymentType} successful for booking ${bookingId}`);
+      // Verify webhook signature
+      const crypto = require('crypto');
+      const body = JSON.stringify(req.body);
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.LEMONSQUEEZY_WEBHOOK_SECRET || '')
+        .update(body)
+        .digest('hex');
+
+      if (signature !== expectedSignature) {
+        console.log('Webhook signature verification failed');
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const event = req.body;
+      
+      // Handle different webhook events
+      switch (event.meta.event_name) {
+        case 'order_created': {
+          const order = event.data;
+          const customData = order.attributes.first_order_item?.product_options?.custom || {};
+          const { booking_id, payment_type } = customData;
+          
+          if (booking_id && payment_type) {
+            // Store order ID on booking
+            await storage.updateBookingLemonSqueezyOrderId(booking_id, order.id, payment_type);
+            // Update payment status
+            await storage.updateBookingPaymentStatus(booking_id, payment_type as 'deposit' | 'balance');
+            console.log(`Payment ${payment_type} successful for booking ${booking_id}`);
+          }
+          break;
         }
-        break;
+        case 'order_refunded': {
+          const order = event.data;
+          console.log(`Order refunded: ${order.id}`);
+          break;
+        }
+        default:
+          console.log(`Unhandled event type: ${event.meta.event_name}`);
       }
-      case 'payment_intent.payment_failed': {
-        const paymentIntent = event.data.object;
-        console.log(`Payment failed for booking ${paymentIntent.metadata.bookingId}`);
-        break;
-      }
-      default:
-        console.log(`Unhandled event type ${event.type}`);
-    }
 
-    res.json({ received: true });
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error('Webhook error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   });
 
   // Secure admin gallery routes
