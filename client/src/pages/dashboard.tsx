@@ -51,25 +51,27 @@ export default function Dashboard() {
     retry: false,
   });
 
-  // Use useEffect for redirects to avoid setState during render
-  const [shouldRedirect, setShouldRedirect] = useState<string | null>(null);
-  
+  // Admin-specific data queries
+  const isAdmin = user?.isAdmin || false;
+  const { data: adminContacts } = useQuery<any[]>({
+    queryKey: ["/api/admin/contacts"],
+    enabled: !!user && isAdmin,
+    retry: false,
+  });
+
+  // Redirect only if not authenticated (no admin redirect - keep admins on dashboard with extra tabs)
   useEffect(() => {
     if (!authLoading && !user) {
-      setShouldRedirect("/auth");
-    } else if (user?.isAdmin) {
-      setShouldRedirect("/admin");
+      setLocation("/auth");
     }
-  }, [authLoading, user]);
+  }, [authLoading, user, setLocation]);
   
-  useEffect(() => {
-    if (shouldRedirect) {
-      setLocation(shouldRedirect);
-    }
-  }, [shouldRedirect, setLocation]);
-  
-  if (authLoading || shouldRedirect) {
+  if (authLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+  
+  if (!user) {
+    return null; // Will redirect via useEffect
   }
 
   const handleLogout = () => {
@@ -127,10 +129,13 @@ export default function Dashboard() {
         <div className="flex justify-between items-center mb-8 mt-8">
           <div>
             <h1 className="text-4xl font-bold font-serif gradient-text">
-              Welcome back, {user?.firstName}!
+              {isAdmin ? "Admin Dashboard" : `Welcome back, ${user?.firstName}!`}
             </h1>
             <p className="text-muted-foreground mt-2">
-              Manage your photography bookings and access your galleries
+              {isAdmin 
+                ? "Manage all bookings, galleries, and customer inquiries"
+                : "Manage your photography bookings and access your galleries"
+              }
             </p>
           </div>
           <Button 
@@ -144,9 +149,23 @@ export default function Dashboard() {
         </div>
 
         <Tabs defaultValue="bookings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="bookings" data-testid="tab-bookings">My Bookings</TabsTrigger>
-            <TabsTrigger value="galleries" data-testid="tab-galleries">My Galleries</TabsTrigger>
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
+            <TabsTrigger value="bookings" data-testid="tab-bookings">
+              {isAdmin ? "All Bookings" : "My Bookings"}
+            </TabsTrigger>
+            <TabsTrigger value="galleries" data-testid="tab-galleries">
+              {isAdmin ? "All Galleries" : "My Galleries"}
+            </TabsTrigger>
+            {isAdmin && (
+              <>
+                <TabsTrigger value="contacts" data-testid="tab-contacts">
+                  Contact Messages
+                </TabsTrigger>
+                <TabsTrigger value="admin" data-testid="tab-admin">
+                  Admin Tools
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value="bookings" className="space-y-6">
@@ -300,6 +319,110 @@ export default function Dashboard() {
               )}
             </div>
           </TabsContent>
+
+          {/* Admin-only tabs */}
+          {isAdmin && (
+            <>
+              <TabsContent value="contacts" className="space-y-6">
+                <div className="grid gap-6">
+                  {!adminContacts || (Array.isArray(adminContacts) && adminContacts.length === 0) ? (
+                    <Card className="p-12 text-center">
+                      <Mail className="mx-auto text-muted-foreground mb-4" size={48} />
+                      <h3 className="text-xl font-semibold mb-2">No contact messages</h3>
+                      <p className="text-muted-foreground">
+                        No client inquiries have been received yet.
+                      </p>
+                    </Card>
+                  ) : Array.isArray(adminContacts) ? (
+                    adminContacts.map((contact: any) => (
+                      <Card key={contact.id} className="hover-3d">
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle>{contact.name}</CardTitle>
+                              <CardDescription>{contact.email}</CardDescription>
+                            </div>
+                            <Badge className={getStatusColor(contact.status)}>
+                              {contact.status.charAt(0).toUpperCase() + contact.status.slice(1)}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            {contact.message}
+                          </p>
+                          <div className="text-xs text-muted-foreground">
+                            Received on {formatDate(contact.createdAt)}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <Card className="p-12 text-center">
+                      <Mail className="mx-auto text-muted-foreground mb-4" size={48} />
+                      <h3 className="text-xl font-semibold mb-2">Loading contacts...</h3>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="admin" className="space-y-6">
+                <Card className="p-6">
+                  <CardHeader>
+                    <CardTitle>Admin Tools</CardTitle>
+                    <CardDescription>
+                      System administration and management tools
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card className="p-4">
+                        <h4 className="font-semibold mb-2">System Statistics</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Total Bookings:</span>
+                            <span className="font-medium">{userBookings?.length || 0}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Total Galleries:</span>
+                            <span className="font-medium">{userGalleries?.length || 0}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Contact Messages:</span>
+                            <span className="font-medium">{Array.isArray(adminContacts) ? adminContacts.length : 0}</span>
+                          </div>
+                        </div>
+                      </Card>
+                      
+                      <Card className="p-4">
+                        <h4 className="font-semibold mb-2">Quick Actions</h4>
+                        <div className="space-y-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full justify-start"
+                            onClick={() => setLocation("/booking")}
+                          >
+                            <Camera className="mr-2" size={16} />
+                            Create New Booking
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full justify-start"
+                            onClick={() => setLocation("/gallery")}
+                          >
+                            <Eye className="mr-2" size={16} />
+                            Access Gallery
+                          </Button>
+                        </div>
+                      </Card>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </>
+          )}
         </Tabs>
       </div>
     </div>

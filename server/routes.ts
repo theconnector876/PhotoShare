@@ -378,12 +378,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User routes for viewing their own data
   app.get('/api/user/bookings', isAuthenticated, async (req, res) => {
     try {
-      const userEmail = (req as any).user?.claims?.email || (req as any).user?.email;
+      const userEmail = (req as any).user?.email;
       if (!userEmail) {
         return res.status(401).json({ error: 'User not authenticated' });
       }
       
-      const userBookings = await storage.getUserBookings(userEmail);
+      // If admin, return all bookings, otherwise return user's bookings
+      const isAdminUser = (req as any).user?.isAdmin;
+      let userBookings;
+      
+      if (isAdminUser) {
+        userBookings = await storage.getAllBookings();
+      } else {
+        userBookings = await storage.getUserBookings(userEmail);
+      }
+      
       res.json(userBookings);
     } catch (error) {
       console.error('Error fetching user bookings:', error);
@@ -393,12 +402,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/user/galleries', isAuthenticated, async (req, res) => {
     try {
-      const userEmail = (req as any).user?.claims?.email || (req as any).user?.email;
+      const userEmail = (req as any).user?.email;
       if (!userEmail) {
         return res.status(401).json({ error: 'User not authenticated' });
       }
       
-      const userGalleries = await storage.getUserGalleries(userEmail);
+      // If admin, return all galleries, otherwise return user's galleries  
+      const isAdminUser = (req as any).user?.isAdmin;
+      let userGalleries;
+      
+      if (isAdminUser) {
+        userGalleries = await storage.getAllGalleries();
+      } else {
+        userGalleries = await storage.getUserGalleries(userEmail);
+      }
+      
       res.json(userGalleries);
     } catch (error) {
       console.error('Error fetching user galleries:', error);
@@ -507,7 +525,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
-      const userEmail = (req as any).user?.claims?.email || (req as any).user?.email;
+      const userEmail = (req as any).user?.email;
+      const isAdminUser = (req as any).user?.isAdmin;
       const booking = await storage.getBooking(req.params.id);
       
       if (!booking) {
@@ -515,8 +534,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user owns this booking or is admin
-      const user = await storage.getUserByEmail(userEmail);
-      if (booking.email !== userEmail && !user?.isAdmin) {
+      if (booking.email !== userEmail && !isAdminUser) {
         return res.status(403).json({ error: "Unauthorized access to booking" });
       }
 
@@ -767,7 +785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Route for clients to submit reviews (requires authentication and authorization)
   app.post('/api/reviews', isAuthenticated, async (req, res) => {
     try {
-      const userEmail = (req as any).user?.claims?.email || (req as any).user?.email;
+      const userEmail = (req as any).user?.email;
       if (!userEmail) {
         return res.status(401).json({ error: 'User not authenticated' });
       }
