@@ -372,14 +372,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount = serverBalanceDue; // Use server-calculated balance
       }
 
-      // Create Lemon Squeezy checkout with minimal required fields
+      // Create Lemon Squeezy checkout with proper format
       const storeId = process.env.LEMONSQUEEZY_STORE_ID!;
       const variantId = process.env.LEMONSQUEEZY_VARIANT_ID!;
+      
+      // Convert amount to cents (Lemon Squeezy requires cents)
+      const customPriceInCents = Math.round(amount * 100);
       
       const newCheckout = {
         productOptions: {
           name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment`,
-          description: `${paymentType} payment for booking`,
+          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}`,
         },
         checkoutOptions: {
           embed: true,
@@ -389,10 +392,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkoutData: {
           email: booking.email,
           name: booking.clientName,
+          custom: {
+            booking_id: bookingId,
+            payment_type: paymentType,
+            service_type: booking.serviceType,
+            total_amount: booking.totalPrice
+          }
         },
         expiresAt: null,
         preview: true,
-        testMode: true
+        testMode: true,
+        customPrice: customPriceInCents
       };
       
       const checkout = await createCheckout(storeId, variantId, newCheckout);
