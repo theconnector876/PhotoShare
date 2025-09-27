@@ -31,11 +31,6 @@ export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [isLoginMode, setIsLoginMode] = useState(true);
 
-  // Redirect if already logged in (after hook calls to avoid rules of hooks violation)
-  if (user) {
-    return <Redirect to="/" />;
-  }
-
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -61,6 +56,11 @@ export default function AuthPage() {
   const onRegister = (data: RegisterFormData) => {
     registerMutation.mutate(data);
   };
+
+  // Redirect if already logged in (after all hooks to avoid rules of hooks violation)
+  if (user) {
+    return <Redirect to="/" />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5 flex">
