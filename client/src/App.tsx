@@ -31,7 +31,7 @@ function Router() {
       <Route path="/gallery" component={Gallery} />
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
-      <ProtectedRoute path="/admin" component={AdminDashboard} />
+      <ProtectedRoute path="/admin" component={AdminDashboard} requireAdmin />
       <Route path="/payment" component={Payment} />
       <Route path="/payment-success" component={PaymentSuccess} />
       <Route component={NotFound} />
