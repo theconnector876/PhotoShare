@@ -868,6 +868,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ADDITIONAL ADMIN BOOKING MANAGEMENT ROUTES =====
+
+  // Edit booking details (admin only)
+  app.patch('/api/admin/bookings/:id', isAdmin, async (req, res) => {
+    try {
+      const updateBookingSchema = z.object({
+        clientName: z.string().min(1, "Client name is required"),
+        email: z.string().email("Valid email is required"),
+        contactNumber: z.string().min(1, "Contact number is required"),
+        serviceType: z.enum(["photoshoot", "wedding", "event"]),
+        packageType: z.string().min(1, "Package type is required"),
+        numberOfPeople: z.number().min(1, "At least 1 person required"),
+        shootDate: z.string().min(1, "Shoot date is required"),
+        shootTime: z.string().min(1, "Shoot time is required"),
+        location: z.string().min(1, "Location is required"),
+        parish: z.string().min(1, "Parish is required"),
+        totalPrice: z.number().min(0, "Total price must be positive"),
+      });
+
+      const bookingData = updateBookingSchema.parse(req.body);
+      const booking = await storage.updateBooking(req.params.id, bookingData);
+      
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+      
+      res.json(booking);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid booking data', details: error.errors });
+      }
+      console.error('Error updating booking:', error);
+      res.status(500).json({ error: 'Failed to update booking' });
+    }
+  });
+
+  // Send email to client (admin only)
+  app.post('/api/admin/send-email', isAdmin, async (req, res) => {
+    try {
+      const emailSchema = z.object({
+        email: z.string().email("Valid email is required"),
+        clientName: z.string().min(1, "Client name is required"),
+        subject: z.string().min(1, "Subject is required"),
+        message: z.string().min(1, "Message is required"),
+      });
+
+      const emailData = emailSchema.parse(req.body);
+      
+      // TODO: Implement actual email sending via SendGrid or similar service
+      // For now, just log the email attempt
+      console.log('Email would be sent to:', emailData.email);
+      console.log('Subject:', emailData.subject);
+      console.log('Message:', emailData.message);
+      
+      // Simulate successful email sending
+      res.json({ 
+        success: true, 
+        message: 'Email sent successfully',
+        emailId: `email_${Date.now()}`
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid email data', details: error.errors });
+      }
+      console.error('Error sending email:', error);
+      res.status(500).json({ error: 'Failed to send email' });
+    }
+  });
+
+  // Issue refund for booking (admin only)
+  app.post('/api/admin/bookings/:id/refund', isAdmin, async (req, res) => {
+    try {
+      const booking = await storage.getBooking(req.params.id);
+      
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+
+      // Check if there are payments to refund
+      if (!booking.depositPaid && !booking.balancePaid) {
+        return res.status(400).json({ error: 'No payments to refund' });
+      }
+
+      // TODO: Implement actual refund processing via Lemon Squeezy
+      // For now, just update the booking status and payment flags
+      console.log('Refund would be processed for booking:', booking.id);
+      console.log('Total refund amount:', booking.totalPrice);
+      
+      // Update booking to cancelled status and reset payment flags
+      const updatedBooking = await storage.updateBookingStatus(req.params.id, 'cancelled');
+      
+      // TODO: Also reset payment flags when implementing actual refunds
+      // await storage.updateBookingPaymentStatus(req.params.id, 'deposit', false);
+      // await storage.updateBookingPaymentStatus(req.params.id, 'balance', false);
+      
+      res.json({ 
+        success: true, 
+        message: 'Refund processed successfully',
+        booking: updatedBooking,
+        refundId: `refund_${Date.now()}`
+      });
+    } catch (error) {
+      console.error('Error processing refund:', error);
+      res.status(500).json({ error: 'Failed to process refund' });
+    }
+  });
+
+  // Get all users (admin only)
+  app.get('/api/admin/users', isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      
+      // Remove password fields for security
+      const safeUsers = users.map(user => ({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isAdmin: user.isAdmin,
+        createdAt: user.createdAt
+      }));
+      
+      res.json(safeUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

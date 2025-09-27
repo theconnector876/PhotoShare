@@ -11,6 +11,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserById(id: string): Promise<User | undefined>; // Added for auth deserialization
   getUserByEmail(email: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
   createUser(user: Omit<User, 'createdAt' | 'updatedAt'>): Promise<User>; // Added for registration
   makeUserAdmin(userId: string): Promise<User | undefined>;
@@ -27,6 +28,7 @@ export interface IStorage {
   getBooking(id: string): Promise<Booking | undefined>;
   getAllBookings(): Promise<Booking[]>;
   updateBookingStatus(id: string, status: string): Promise<Booking | undefined>;
+  updateBooking(id: string, booking: Partial<Booking>): Promise<Booking | undefined>;
   
   // Gallery operations
   createGallery(gallery: InsertGallery): Promise<Gallery>;
@@ -139,6 +141,15 @@ export class DatabaseStorage implements IStorage {
     return booking;
   }
 
+  async updateBooking(id: string, bookingData: Partial<Booking>): Promise<Booking | undefined> {
+    const [booking] = await db
+      .update(bookings)
+      .set(bookingData)
+      .where(eq(bookings.id, id))
+      .returning();
+    return booking;
+  }
+
   async createGallery(insertGallery: InsertGallery): Promise<Gallery> {
     const [gallery] = await db
       .insert(galleries)
@@ -233,6 +244,10 @@ export class DatabaseStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(users.createdAt);
   }
 
   async updateBookingLemonSqueezyCheckoutId(bookingId: string, checkoutId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined> {
