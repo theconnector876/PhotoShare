@@ -1,7 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
+import { setupPasswordAuth } from "./auth";
+import { getSession } from "./replitAuth"; // Keep session setup
+import passport from "passport";
 import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema } from "@shared/schema";
 import { z } from "zod";
 import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
@@ -49,6 +51,26 @@ const reviewSchema = insertReviewSchema.extend({
   message: "catalogueId is required when reviewType is 'catalogue'"
 });
 
+// Authentication middleware for password auth
+const isAuthenticated = (req: any, res: any, next: any) => {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: "Authentication required" });
+};
+
+const isAdmin = async (req: any, res: any, next: any) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  
+  if (req.user && req.user.isAdmin) {
+    return next();
+  }
+  
+  res.status(403).json({ error: "Admin access required" });
+};
+
 // Safe DTOs for public responses
 const createSafeCatalogueDTO = (catalogue: any) => ({
   id: catalogue.id,
@@ -74,20 +96,13 @@ const createSafeReviewDTO = (review: any) => ({
 const normalizeEmail = (email: string) => email.toLowerCase().trim();
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication
-  await setupAuth(app);
-
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
+  // Setup session and passport authentication
+  app.use(getSession());
+  app.use(passport.initialize());
+  app.use(passport.session());
+  
+  // Setup password authentication (includes /api/register, /api/login, /api/logout, /api/user)
+  setupPasswordAuth(app);
   // Booking routes
   app.post("/api/bookings", async (req, res) => {
     try {

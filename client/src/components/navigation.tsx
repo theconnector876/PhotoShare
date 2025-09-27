@@ -1,21 +1,36 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Camera, Menu, X } from "lucide-react";
+import { Camera, Menu, X, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Navigation() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const { user, logoutMutation } = useAuth();
 
-  const navItems = [
+  const publicNavItems = [
     { href: "/", label: "Home" },
     { href: "/portfolio", label: "Portfolio" },
     { href: "/booking", label: "Book Now" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },
-    { href: "/login", label: "Login" },
   ];
+
+  const authNavItems = user ? [
+    ...publicNavItems,
+    { href: "/dashboard", label: "Dashboard" },
+    ...(user.isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+  ] : [
+    ...publicNavItems,
+    { href: "/auth", label: "Login" },
+  ];
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+    setIsOpen(false);
+  };
 
   const NavLink = ({ href, label, mobile = false }: { href: string; label: string; mobile?: boolean }) => {
     const isActive = location === href;
@@ -54,10 +69,27 @@ export default function Navigation() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex space-x-8">
-            {navItems.map((item) => (
+          <div className="hidden md:flex items-center space-x-8">
+            {authNavItems.map((item) => (
               <NavLink key={item.href} {...item} />
             ))}
+            {user && (
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-muted-foreground">
+                  Hi, {user.firstName || user.email}
+                </span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleLogout}
+                  disabled={logoutMutation.isPending}
+                  data-testid="button-logout"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  {logoutMutation.isPending ? "Logging out..." : "Logout"}
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Mobile Navigation */}
@@ -79,9 +111,27 @@ export default function Navigation() {
                     </div>
                   </div>
                   
-                  {navItems.map((item) => (
+                  {authNavItems.map((item) => (
                     <NavLink key={item.href} {...item} mobile />
                   ))}
+                  
+                  {user && (
+                    <div className="pt-4 border-t border-border">
+                      <div className="mb-4 text-sm text-muted-foreground">
+                        Hi, {user.firstName || user.email}
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleLogout}
+                        disabled={logoutMutation.isPending}
+                        data-testid="mobile-logout-button"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        {logoutMutation.isPending ? "Logging out..." : "Logout"}
+                      </Button>
+                    </div>
+                  )}
 
                   <div className="pt-6 border-t border-border">
                     <Link href="/gallery">
