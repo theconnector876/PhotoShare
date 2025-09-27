@@ -33,6 +33,8 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   error: Error | null;
+  isAuthenticated: boolean;
+  isAdmin: boolean;
   loginMutation: UseMutationResult<User, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
   registerMutation: UseMutationResult<User, Error, RegisterData>;
@@ -114,12 +116,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const isAuthenticated = !!user;
+  const isAdmin = !!user?.isAdmin;
+
   return (
     <AuthContext.Provider
       value={{
         user: user ?? null,
         isLoading,
         error,
+        isAuthenticated,
+        isAdmin,
         loginMutation,
         logoutMutation,
         registerMutation,
