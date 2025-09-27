@@ -107,10 +107,8 @@ export function AdminBookings() {
   const queryClient = useQueryClient();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [viewGalleryModalOpen, setViewGalleryModalOpen] = useState(false);
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [catalogueModalOpen, setCatalogueModalOpen] = useState(false);
+  const [managementModalOpen, setManagementModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'details' | 'edit' | 'email' | 'gallery' | 'upload' | 'catalogue'>('details');
   const [uploadType, setUploadType] = useState<'gallery' | 'selected' | 'final'>('gallery');
   const [selectedGallery, setSelectedGallery] = useState<Gallery | null>(null);
 
@@ -383,44 +381,42 @@ export function AdminBookings() {
     setEmailModalOpen(true);
   };
 
-  const openCatalogueModal = (booking: Booking) => {
+  const openManagementModal = (booking: Booking) => {
     setSelectedBooking(booking);
+    setActiveTab('details');
+    setManagementModalOpen(true);
+    
+    // Pre-populate forms
+    editForm.reset({
+      clientName: booking.clientName,
+      email: booking.email,
+      contactNumber: booking.contactNumber,
+      serviceType: booking.serviceType as any,
+      packageType: booking.packageType,
+      numberOfPeople: booking.numberOfPeople,
+      shootDate: booking.shootDate,
+      shootTime: booking.shootTime,
+      location: booking.location,
+      parish: booking.parish,
+      totalPrice: booking.totalPrice,
+    });
+
+    emailForm.reset({
+      subject: `Regarding your ${booking.serviceType} booking`,
+      message: `Dear ${booking.clientName},\n\nThank you for choosing The Connector Photography for your ${booking.serviceType} session.\n\nBest regards,\nThe Connector Photography Team`,
+    });
+
     catalogueForm.reset({
       title: `${booking.clientName} - ${booking.serviceType}`,
       description: `Beautiful ${booking.serviceType} session for ${booking.clientName}`,
       coverImage: "",
       images: "",
     });
-    setCatalogueModalOpen(true);
-  };
 
-  const openGalleryView = (booking: Booking) => {
+    // Set gallery if exists
     const gallery = getBookingGallery(booking.id);
     if (gallery) {
       setSelectedGallery(gallery);
-      setSelectedBooking(booking);
-      setViewGalleryModalOpen(true);
-    } else {
-      toast({
-        title: "No Gallery",
-        description: "No gallery found for this booking.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const openUploadModal = (booking: Booking) => {
-    const gallery = getBookingGallery(booking.id);
-    if (gallery) {
-      setSelectedGallery(gallery);
-      setSelectedBooking(booking);
-      setUploadModalOpen(true);
-    } else {
-      toast({
-        title: "No Gallery",
-        description: "No gallery found for this booking.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -452,7 +448,11 @@ export function AdminBookings() {
               </div>
             ) : (
               bookings?.map((booking: Booking) => (
-                <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                <Card 
+                  key={booking.id} 
+                  className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-green-300"
+                  onClick={() => openManagementModal(booking)}
+                >
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
@@ -501,103 +501,8 @@ export function AdminBookings() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedBooking(booking)}
-                        data-testid={`button-view-${booking.id}`}
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View Details
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditModal(booking)}
-                        data-testid={`button-edit-${booking.id}`}
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit Booking
-                      </Button>
-
-                      {booking.status === "pending" && (
-                        <>
-                          <Button
-                            size="sm"
-                            onClick={() => updateStatusMutation.mutate({ id: booking.id, status: "confirmed" })}
-                            disabled={updateStatusMutation.isPending}
-                            data-testid={`button-accept-${booking.id}`}
-                          >
-                            <Check className="w-4 h-4 mr-1" />
-                            Accept
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => updateStatusMutation.mutate({ id: booking.id, status: "declined" })}
-                            disabled={updateStatusMutation.isPending}
-                            data-testid={`button-decline-${booking.id}`}
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            Decline
-                          </Button>
-                        </>
-                      )}
-
-                      {(booking.depositPaid || booking.balancePaid) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => refundMutation.mutate(booking.id)}
-                          disabled={refundMutation.isPending}
-                          data-testid={`button-refund-${booking.id}`}
-                        >
-                          <CreditCard className="w-4 h-4 mr-1" />
-                          Issue Refund
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEmailModal(booking)}
-                        data-testid={`button-email-${booking.id}`}
-                      >
-                        <Mail className="w-4 h-4 mr-1" />
-                        Send Email
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openUploadModal(booking)}
-                        data-testid={`button-upload-${booking.id}`}
-                      >
-                        <Upload className="w-4 h-4 mr-1" />
-                        Upload Photos
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openGalleryView(booking)}
-                        data-testid={`button-gallery-${booking.id}`}
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View Gallery
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openCatalogueModal(booking)}
-                        data-testid={`button-catalogue-${booking.id}`}
-                      >
-                        <FolderPlus className="w-4 h-4 mr-1" />
-                        Create Catalogue
-                      </Button>
+                    <div className="text-center py-2">
+                      <p className="text-sm text-gray-500 italic">Click to manage this booking</p>
                     </div>
 
                     <div className="text-xs text-gray-500 mt-4 pt-4 border-t">
@@ -611,267 +516,328 @@ export function AdminBookings() {
         </CardContent>
       </Card>
 
-      {/* Booking Details Modal */}
-      {selectedBooking && !editingBooking && !emailModalOpen && !viewGalleryModalOpen && !uploadModalOpen && !catalogueModalOpen && (
-        <Dialog open={true} onOpenChange={() => setSelectedBooking(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      {/* Comprehensive Booking Management Modal */}
+      {managementModalOpen && selectedBooking && (
+        <Dialog open={true} onOpenChange={() => setManagementModalOpen(false)}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Booking Details - {selectedBooking.clientName}</DialogTitle>
+              <DialogTitle className="flex items-center justify-between">
+                <span>Manage Booking - {selectedBooking.clientName}</span>
+                <div className="flex items-center gap-2">
+                  <Badge className={`text-white ${getStatusColor(selectedBooking.status)}`}>
+                    {selectedBooking.status}
+                  </Badge>
+                  {selectedBooking.status === "pending" && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => updateStatusMutation.mutate({ id: selectedBooking.id, status: "confirmed" })}
+                        disabled={updateStatusMutation.isPending}
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        Accept
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => updateStatusMutation.mutate({ id: selectedBooking.id, status: "declined" })}
+                        disabled={updateStatusMutation.isPending}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Decline
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </DialogTitle>
             </DialogHeader>
+            
+            {/* Tab Navigation */}
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-4">
+              {[
+                { key: 'details', label: 'Details', icon: Eye },
+                { key: 'edit', label: 'Edit', icon: Edit },
+                { key: 'email', label: 'Email', icon: Mail },
+                { key: 'gallery', label: 'Gallery', icon: Eye },
+                { key: 'upload', label: 'Upload', icon: Upload },
+                { key: 'catalogue', label: 'Catalogue', icon: FolderPlus }
+              ].map(({ key, label, icon: Icon }) => (
+                <Button
+                  key={key}
+                  variant={activeTab === key ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setActiveTab(key as any)}
+                  className="flex-1"
+                >
+                  <Icon className="w-4 h-4 mr-1" />
+                  {label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Client Name</Label>
-                  <p className="font-medium">{selectedBooking.clientName}</p>
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <p>{selectedBooking.email}</p>
-                </div>
-                <div>
-                  <Label>Contact Number</Label>
-                  <p>{selectedBooking.contactNumber}</p>
-                </div>
-                <div>
-                  <Label>Service Type</Label>
-                  <p className="capitalize">{selectedBooking.serviceType}</p>
-                </div>
-                <div>
-                  <Label>Package</Label>
-                  <p>{selectedBooking.packageType}</p>
-                </div>
-                <div>
-                  <Label>Number of People</Label>
-                  <p>{selectedBooking.numberOfPeople}</p>
-                </div>
-                <div>
-                  <Label>Shoot Date</Label>
-                  <p>{selectedBooking.shootDate}</p>
-                </div>
-                <div>
-                  <Label>Shoot Time</Label>
-                  <p>{selectedBooking.shootTime}</p>
-                </div>
-                <div>
-                  <Label>Location</Label>
-                  <p>{selectedBooking.location}</p>
-                </div>
-                <div>
-                  <Label>Parish</Label>
-                  <p>{selectedBooking.parish}</p>
-                </div>
-                <div>
-                  <Label>Transportation Fee</Label>
-                  <p>{formatCurrency(selectedBooking.transportationFee)}</p>
-                </div>
-                <div>
-                  <Label>Total Price</Label>
-                  <p className="text-lg font-bold text-green-600">{formatCurrency(selectedBooking.totalPrice)}</p>
-                </div>
-              </div>
-              
-              {selectedBooking.addons && selectedBooking.addons.length > 0 && (
-                <div>
-                  <Label>Add-ons</Label>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedBooking.addons.map((addon, index) => (
-                      <Badge key={index} variant="outline">{addon}</Badge>
-                    ))}
+              {/* Details Tab */}
+              {activeTab === 'details' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Client Name</Label>
+                      <p className="font-medium">{selectedBooking.clientName}</p>
+                    </div>
+                    <div>
+                      <Label>Email</Label>
+                      <p>{selectedBooking.email}</p>
+                    </div>
+                    <div>
+                      <Label>Contact Number</Label>
+                      <p>{selectedBooking.contactNumber}</p>
+                    </div>
+                    <div>
+                      <Label>Service Type</Label>
+                      <p className="capitalize">{selectedBooking.serviceType}</p>
+                    </div>
+                    <div>
+                      <Label>Package</Label>
+                      <p>{selectedBooking.packageType}</p>
+                    </div>
+                    <div>
+                      <Label>Number of People</Label>
+                      <p>{selectedBooking.numberOfPeople}</p>
+                    </div>
+                    <div>
+                      <Label>Shoot Date</Label>
+                      <p>{selectedBooking.shootDate}</p>
+                    </div>
+                    <div>
+                      <Label>Shoot Time</Label>
+                      <p>{selectedBooking.shootTime}</p>
+                    </div>
+                    <div>
+                      <Label>Location</Label>
+                      <p>{selectedBooking.location}</p>
+                    </div>
+                    <div>
+                      <Label>Parish</Label>
+                      <p>{selectedBooking.parish}</p>
+                    </div>
+                    <div>
+                      <Label>Transportation Fee</Label>
+                      <p>{formatCurrency(selectedBooking.transportationFee)}</p>
+                    </div>
+                    <div>
+                      <Label>Total Price</Label>
+                      <p className="text-lg font-bold text-green-600">{formatCurrency(selectedBooking.totalPrice)}</p>
+                    </div>
+                  </div>
+                  
+                  {selectedBooking.addons && selectedBooking.addons.length > 0 && (
+                    <div>
+                      <Label>Add-ons</Label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedBooking.addons.map((addon, index) => (
+                          <Badge key={index} variant="outline">{addon}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Deposit Amount</Label>
+                      <p>{formatCurrency(selectedBooking.depositAmount)} - {selectedBooking.depositPaid ? "✓ Paid" : "Pending"}</p>
+                    </div>
+                    <div>
+                      <Label>Balance Due</Label>
+                      <p>{formatCurrency(selectedBooking.balanceDue)} - {selectedBooking.balancePaid ? "✓ Paid" : "Pending"}</p>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap gap-2 pt-4 border-t">
+                    {(selectedBooking.depositPaid || selectedBooking.balancePaid) && (
+                      <Button
+                        variant="outline"
+                        onClick={() => refundMutation.mutate(selectedBooking.id)}
+                        disabled={refundMutation.isPending}
+                      >
+                        <CreditCard className="w-4 h-4 mr-1" />
+                        Issue Refund
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Deposit Amount</Label>
-                  <p>{formatCurrency(selectedBooking.depositAmount)} - {selectedBooking.depositPaid ? "✓ Paid" : "Pending"}</p>
-                </div>
-                <div>
-                  <Label>Balance Due</Label>
-                  <p>{formatCurrency(selectedBooking.balanceDue)} - {selectedBooking.balancePaid ? "✓ Paid" : "Pending"}</p>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Edit Booking Modal */}
-      {editingBooking && (
-        <Dialog open={true} onOpenChange={() => setEditingBooking(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Booking - {editingBooking.clientName}</DialogTitle>
-            </DialogHeader>
-            <Form {...editForm}>
-              <form onSubmit={editForm.handleSubmit((data) => updateBookingMutation.mutate({ ...data, id: editingBooking.id }))} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={editForm.control}
-                    name="clientName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Client Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="contactNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Number</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="serviceType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Service Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="photoshoot">Photoshoot</SelectItem>
-                            <SelectItem value="wedding">Wedding</SelectItem>
-                            <SelectItem value="event">Event</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="packageType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Package Type</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="numberOfPeople"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Number of People</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="shootDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Shoot Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="shootTime"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Shoot Time</FormLabel>
-                        <FormControl>
-                          <Input type="time" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="location"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Location</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="parish"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Parish</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="totalPrice"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Price</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setEditingBooking(null)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={updateBookingMutation.isPending}>
-                    {updateBookingMutation.isPending ? "Updating..." : "Update Booking"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      )}
+              {/* Edit Tab */}
+              {activeTab === 'edit' && (
+                <Form {...editForm}>
+                  <form onSubmit={editForm.handleSubmit((data) => {
+                    updateBookingMutation.mutate({ ...data, id: selectedBooking.id });
+                    setManagementModalOpen(false);
+                  })} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={editForm.control}
+                        name="clientName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input type="email" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="contactNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contact Number</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="serviceType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Service Type</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="photoshoot">Photoshoot</SelectItem>
+                                <SelectItem value="wedding">Wedding</SelectItem>
+                                <SelectItem value="event">Event</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="packageType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Package Type</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="numberOfPeople"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Number of People</FormLabel>
+                            <FormControl>
+                              <Input type="number" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="shootDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Shoot Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="shootTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Shoot Time</FormLabel>
+                            <FormControl>
+                              <Input type="time" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="location"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Location</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="parish"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Parish</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="totalPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Total Price</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.01" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                      <Button type="submit" disabled={updateBookingMutation.isPending}>
+                        {updateBookingMutation.isPending ? "Updating..." : "Update Booking"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              )}
 
       {/* Email Modal */}
       {emailModalOpen && selectedBooking && (
