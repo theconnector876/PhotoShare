@@ -106,7 +106,6 @@ export function AdminBookings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [managementModalOpen, setManagementModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'edit' | 'email' | 'gallery' | 'upload' | 'catalogue'>('details');
   const [uploadType, setUploadType] = useState<'gallery' | 'selected' | 'final'>('gallery');
@@ -187,7 +186,6 @@ export function AdminBookings() {
         title: "Booking Updated",
         description: "Booking details have been updated successfully.",
       });
-      setEditingBooking(null);
     },
     onError: () => {
       toast({
@@ -208,7 +206,6 @@ export function AdminBookings() {
         title: "Email Sent",
         description: "Email has been sent to the client successfully.",
       });
-      setEmailModalOpen(false);
       emailForm.reset();
     },
     onError: () => {
@@ -260,7 +257,6 @@ export function AdminBookings() {
         title: "Catalogue Created",
         description: "Portfolio catalogue has been created successfully.",
       });
-      setCatalogueModalOpen(false);
       catalogueForm.reset();
     },
     onError: () => {
@@ -331,7 +327,7 @@ export function AdminBookings() {
   const handleGetUploadParameters = async (): Promise<{ method: "PUT"; url: string }> => {
     try {
       const response = await apiRequest('/api/admin/objects/upload', 'POST', {});
-      return response;
+      return response as { method: "PUT"; url: string };
     } catch (error) {
       toast({
         title: "Error",
@@ -355,31 +351,6 @@ export function AdminBookings() {
     }
   };
 
-  const openEditModal = (booking: Booking) => {
-    setEditingBooking(booking);
-    editForm.reset({
-      clientName: booking.clientName,
-      email: booking.email,
-      contactNumber: booking.contactNumber,
-      serviceType: booking.serviceType as any,
-      packageType: booking.packageType,
-      numberOfPeople: booking.numberOfPeople,
-      shootDate: booking.shootDate,
-      shootTime: booking.shootTime,
-      location: booking.location,
-      parish: booking.parish,
-      totalPrice: booking.totalPrice,
-    });
-  };
-
-  const openEmailModal = (booking: Booking) => {
-    setSelectedBooking(booking);
-    emailForm.reset({
-      subject: `Regarding your ${booking.serviceType} booking`,
-      message: `Dear ${booking.clientName},\n\nThank you for choosing The Connector Photography for your ${booking.serviceType} session.\n\nBest regards,\nThe Connector Photography Team`,
-    });
-    setEmailModalOpen(true);
-  };
 
   const openManagementModal = (booking: Booking) => {
     setSelectedBooking(booking);
@@ -839,225 +810,189 @@ export function AdminBookings() {
                 </Form>
               )}
 
-      {/* Email Modal */}
-      {emailModalOpen && selectedBooking && (
-        <Dialog open={true} onOpenChange={() => setEmailModalOpen(false)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Send Email to {selectedBooking.clientName}</DialogTitle>
-              <DialogDescription>
-                Send a message to {selectedBooking.email}
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...emailForm}>
-              <form onSubmit={emailForm.handleSubmit((data) => sendEmailMutation.mutate({ ...data, email: selectedBooking.email, clientName: selectedBooking.clientName }))} className="space-y-4">
-                <FormField
-                  control={emailForm.control}
-                  name="subject"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Subject</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={emailForm.control}
-                  name="message"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Message</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} rows={8} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setEmailModalOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={sendEmailMutation.isPending}>
-                    {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      )}
+              {/* Email Tab */}
+              {activeTab === 'email' && (
+                <Form {...emailForm}>
+                  <form onSubmit={emailForm.handleSubmit((data) => {
+                    sendEmailMutation.mutate({ ...data, email: selectedBooking.email, clientName: selectedBooking.clientName });
+                    setManagementModalOpen(false);
+                  })} className="space-y-4">
+                    <FormField
+                      control={emailForm.control}
+                      name="subject"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Subject</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={emailForm.control}
+                      name="message"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Message</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} rows={8} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                      <Button type="submit" disabled={sendEmailMutation.isPending}>
+                        {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              )}
 
-      {/* Upload Photos Modal */}
-      {uploadModalOpen && selectedGallery && selectedBooking && (
-        <Dialog open={true} onOpenChange={() => setUploadModalOpen(false)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Upload Photos - {selectedBooking.clientName}</DialogTitle>
-              <DialogDescription>
-                Upload photos to the client's gallery
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Upload Type</Label>
-                <Select value={uploadType} onValueChange={(value: any) => setUploadType(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gallery">Gallery Images (for client selection)</SelectItem>
-                    <SelectItem value="selected">Pre-selected Images</SelectItem>
-                    <SelectItem value="final">Final Edited Images</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <SimpleUploader
-                maxNumberOfFiles={10}
-                onGetUploadParameters={handleGetUploadParameters}
-                onComplete={handleUploadComplete}
-                buttonClassName="w-full"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Photos
-              </SimpleUploader>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* View Gallery Modal */}
-      {viewGalleryModalOpen && selectedGallery && selectedBooking && (
-        <Dialog open={true} onOpenChange={() => setViewGalleryModalOpen(false)}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Gallery - {selectedBooking.clientName}</DialogTitle>
-              <DialogDescription>
-                View gallery images and client selections
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div className="text-center p-4 bg-blue-50 rounded">
-                  <div className="text-2xl font-bold text-blue-600">{selectedGallery.galleryImages.length}</div>
-                  <div>Gallery Images</div>
-                </div>
-                <div className="text-center p-4 bg-orange-50 rounded">
-                  <div className="text-2xl font-bold text-orange-600">{selectedGallery.selectedImages.length}</div>
-                  <div>Selected Images</div>
-                </div>
-                <div className="text-center p-4 bg-green-50 rounded">
-                  <div className="text-2xl font-bold text-green-600">{selectedGallery.finalImages.length}</div>
-                  <div>Final Images</div>
-                </div>
-              </div>
-              
-              {selectedGallery.selectedImages.length > 0 && (
-                <div>
-                  <h4 className="font-semibold mb-2">Client's Selected Images:</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {selectedGallery.selectedImages.slice(0, 6).map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`Selected ${index + 1}`}
-                        className="w-full h-24 object-cover rounded"
-                      />
-                    ))}
+              {/* Gallery Tab */}
+              {activeTab === 'gallery' && selectedGallery && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="text-center p-4 bg-blue-50 rounded">
+                      <div className="text-2xl font-bold text-blue-600">{selectedGallery.galleryImages.length}</div>
+                      <div>Gallery Images</div>
+                    </div>
+                    <div className="text-center p-4 bg-orange-50 rounded">
+                      <div className="text-2xl font-bold text-orange-600">{selectedGallery.selectedImages.length}</div>
+                      <div>Selected Images</div>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded">
+                      <div className="text-2xl font-bold text-green-600">{selectedGallery.finalImages.length}</div>
+                      <div>Final Images</div>
+                    </div>
                   </div>
-                  {selectedGallery.selectedImages.length > 6 && (
-                    <p className="text-sm text-gray-500 mt-2">
-                      And {selectedGallery.selectedImages.length - 6} more images...
-                    </p>
+                  
+                  {selectedGallery.selectedImages.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Client's Selected Images:</h4>
+                      <div className="grid grid-cols-3 gap-2">
+                        {selectedGallery.selectedImages.slice(0, 6).map((image, index) => (
+                          <img
+                            key={index}
+                            src={image}
+                            alt={`Selected ${index + 1}`}
+                            className="w-full h-24 object-cover rounded"
+                          />
+                        ))}
+                      </div>
+                      {selectedGallery.selectedImages.length > 6 && (
+                        <p className="text-sm text-gray-500 mt-2">
+                          And {selectedGallery.selectedImages.length - 6} more images...
+                        </p>
+                      )}
+                    </div>
                   )}
+                  
+                  <div className="text-sm text-gray-500">
+                    Access Code: <strong>{selectedGallery.accessCode}</strong>
+                  </div>
                 </div>
               )}
-              
-              <div className="text-sm text-gray-500">
-                Access Code: <strong>{selectedGallery.accessCode}</strong>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
 
-      {/* Create Catalogue Modal */}
-      {catalogueModalOpen && selectedBooking && (
-        <Dialog open={true} onOpenChange={() => setCatalogueModalOpen(false)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create Portfolio Catalogue</DialogTitle>
-              <DialogDescription>
-                Create a portfolio catalogue from {selectedBooking.clientName}'s session
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...catalogueForm}>
-              <form onSubmit={catalogueForm.handleSubmit((data) => createCatalogueMutation.mutate({ ...data, bookingId: selectedBooking.id, serviceType: selectedBooking.serviceType }))} className="space-y-4">
-                <FormField
-                  control={catalogueForm.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={catalogueForm.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} rows={3} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={catalogueForm.control}
-                  name="coverImage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cover Image URL</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="https://..." />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={catalogueForm.control}
-                  name="images"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Images (one URL per line)</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} rows={5} placeholder="https://image1.jpg&#10;https://image2.jpg&#10;https://image3.jpg" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setCatalogueModalOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createCatalogueMutation.isPending}>
-                    {createCatalogueMutation.isPending ? "Creating..." : "Create Catalogue"}
-                  </Button>
+              {/* Upload Tab */}
+              {activeTab === 'upload' && selectedGallery && (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Upload Type</Label>
+                    <Select value={uploadType} onValueChange={(value: any) => setUploadType(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gallery">Gallery Images (for client selection)</SelectItem>
+                        <SelectItem value="selected">Pre-selected Images</SelectItem>
+                        <SelectItem value="final">Final Edited Images</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <SimpleUploader
+                    maxNumberOfFiles={10}
+                    onGetUploadParameters={handleGetUploadParameters}
+                    onComplete={handleUploadComplete}
+                    buttonClassName="w-full"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Photos
+                  </SimpleUploader>
                 </div>
-              </form>
-            </Form>
+              )}
+
+              {/* Catalogue Tab */}
+              {activeTab === 'catalogue' && (
+                <Form {...catalogueForm}>
+                  <form onSubmit={catalogueForm.handleSubmit((data) => {
+                    createCatalogueMutation.mutate({ ...data, bookingId: selectedBooking.id, serviceType: selectedBooking.serviceType });
+                    setManagementModalOpen(false);
+                  })} className="space-y-4">
+                    <FormField
+                      control={catalogueForm.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Title</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={catalogueForm.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} rows={3} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={catalogueForm.control}
+                      name="coverImage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cover Image URL</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="https://..." />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={catalogueForm.control}
+                      name="images"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Images (one URL per line)</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} rows={5} placeholder="https://image1.jpg&#10;https://image2.jpg&#10;https://image3.jpg" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                      <Button type="submit" disabled={createCatalogueMutation.isPending}>
+                        {createCatalogueMutation.isPending ? "Creating..." : "Create Catalogue"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       )}
