@@ -49,6 +49,19 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Reset token is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 export function setupPasswordAuth(app: Express) {
   // Configure passport to use email as username field
   passport.use(
@@ -210,5 +223,72 @@ export function setupPasswordAuth(app: Express) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     res.json(req.user);
+  });
+
+  // Forgot password endpoint
+  app.post("/api/forgot-password", async (req, res) => {
+    try {
+      const validatedData = forgotPasswordSchema.parse(req.body);
+      
+      const user = await storage.getUserByEmail(validatedData.email);
+      if (!user) {
+        // Don't reveal if email exists or not for security
+        return res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+      }
+
+      // Generate reset token (simple approach - in production, use crypto.randomBytes)
+      const resetToken = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 3600000); // 1 hour from now
+
+      // Store reset token with user (we'll need to add this to storage interface)
+      await storage.createPasswordResetToken(user.id, resetToken, expiresAt);
+
+      // In a real app, you'd send an email here
+      // For now, we'll just log it
+      console.log(`Password reset token for ${user.email}: ${resetToken}`);
+      console.log(`Reset link: http://localhost:5000/auth?reset=${resetToken}`);
+
+      res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: "Validation failed",
+          details: error.errors 
+        });
+      }
+      console.error('Forgot password error:', error);
+      res.status(500).json({ error: "Failed to process password reset request" });
+    }
+  });
+
+  // Reset password endpoint
+  app.post("/api/reset-password", async (req, res) => {
+    try {
+      const validatedData = resetPasswordSchema.parse(req.body);
+      
+      // Verify reset token
+      const tokenData = await storage.getPasswordResetToken(validatedData.token);
+      if (!tokenData || new Date() > tokenData.expiresAt) {
+        return res.status(400).json({ error: "Invalid or expired reset token" });
+      }
+
+      // Update user password
+      const hashedPassword = await hashPassword(validatedData.password);
+      await storage.updateUserPassword(tokenData.userId, hashedPassword);
+
+      // Delete the used token
+      await storage.deletePasswordResetToken(validatedData.token);
+
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: "Validation failed",
+          details: error.errors 
+        });
+      }
+      console.error('Reset password error:', error);
+      res.status(500).json({ error: "Failed to reset password" });
+    }
   });
 }

@@ -1,5 +1,5 @@
 // Authentication page with login and signup - based on blueprint:javascript_auth_all_persistance
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Card } from "@/components/ui/card";
@@ -10,7 +10,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Camera, Heart, Users, LogIn, UserPlus } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Camera, Heart, Users, LogIn, UserPlus, ArrowLeft } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -24,12 +27,101 @@ const registerSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+const resetPasswordSchema = z.object({
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 type LoginFormData = z.infer<typeof loginSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
+type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
-  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
+  const { toast } = useToast();
+  
+  // Check if this is a password reset link
+  const urlParams = new URLSearchParams(window.location.search);
+  const resetToken = urlParams.get('reset');
+  
+  // Set mode to reset if we have a reset token
+  useEffect(() => {
+    if (resetToken) {
+      setMode('reset');
+    }
+  }, [resetToken]);
+
+  // Forgot password mutation
+  const forgotPasswordMutation = useMutation({
+    mutationFn: async (data: ForgotPasswordFormData) => {
+      const response = await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to send reset email");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setForgotPasswordMessage("If an account with that email exists, a password reset link has been sent.");
+      toast({
+        title: "Check your email",
+        description: "If an account with that email exists, a password reset link has been sent.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send reset email",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (data: ResetPasswordFormData) => {
+      const response = await fetch("/api/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, token: resetToken }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to reset password");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Password reset successful",
+        description: "Your password has been updated. You can now log in.",
+      });
+      setMode('login');
+      // Clear the reset token from URL
+      window.history.replaceState({}, '', '/auth');
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+    },
+  });
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -70,34 +162,52 @@ export default function AuthPage() {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold gradient-text">The Connector</h1>
             <p className="text-muted-foreground mt-2">
-              {isLoginMode ? "Welcome back!" : "Create your account"}
+              {mode === 'login' && "Welcome back!"}
+              {mode === 'register' && "Create your account"}
+              {mode === 'forgot' && "Reset your password"}
+              {mode === 'reset' && "Enter your new password"}
             </p>
           </div>
 
-          {/* Mode Toggle */}
-          <div className="flex mb-6 bg-muted rounded-lg p-1">
+          {/* Mode Toggle - only show for login/register */}
+          {(mode === 'login' || mode === 'register') && (
+            <div className="flex mb-6 bg-muted rounded-lg p-1">
+              <Button
+                type="button"
+                variant={mode === 'login' ? "default" : "ghost"}
+                className="flex-1 text-sm"
+                onClick={() => setMode('login')}
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Login
+              </Button>
+              <Button
+                type="button"
+                variant={mode === 'register' ? "default" : "ghost"}
+                className="flex-1 text-sm"
+                onClick={() => setMode('register')}
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Sign Up
+              </Button>
+            </div>
+          )}
+
+          {/* Back button for forgot/reset modes */}
+          {(mode === 'forgot' || mode === 'reset') && (
             <Button
               type="button"
-              variant={isLoginMode ? "default" : "ghost"}
-              className="flex-1 text-sm"
-              onClick={() => setIsLoginMode(true)}
+              variant="ghost"
+              className="mb-4"
+              onClick={() => setMode('login')}
             >
-              <LogIn className="w-4 h-4 mr-2" />
-              Login
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Login
             </Button>
-            <Button
-              type="button"
-              variant={!isLoginMode ? "default" : "ghost"}
-              className="flex-1 text-sm"
-              onClick={() => setIsLoginMode(false)}
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Sign Up
-            </Button>
-          </div>
+          )}
 
           {/* Login Form */}
-          {isLoginMode && (
+          {mode === 'login' && (
             <Form {...loginForm}>
               <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
                 <FormField
@@ -149,7 +259,8 @@ export default function AuthPage() {
           )}
 
           {/* Register Form */}
-          {!isLoginMode && (
+          {/* Register Form */}
+          {mode === 'register' && (
             <Form {...registerForm}>
               <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -234,6 +345,112 @@ export default function AuthPage() {
                 </Button>
               </form>
             </Form>
+          )}
+
+          {/* Add forgot password forms */}
+          {mode === 'login' && (
+            <div className="mt-4 text-center">
+              <Button
+                type="button"
+                variant="link"
+                className="text-sm"
+                onClick={() => setMode('forgot')}
+              >
+                Forgot your password?
+              </Button>
+            </div>
+          )}
+
+          {/* Forgot Password Form */}
+          {mode === 'forgot' && (
+            <div className="space-y-4">
+              {forgotPasswordMessage ? (
+                <div className="text-center space-y-4">
+                  <p className="text-green-600">{forgotPasswordMessage}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setMode('login')}
+                  >
+                    Back to Login
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const email = formData.get('email') as string;
+                  if (email) {
+                    forgotPasswordMutation.mutate({ email });
+                  }
+                }} className="space-y-4">
+                  <div>
+                    <Label htmlFor="forgot-email">Email Address</Label>
+                    <Input
+                      id="forgot-email"
+                      name="email"
+                      type="email"
+                      placeholder="Enter your email address"
+                      required
+                      data-testid="input-forgot-email"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={forgotPasswordMutation.isPending}
+                    data-testid="button-forgot-password"
+                  >
+                    {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Link"}
+                  </Button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Reset Password Form */}
+          {mode === 'reset' && resetToken && (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const password = formData.get('password') as string;
+              const confirmPassword = formData.get('confirmPassword') as string;
+              if (password && confirmPassword) {
+                resetPasswordMutation.mutate({ password, confirmPassword });
+              }
+            }} className="space-y-4">
+              <div>
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  name="password"
+                  type="password"
+                  placeholder="Enter your new password"
+                  required
+                  minLength={6}
+                  data-testid="input-new-password"
+                />
+              </div>
+              <div>
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <Input
+                  id="confirm-password"
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your new password"
+                  required
+                  data-testid="input-confirm-password"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={resetPasswordMutation.isPending}
+                data-testid="button-reset-password"
+              >
+                {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+              </Button>
+            </form>
           )}
         </Card>
       </div>

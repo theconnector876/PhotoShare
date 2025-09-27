@@ -107,6 +107,14 @@ export const reviews = pgTable("reviews", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,
   createdAt: true,
@@ -164,3 +172,5 @@ export type InsertCatalogue = z.infer<typeof insertCatalogueSchema>;
 
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;

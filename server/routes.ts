@@ -63,7 +63,14 @@ const reviewSchema = insertReviewSchema.extend({
 
 // Authentication middleware for password auth
 const isAuthenticated = (req: any, res: any, next: any) => {
-  if (req.isAuthenticated()) {
+  console.log('Auth check:', {
+    isAuthenticated: req.isAuthenticated(),
+    hasUser: !!req.user,
+    userEmail: req.user?.email,
+    sessionID: req.sessionID
+  });
+  
+  if (req.isAuthenticated() && req.user) {
     return next();
   }
   res.status(401).json({ error: "Authentication required" });
