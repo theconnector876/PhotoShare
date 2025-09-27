@@ -117,14 +117,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bookings", async (req, res) => {
     try {
       // Log booking request without sensitive data
-      const { password, confirmPassword, ...safeBookingData } = req.body;
+      const { password: reqPassword, confirmPassword: reqConfirmPassword, ...safeBookingData } = req.body;
       console.log('Booking request received for:', safeBookingData.email);
       
       // Validate booking data including password fields
       const validatedData = bookingWithAccountSchema.parse(req.body);
       
       // Extract password and confirmPassword from validated data
-      const { password, confirmPassword, ...bookingData } = validatedData;
+      const { password: validatedPassword, confirmPassword: validatedConfirmPassword, ...bookingData } = validatedData;
       
       // Check if user already exists with this email
       const normalizedEmail = normalizeEmail(bookingData.email);
@@ -132,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If user doesn't exist, create a new account
       if (!user) {
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(validatedPassword, 10);
         
         // Extract first and last name from clientName
         const [firstName, ...lastNameParts] = bookingData.clientName.split(' ');
@@ -144,6 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           password: hashedPassword,
           firstName: firstName,
           lastName: lastName,
+          profileImageUrl: null,
           isAdmin: false, // New users are not admin by default
         });
         
@@ -153,8 +154,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Using existing user account for booking:', normalizedEmail);
       }
       
-      // Create the booking
-      const booking = await storage.createBooking(bookingData);
+      // Calculate deposit and balance amounts (50% split)
+      const depositAmount = Math.round(bookingData.totalPrice * 0.5);
+      const balanceDue = bookingData.totalPrice - depositAmount;
+      
+      // Create the booking with calculated amounts
+      const bookingWithAmounts = {
+        ...bookingData,
+        depositAmount,
+        balanceDue
+      };
+      
+      const booking = await storage.createBooking(bookingWithAmounts);
       
       // Create gallery access for the booking
       const accessCode = Math.random().toString(36).substr(2, 8).toUpperCase();
