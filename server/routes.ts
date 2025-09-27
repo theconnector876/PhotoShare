@@ -91,6 +91,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Booking routes
   app.post("/api/bookings", async (req, res) => {
     try {
+      console.log('Booking request body:', JSON.stringify(req.body, null, 2));
       const bookingData = insertBookingSchema.parse(req.body);
       const booking = await storage.createBooking(bookingData);
       
@@ -107,7 +108,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ booking, accessCode });
     } catch (error) {
-      res.status(400).json({ error: "Invalid booking data" });
+      if (error instanceof z.ZodError) {
+        console.error('Booking validation errors:', error.errors);
+        res.status(400).json({ 
+          error: "Invalid booking data",
+          details: error.errors
+        });
+      } else {
+        console.error('Booking creation error:', error);
+        res.status(500).json({ error: "Failed to create booking" });
+      }
     }
   });
 

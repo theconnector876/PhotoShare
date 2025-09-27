@@ -60,11 +60,10 @@ export default function BookingCalculator() {
 
   const createBookingMutation = useMutation({
     mutationFn: async (data: BookingFormData) => {
-      const depositAmount = Math.round(calculation.totalPrice * 0.5);
-      const balanceDue = calculation.totalPrice - depositAmount;
-      
+      // Remove depositAmount and balanceDue - these are calculated server-side
       const bookingData = {
         ...data,
+        numberOfPeople: Number(data.numberOfPeople), // Ensure it's a number
         serviceType: calculation.serviceType,
         packageType: calculation.packageType,
         hasPhotoPackage: calculation.hasPhotoPackage,
@@ -73,8 +72,6 @@ export default function BookingCalculator() {
         transportationFee: calculation.transportationFee,
         addons: calculation.addons,
         totalPrice: calculation.totalPrice,
-        depositAmount,
-        balanceDue,
       };
       
       return apiRequest('POST', '/api/bookings', bookingData);
@@ -110,14 +107,32 @@ export default function BookingCalculator() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: async (error: any) => {
       console.error('Booking creation error:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
       
-      // Try to extract meaningful error message
+      // Try to extract meaningful error message from server response
       let errorMessage = "There was an error submitting your booking. Please try again.";
-      if (error.message) {
-        errorMessage = error.message;
+      
+      try {
+        // If the error has a response (HTTP error), try to parse it
+        if (error.response) {
+          const errorData = await error.response.json();
+          
+          if (errorData.details && Array.isArray(errorData.details)) {
+            // Show specific Zod validation errors
+            const fieldErrors = errorData.details.map((detail: any) => 
+              `${detail.path?.join(' → ') || 'Unknown field'}: ${detail.message}`
+            ).join('\n');
+            errorMessage = `Validation errors:\n${fieldErrors}`;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+      } catch (parseError) {
+        console.error('Error parsing server response:', parseError);
       }
 
       toast({
