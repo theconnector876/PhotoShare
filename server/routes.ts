@@ -116,7 +116,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Booking routes with user account creation
   app.post("/api/bookings", async (req, res) => {
     try {
-      console.log('Booking request body:', JSON.stringify(req.body, null, 2));
+      // Log booking request without sensitive data
+      const { password, confirmPassword, ...safeBookingData } = req.body;
+      console.log('Booking request received for:', safeBookingData.email);
       
       // Validate booking data including password fields
       const validatedData = bookingWithAccountSchema.parse(req.body);
