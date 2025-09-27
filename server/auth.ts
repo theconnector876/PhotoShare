@@ -121,7 +121,7 @@ export function setupPasswordAuth(app: Express) {
         password: hashedPassword,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
-        profileImageUrl: null, // Required field, set to null
+        profileImageUrl: null,
         isAdmin: isFirstUser,
       });
 
@@ -129,8 +129,16 @@ export function setupPasswordAuth(app: Express) {
         console.log(`First admin user created: ${user.email}`);
       }
 
-      // Auto-login after registration
-      req.login(user, (err) => {
+      // Auto-login after registration - create safe user object for passport
+      const safeUser = {
+        id: user.id,
+        email: user.email || '',
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isAdmin: user.isAdmin || false,
+      };
+      
+      req.login(safeUser, (err) => {
         if (err) return next(err);
         
         const userResponse = {

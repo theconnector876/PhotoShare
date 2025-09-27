@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,17 +51,25 @@ export default function Dashboard() {
     retry: false,
   });
 
-  // Redirect logic after all hooks (to avoid hooks violation)
-  // Redirect if not authenticated
-  if (!authLoading && !user) {
-    setLocation("/auth");
-    return null;
-  }
-
-  // Redirect admins to admin dashboard
-  if (user?.isAdmin) {
-    setLocation("/admin");
-    return null;
+  // Use useEffect for redirects to avoid setState during render
+  const [shouldRedirect, setShouldRedirect] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setShouldRedirect("/auth");
+    } else if (user?.isAdmin) {
+      setShouldRedirect("/admin");
+    }
+  }, [authLoading, user]);
+  
+  useEffect(() => {
+    if (shouldRedirect) {
+      setLocation(shouldRedirect);
+    }
+  }, [shouldRedirect, setLocation]);
+  
+  if (authLoading || shouldRedirect) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
   const handleLogout = () => {
