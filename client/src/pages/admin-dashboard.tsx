@@ -89,9 +89,10 @@ export function AdminDashboard() {
                 <Button 
                   variant="destructive" 
                   data-testid="button-logout"
-              >
-                Logout
-              </Button>
+                >
+                  Logout
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
