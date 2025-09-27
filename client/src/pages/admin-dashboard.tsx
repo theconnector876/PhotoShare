@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,78 +27,35 @@ import { AdminUsers } from "@/components/admin-users";
 
 export function AdminDashboard() {
   const { toast } = useToast();
-  const { isAuthenticated, isAdmin, isLoading, user } = useAuth();
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      toast({
-        title: "Unauthorized",
-        description: "You need to log in to access the admin panel.",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
-    }
-  }, [isAuthenticated, isLoading, toast]);
-
-  // Redirect if not admin
-  useEffect(() => {
-    if (!isLoading && isAuthenticated && !isAdmin) {
-      toast({
-        title: "Access Denied",
-        description: "You need admin privileges to access this panel.",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 2000);
-      return;
-    }
-  }, [isAuthenticated, isAdmin, isLoading, toast]);
+  const { user, isAdmin } = useAuth();
 
   // Fetch dashboard statistics
   const { data: bookings } = useQuery<any[]>({
     queryKey: ["/api/admin/bookings"],
-    enabled: isAdmin,
+
   });
 
   const { data: galleries } = useQuery<any[]>({
     queryKey: ["/api/admin/galleries"],
-    enabled: isAdmin,
+
   });
 
   const { data: contacts } = useQuery<any[]>({
     queryKey: ["/api/admin/contacts"],
-    enabled: isAdmin,
+
   });
 
   const { data: catalogues } = useQuery<any[]>({
     queryKey: ["/api/admin/catalogues"],
-    enabled: isAdmin,
+
   });
 
   const { data: reviews } = useQuery<any[]>({
     queryKey: ["/api/admin/reviews"],
-    enabled: isAdmin,
+
   });
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-green-700">Loading admin panel...</p>
-        </div>
-      </div>
-    );
-  }
 
-  if (!isAuthenticated || !isAdmin) {
-    return null; // Will redirect via useEffect
-  }
 
   const pendingBookings = bookings?.filter((b: any) => b.status === 'pending').length || 0;
   const confirmedBookings = bookings?.filter((b: any) => b.status === 'confirmed').length || 0;
@@ -120,17 +77,18 @@ export function AdminDashboard() {
               <p className="text-green-600 mt-2">Welcome back, {user?.firstName || user?.email}</p>
             </div>
             <div className="flex gap-4">
-              <Button 
-                variant="outline" 
-                onClick={() => window.location.href = "/"}
-                data-testid="button-home"
-              >
-                Back to Website
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={() => window.location.href = "/auth"}
-                data-testid="button-logout"
+              <Link href="/">
+                <Button 
+                  variant="outline" 
+                  data-testid="button-home"
+                >
+                  Back to Website
+                </Button>
+              </Link>
+              <Link href="/auth">
+                <Button 
+                  variant="destructive" 
+                  data-testid="button-logout"
               >
                 Logout
               </Button>
