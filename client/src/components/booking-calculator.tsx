@@ -23,6 +23,8 @@ const bookingFormSchema = z.object({
   clientName: z.string().min(1, "Client name is required"),
   email: z.string().email("Valid email is required"),
   contactNumber: z.string().min(1, "Contact number is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
   numberOfPeople: z.number().min(1, "At least 1 person is required"),
   shootDate: z.string().min(1, "Shoot date is required"),
   shootTime: z.string().min(1, "Shoot time is required"),
@@ -31,6 +33,9 @@ const bookingFormSchema = z.object({
   referralSource: z.array(z.string()).default([]),
   clientInitials: z.string().min(1, "Client initials are required").max(5, "Initials too long"),
   contractAccepted: z.boolean().refine((val) => val, "You must accept the contract terms"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 type BookingFormData = z.infer<typeof bookingFormSchema>;
@@ -47,6 +52,8 @@ export default function BookingCalculator() {
       clientName: "",
       email: "",
       contactNumber: "",
+      password: "",
+      confirmPassword: "",
       numberOfPeople: 1,
       shootDate: "",
       shootTime: "",
@@ -659,6 +666,58 @@ export default function BookingCalculator() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* Account Creation Section */}
+              <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                <h5 className="text-lg font-semibold mb-4 flex items-center">
+                  <Shield className="w-5 h-5 mr-2 text-primary" />
+                  Create Your Account
+                </h5>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create an account to manage your bookings and access your photo galleries
+                </p>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="password" 
+                            placeholder="Create a secure password" 
+                            className="form-focus"
+                            data-testid="input-password"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Password *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="password" 
+                            placeholder="Confirm your password" 
+                            className="form-focus"
+                            data-testid="input-confirm-password"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">

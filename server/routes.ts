@@ -4,9 +4,10 @@ import { storage } from "./storage";
 import { setupPasswordAuth } from "./auth";
 import { getSession } from "./replitAuth"; // Keep session setup
 import passport from "passport";
-import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema } from "@shared/schema";
+import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema, insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
+import bcrypt from 'bcrypt';
 
 if (!process.env.LEMONSQUEEZY_API_KEY) {
   throw new Error('Missing required Lemon Squeezy secret: LEMONSQUEEZY_API_KEY');
@@ -27,6 +28,15 @@ if (!process.env.LEMONSQUEEZY_VARIANT_ID) {
 if (!process.env.LEMONSQUEEZY_WEBHOOK_SECRET) {
   throw new Error('Missing required Lemon Squeezy webhook secret: LEMONSQUEEZY_WEBHOOK_SECRET');
 }
+
+// Booking with user account creation schema
+const bookingWithAccountSchema = insertBookingSchema.extend({
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
 
 // Admin-specific validation schemas
 const statusUpdateSchema = z.object({
@@ -103,11 +113,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup password authentication (includes /api/register, /api/login, /api/logout, /api/user)
   setupPasswordAuth(app);
-  // Booking routes
+  // Booking routes with user account creation
   app.post("/api/bookings", async (req, res) => {
     try {
       console.log('Booking request body:', JSON.stringify(req.body, null, 2));
-      const bookingData = insertBookingSchema.parse(req.body);
+      
+      // Validate booking data including password fields
+      const validatedData = bookingWithAccountSchema.parse(req.body);
+      
+      // Extract password and confirmPassword from validated data
+      const { password, confirmPassword, ...bookingData } = validatedData;
+      
+      // Check if user already exists with this email
+      const normalizedEmail = normalizeEmail(bookingData.email);
+      let user = await storage.getUserByEmail(normalizedEmail);
+      
+      // If user doesn't exist, create a new account
+      if (!user) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Extract first and last name from clientName
+        const [firstName, ...lastNameParts] = bookingData.clientName.split(' ');
+        const lastName = lastNameParts.join(' ') || '';
+        
+        const newUser = await storage.createUser({
+          id: crypto.randomUUID(),
+          email: normalizedEmail,
+          password: hashedPassword,
+          firstName: firstName,
+          lastName: lastName,
+          isAdmin: false, // New users are not admin by default
+        });
+        
+        user = newUser;
+        console.log('Created new user account for booking:', normalizedEmail);
+      } else {
+        console.log('Using existing user account for booking:', normalizedEmail);
+      }
+      
+      // Create the booking
       const booking = await storage.createBooking(bookingData);
       
       // Create gallery access for the booking
@@ -121,7 +165,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalImages: [],
       });
 
-      res.json({ booking, accessCode });
+      res.json({ 
+        booking, 
+        accessCode,
+        userCreated: !user || user.id === user.id, // Indicate if new user was created
+        message: user ? "Booking created with existing account" : "Booking created with new account"
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         console.error('Booking validation errors:', error.errors);
