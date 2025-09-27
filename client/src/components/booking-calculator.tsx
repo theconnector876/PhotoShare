@@ -110,16 +110,28 @@ export default function BookingCalculator() {
         });
       }
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Booking creation error:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      
+      // Try to extract meaningful error message
+      let errorMessage = "There was an error submitting your booking. Please try again.";
+      if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Booking Failed",
-        description: "There was an error submitting your booking. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: BookingFormData) => {
+    console.log('Form submission data:', data);
+    console.log('Form validation errors:', form.formState.errors);
+    console.log('Calculation data:', calculation);
     createBookingMutation.mutate(data);
   };
 
