@@ -36,7 +36,7 @@ interface UserGallery {
 }
 
 export default function Dashboard() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, logoutMutation } = useAuth();
   const [, setLocation] = useLocation();
 
   const { data: userBookings, isLoading: bookingsLoading } = useQuery<UserBooking[]>({
@@ -75,7 +75,7 @@ export default function Dashboard() {
   }
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    logoutMutation.mutate();
   };
 
   const formatDate = (dateString: string) => {
@@ -141,10 +141,11 @@ export default function Dashboard() {
           <Button 
             variant="outline" 
             onClick={handleLogout}
+            disabled={logoutMutation.isPending}
             data-testid="button-logout"
           >
             <LogOut className="mr-2" size={16} />
-            Sign Out
+            {logoutMutation.isPending ? "Logging out..." : "Sign Out"}
           </Button>
         </div>
 

@@ -118,7 +118,7 @@ export function AdminDashboard() {
               </Button>
               <Button 
                 variant="destructive" 
-                onClick={() => window.location.href = "/api/logout"}
+                onClick={() => window.location.href = "/auth"}
                 data-testid="button-logout"
               >
                 Logout
