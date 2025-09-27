@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Camera, Heart, Users, ChevronDown } from "lucide-react";
 import PortfolioGrid from "@/components/portfolio-grid";
+import ReviewDisplay from "@/components/review-display";
 
 export default function Home() {
   const scrollToSection = (id: string) => {
@@ -140,6 +141,26 @@ export default function Home() {
               </Button>
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* Client Reviews Section */}
+      <section className="py-20 bg-muted/50 relative z-10">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold font-serif mb-4 gradient-text" data-testid="reviews-title">
+              What Our Clients Say
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Real experiences from real clients who trusted us with their special moments
+            </p>
+          </div>
+
+          <ReviewDisplay 
+            type="general" 
+            limit={3}
+            showSubmitForm={true}
+          />
         </div>
       </section>
 
