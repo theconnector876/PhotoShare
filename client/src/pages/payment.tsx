@@ -148,7 +148,7 @@ export default function Payment() {
         }
 
         // Create Lemon Squeezy checkout
-        const checkoutResponse = await apiRequest('POST', '/api/create-checkout', {
+        const checkoutResponse = await apiRequest('POST', '/api/create-payment-intent', {
           bookingId,
           paymentType
         });
