@@ -32,7 +32,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { ObjectUploader } from "@/components/ObjectUploader";
+import { SimpleUploader } from "@/components/SimpleUploader";
 
 interface Booking {
   id: string;
@@ -949,7 +949,7 @@ export function AdminBookings() {
                   </SelectContent>
                 </Select>
               </div>
-              <ObjectUploader
+              <SimpleUploader
                 maxNumberOfFiles={10}
                 onGetUploadParameters={handleGetUploadParameters}
                 onComplete={handleUploadComplete}
@@ -957,7 +957,7 @@ export function AdminBookings() {
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Upload Photos
-              </ObjectUploader>
+              </SimpleUploader>
             </div>
           </DialogContent>
         </Dialog>
