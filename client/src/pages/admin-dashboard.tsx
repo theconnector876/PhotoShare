@@ -14,12 +14,16 @@ import {
   CheckCircleIcon,
   ClockIcon,
   XCircleIcon,
-  FolderIcon
+  FolderIcon,
+  Star,
+  Shield
 } from "lucide-react";
 import { AdminBookings } from "@/components/admin-bookings";
 import { AdminGalleries } from "@/components/admin-galleries";
 import { AdminContacts } from "@/components/admin-contacts";
 import { AdminCatalogues } from "@/components/admin-catalogues";
+import { AdminReviews } from "@/components/admin-reviews";
+import { AdminUsers } from "@/components/admin-users";
 
 export function AdminDashboard() {
   const { toast } = useToast();
@@ -76,6 +80,11 @@ export function AdminDashboard() {
     enabled: isAdmin,
   });
 
+  const { data: reviews } = useQuery<any[]>({
+    queryKey: ["/api/admin/reviews"],
+    enabled: isAdmin,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
@@ -97,6 +106,8 @@ export function AdminDashboard() {
   const unreadContacts = contacts?.filter((c: any) => c.status === 'unread').length || 0;
   const publishedCatalogues = catalogues?.filter((c: any) => c.isPublished).length || 0;
   const draftCatalogues = catalogues?.filter((c: any) => !c.isPublished).length || 0;
+  const pendingReviews = reviews?.filter((r: any) => !r.isApproved).length || 0;
+  const approvedReviews = reviews?.filter((r: any) => r.isApproved).length || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 p-4">
@@ -128,7 +139,7 @@ export function AdminDashboard() {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
@@ -203,11 +214,26 @@ export function AdminDashboard() {
               </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
+              <Star className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600" data-testid="stat-pending-reviews">
+                {pendingReviews}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Need approval
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="bookings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="bookings" data-testid="tab-bookings">
               <CalendarIcon className="w-4 h-4 mr-2" />
               Bookings
@@ -244,6 +270,19 @@ export function AdminDashboard() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="reviews" data-testid="tab-reviews">
+              <Star className="w-4 h-4 mr-2" />
+              Reviews
+              {pendingReviews > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {pendingReviews}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="users" data-testid="tab-users">
+              <Shield className="w-4 h-4 mr-2" />
+              Users
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings">
@@ -260,6 +299,14 @@ export function AdminDashboard() {
 
           <TabsContent value="catalogues">
             <AdminCatalogues />
+          </TabsContent>
+
+          <TabsContent value="reviews">
+            <AdminReviews />
+          </TabsContent>
+
+          <TabsContent value="users">
+            <AdminUsers />
           </TabsContent>
         </Tabs>
       </div>
