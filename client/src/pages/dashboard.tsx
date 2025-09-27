@@ -148,65 +148,6 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        {/* Admin Statistics Dashboard */}
-        {isAdmin && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="p-6">
-              <h3 className="font-semibold mb-4">System Statistics</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span>Total Bookings:</span>
-                  <span className="font-medium">{userBookings?.length || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Total Galleries:</span>
-                  <span className="font-medium">{userGalleries?.length || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Contact Messages:</span>
-                  <span className="font-medium">{Array.isArray(adminContacts) ? adminContacts.length : 0}</span>
-                </div>
-              </div>
-            </Card>
-            
-            <Card className="p-6">
-              <h3 className="font-semibold mb-4">Quick Actions</h3>
-              <div className="space-y-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => setLocation("/booking")}
-                >
-                  <Camera className="mr-2" size={16} />
-                  Create New Booking
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => setLocation("/gallery")}
-                >
-                  <Eye className="mr-2" size={16} />
-                  Access Gallery
-                </Button>
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <h3 className="font-semibold mb-4">Admin Status</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center text-green-600">
-                  <div className="w-2 h-2 bg-green-600 rounded-full mr-2"></div>
-                  Admin Access Active
-                </div>
-                <div className="text-muted-foreground">
-                  Managing all system operations
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
 
         <Tabs defaultValue="bookings" className="space-y-6">
           <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
