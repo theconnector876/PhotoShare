@@ -372,35 +372,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount = serverBalanceDue; // Use server-calculated balance
       }
 
-      // Create Lemon Squeezy checkout with custom pricing
-      const checkout = await createCheckout(
-        process.env.LEMONSQUEEZY_STORE_ID!,
-        parseInt(process.env.LEMONSQUEEZY_VARIANT_ID!),
-        {
-          checkoutOptions: {
-            embed: true, // Enable overlay
-            media: false,
-            logo: true,
-            buttonColor: '#10B981' // Jamaica green theme
-          },
-          checkoutData: {
-            email: booking.email,
-            custom: {
-              booking_id: bookingId,
-              payment_type: paymentType,
-              client_name: booking.clientName,
-              service_type: booking.serviceType,
-              amount_override: Math.round(amount * 100) // Amount in cents for custom pricing
-            }
-          },
-          productOptions: {
-            enabledVariants: [parseInt(process.env.LEMONSQUEEZY_VARIANT_ID!)],
-            redirectUrl: `${process.env.REPLIT_DOMAINS || 'http://localhost:5000'}/payment-success?booking=${bookingId}`,
-            receiptButtonText: 'View Booking',
-            receiptThankYouNote: 'Thank you for your booking with The Connector Photography!'
-          }
-        }
-      );
+      // Create Lemon Squeezy checkout with minimal required fields
+      const storeId = process.env.LEMONSQUEEZY_STORE_ID!;
+      const variantId = process.env.LEMONSQUEEZY_VARIANT_ID!;
+      
+      const newCheckout = {
+        productOptions: {
+          name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment`,
+          description: `${paymentType} payment for booking`,
+        },
+        checkoutOptions: {
+          embed: true,
+          media: true,
+          logo: true,
+        },
+        checkoutData: {
+          email: booking.email,
+          name: booking.clientName,
+        },
+        expiresAt: null,
+        preview: true,
+        testMode: true
+      };
+      
+      const checkout = await createCheckout(storeId, variantId, newCheckout);
 
       if (checkout.error) {
         console.error('Lemon Squeezy checkout creation error:', checkout.error);
