@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Download, Eye, Camera, Clock, MapPin, Phone, Mail, LogOut } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 
 interface UserBooking {
@@ -39,18 +39,6 @@ export default function Dashboard() {
   const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Redirect if not authenticated
-  if (!authLoading && !user) {
-    setLocation("/login");
-    return null;
-  }
-
-  // Redirect admins to admin dashboard
-  if (user?.isAdmin) {
-    setLocation("/admin");
-    return null;
-  }
-
   const { data: userBookings, isLoading: bookingsLoading } = useQuery<UserBooking[]>({
     queryKey: ["/api/user/bookings"],
     enabled: !!user,
@@ -62,6 +50,19 @@ export default function Dashboard() {
     enabled: !!user,
     retry: false,
   });
+
+  // Redirect logic after all hooks (to avoid hooks violation)
+  // Redirect if not authenticated
+  if (!authLoading && !user) {
+    setLocation("/auth");
+    return null;
+  }
+
+  // Redirect admins to admin dashboard
+  if (user?.isAdmin) {
+    setLocation("/admin");
+    return null;
+  }
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
