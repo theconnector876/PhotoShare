@@ -146,7 +146,7 @@ export function AdminBookings() {
   // Update booking status
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      await apiRequest(`/api/admin/bookings/${id}/status`, "PATCH", { status });
+      await apiRequest("PATCH", `/api/admin/bookings/${id}/status`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/bookings"] });
@@ -178,7 +178,7 @@ export function AdminBookings() {
   // Update booking details
   const updateBookingMutation = useMutation({
     mutationFn: async (data: EditBookingData & { id: string }) => {
-      await apiRequest(`/api/admin/bookings/${data.id}`, "PATCH", data);
+      await apiRequest("PATCH", `/api/admin/bookings/${data.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/bookings"] });
@@ -199,7 +199,7 @@ export function AdminBookings() {
   // Send email to client
   const sendEmailMutation = useMutation({
     mutationFn: async (data: EmailMessageData & { email: string; clientName: string }) => {
-      await apiRequest("/api/admin/send-email", "POST", data);
+      await apiRequest("POST", "/api/admin/send-email", data);
     },
     onSuccess: () => {
       toast({
@@ -220,7 +220,7 @@ export function AdminBookings() {
   // Upload images to gallery
   const uploadImageMutation = useMutation({
     mutationFn: async ({ galleryId, imageURL, type }: { galleryId: string; imageURL: string; type: string }) => {
-      await apiRequest('/api/admin/gallery-images', 'PUT', { galleryId, imageURL, type });
+      await apiRequest('PUT', '/api/admin/gallery-images', { galleryId, imageURL, type });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
@@ -242,7 +242,7 @@ export function AdminBookings() {
   const createCatalogueMutation = useMutation({
     mutationFn: async (data: CatalogueData & { bookingId: string; serviceType: string }) => {
       const imagesArray = data.images.split('\n').map(url => url.trim()).filter(url => url);
-      await apiRequest("/api/admin/catalogues", "POST", {
+      await apiRequest("POST", "/api/admin/catalogues", {
         title: data.title,
         description: data.description,
         serviceType: data.serviceType,
@@ -271,7 +271,7 @@ export function AdminBookings() {
   // Issue refund
   const refundMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      await apiRequest(`/api/admin/bookings/${bookingId}/refund`, "POST", {});
+      await apiRequest("POST", `/api/admin/bookings/${bookingId}/refund`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/bookings"] });
@@ -326,7 +326,7 @@ export function AdminBookings() {
 
   const handleGetUploadParameters = async (): Promise<{ method: "PUT"; url: string }> => {
     try {
-      const response = await apiRequest('/api/admin/objects/upload', 'POST', {});
+      const response = await apiRequest('POST', '/api/admin/objects/upload', {});
       return response as { method: "PUT"; url: string };
     } catch (error) {
       toast({
