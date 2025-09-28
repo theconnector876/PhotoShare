@@ -6,7 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ImageIcon, FolderIcon, UploadIcon } from "lucide-react";
+import { ImageIcon, FolderIcon, UploadIcon, Eye } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 // import { ObjectUploader } from "@/components/ObjectUploader"; // Temporarily disabled due to dependency issue
 import { isUnauthorizedError } from "@/lib/authUtils";
 // import type { UploadResult } from "@uppy/core"; // Temporarily disabled
@@ -28,11 +31,34 @@ export function AdminGalleries() {
   const queryClient = useQueryClient();
   const [selectedGallery, setSelectedGallery] = useState<Gallery | null>(null);
   const [uploadType, setUploadType] = useState<'gallery' | 'selected' | 'final'>('gallery');
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewGalleryId, setViewGalleryId] = useState<string | null>(null);
 
   const { data: galleries, isLoading } = useQuery<Gallery[]>({
     queryKey: ["/api/admin/galleries"],
     retry: false,
   });
+
+  // Filter galleries based on search and filter criteria
+  const filteredGalleries = galleries?.filter(gallery => {
+    // Search term filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        gallery.clientEmail.toLowerCase().includes(searchLower) ||
+        gallery.id.toLowerCase().includes(searchLower) ||
+        gallery.accessCode.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter
+    if (statusFilter !== "all" && gallery.status !== statusFilter) return false;
+
+    return true;
+  }) || [];
 
   const addImageMutation = useMutation({
     mutationFn: async ({ galleryId, imageURL, type }: { galleryId: string; imageURL: string; type: string }) => {
@@ -105,15 +131,18 @@ export function AdminGalleries() {
     switch (status) {
       case "pending":
         return "bg-orange-500";
-      case "selection":
+      case "active":
         return "bg-blue-500";
-      case "editing":
-        return "bg-purple-500";
       case "completed":
         return "bg-green-500";
       default:
         return "bg-gray-500";
     }
+  };
+
+  const openGalleryView = (gallery: Gallery) => {
+    const galleryUrl = `/gallery/${gallery.clientEmail}/${gallery.accessCode}`;
+    window.open(galleryUrl, '_blank');
   };
 
   if (isLoading) {
@@ -137,13 +166,55 @@ export function AdminGalleries() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Search and Filter Controls */}
+          <div className="mb-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-2">
+                <Input
+                  placeholder="Search by client email, gallery ID, or access code..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full"
+                  data-testid="input-search-galleries"
+                />
+              </div>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger data-testid="select-status-filter">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                }}
+                data-testid="button-clear-filters"
+              >
+                Clear Filters
+              </Button>
+            </div>
+
+            <div className="text-sm text-gray-600">
+              Showing {filteredGalleries.length} of {galleries?.length || 0} galleries
+            </div>
+          </div>
+
           <div className="grid gap-4">
-            {galleries?.length === 0 ? (
+            {filteredGalleries.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                No galleries found.
+                {galleries?.length === 0 ? "No galleries found." : "No galleries match your filters."}
               </div>
             ) : (
-              galleries?.map((gallery: Gallery) => (
+              filteredGalleries.map((gallery: Gallery) => (
                 <Card key={gallery.id} className="relative">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-4">
@@ -194,6 +265,15 @@ export function AdminGalleries() {
                         Created on {formatDate(gallery.createdAt)}
                       </div>
                       <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openGalleryView(gallery)}
+                          data-testid={`button-view-gallery-${gallery.id}`}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Gallery
+                        </Button>
                         {!selectedGallery ? (
                           <Button
                             variant="outline"
@@ -216,26 +296,26 @@ export function AdminGalleries() {
                                 <SelectItem value="final">Final</SelectItem>
                               </SelectContent>
                             </Select>
-                            <Button size="sm" variant="outline" disabled>
-                              <UploadIcon className="w-4 h-4 mr-2" />
-                              Add to {uploadType} (Upload temporarily disabled)
-                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => setSelectedGallery(null)}
+                              data-testid={`button-cancel-upload-${gallery.id}`}
                             >
                               Cancel
                             </Button>
+                            {/* <ObjectUploader
+                              getUploadParameters={handleGetUploadParameters}
+                              onUploadComplete={handleUploadComplete}
+                              trigger={
+                                <Button size="sm" data-testid={`button-upload-trigger-${gallery.id}`}>
+                                  <UploadIcon className="w-4 h-4 mr-2" />
+                                  Upload to {uploadType}
+                                </Button>
+                              }
+                            /> */}
                           </div>
                         ) : null}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          data-testid={`button-manage-${gallery.id}`}
-                        >
-                          Manage Gallery
-                        </Button>
                       </div>
                     </div>
                   </CardContent>

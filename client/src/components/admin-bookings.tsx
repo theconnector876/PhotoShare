@@ -111,6 +111,13 @@ export function AdminBookings() {
   const [activeTab, setActiveTab] = useState<'details' | 'edit' | 'email' | 'gallery' | 'upload' | 'catalogue'>('details');
   const [uploadType, setUploadType] = useState<'gallery' | 'selected' | 'final'>('gallery');
   const [selectedGallery, setSelectedGallery] = useState<Gallery | null>(null);
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<string>("all");
+  const [dateFromFilter, setDateFromFilter] = useState<string>("");
+  const [dateToFilter, setDateToFilter] = useState<string>("");
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({
     queryKey: ["/api/admin/bookings"],
@@ -121,6 +128,32 @@ export function AdminBookings() {
     queryKey: ["/api/admin/galleries"],
     retry: false,
   });
+
+  // Filter bookings based on search and filter criteria
+  const filteredBookings = bookings?.filter(booking => {
+    // Search term filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        booking.clientName.toLowerCase().includes(searchLower) ||
+        booking.email.toLowerCase().includes(searchLower) ||
+        booking.location.toLowerCase().includes(searchLower) ||
+        booking.parish.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter
+    if (statusFilter !== "all" && booking.status !== statusFilter) return false;
+
+    // Service type filter
+    if (serviceTypeFilter !== "all" && booking.serviceType !== serviceTypeFilter) return false;
+
+    // Date range filter
+    if (dateFromFilter && booking.shootDate < dateFromFilter) return false;
+    if (dateToFilter && booking.shootDate > dateToFilter) return false;
+
+    return true;
+  }) || [];
 
   const editForm = useForm<EditBookingData>({
     resolver: zodResolver(editBookingSchema),
@@ -325,10 +358,12 @@ export function AdminBookings() {
     return galleries?.find(gallery => gallery.bookingId === bookingId);
   };
 
+
   const handleGetUploadParameters = async (): Promise<{ method: "PUT"; url: string }> => {
     try {
       const response = await apiRequest('POST', '/api/admin/objects/upload', {});
-      return response as { method: "PUT"; url: string };
+      const data = await response.json();
+      return data as { method: "PUT"; url: string };
     } catch (error) {
       toast({
         title: "Error",
@@ -413,13 +448,94 @@ export function AdminBookings() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Search and Filter Controls */}
+          <div className="mb-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="md:col-span-2">
+                <Input
+                  placeholder="Search by client name, email, location..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full"
+                  data-testid="input-search-bookings"
+                />
+              </div>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger data-testid="select-status-filter">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="declined">Declined</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={serviceTypeFilter} onValueChange={setServiceTypeFilter}>
+                <SelectTrigger data-testid="select-service-filter">
+                  <SelectValue placeholder="All Services" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Services</SelectItem>
+                  <SelectItem value="photoshoot">Photoshoot</SelectItem>
+                  <SelectItem value="wedding">Wedding</SelectItem>
+                  <SelectItem value="event">Event</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                  setServiceTypeFilter("all");
+                  setDateFromFilter("");
+                  setDateToFilter("");
+                }}
+                data-testid="button-clear-filters"
+              >
+                Clear Filters
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>Date From</Label>
+                <Input
+                  type="date"
+                  value={dateFromFilter}
+                  onChange={(e) => setDateFromFilter(e.target.value)}
+                  data-testid="input-date-from"
+                />
+              </div>
+              <div>
+                <Label>Date To</Label>
+                <Input
+                  type="date"
+                  value={dateToFilter}
+                  onChange={(e) => setDateToFilter(e.target.value)}
+                  data-testid="input-date-to"
+                />
+              </div>
+              <div className="flex items-end">
+                <div className="text-sm text-gray-600">
+                  Showing {filteredBookings.length} of {bookings?.length || 0} bookings
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="grid gap-6">
-            {bookings?.length === 0 ? (
+            {filteredBookings.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                No bookings found.
+                {bookings?.length === 0 ? "No bookings found." : "No bookings match your filters."}
               </div>
             ) : (
-              bookings?.map((booking: Booking) => (
+              filteredBookings.map((booking: Booking) => (
                 <Card 
                   key={booking.id} 
                   className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-green-300"

@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Star, CheckCircle, X, Eye } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -26,11 +27,36 @@ export function AdminReviews() {
   const queryClient = useQueryClient();
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved">("all");
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { data: reviews, isLoading } = useQuery<Review[]>({
     queryKey: ["/api/admin/reviews"],
     retry: false,
   });
+
+  // Filter reviews based on search and filter criteria
+  const filteredReviews = reviews?.filter(review => {
+    // Search term filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        review.clientName.toLowerCase().includes(searchLower) ||
+        review.clientEmail.toLowerCase().includes(searchLower) ||
+        review.reviewText.toLowerCase().includes(searchLower) ||
+        review.reviewType.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter
+    if (filterStatus !== "all") {
+      if (filterStatus === "pending" && review.isApproved) return false;
+      if (filterStatus === "approved" && !review.isApproved) return false;
+    }
+
+    return true;
+  }) || [];
 
   const approveReviewMutation = useMutation({
     mutationFn: async ({ id, approve }: { id: string; approve: boolean }) => {
@@ -92,11 +118,6 @@ export function AdminReviews() {
     );
   };
 
-  const filteredReviews = reviews?.filter((review) => {
-    if (filterStatus === "pending") return !review.isApproved;
-    if (filterStatus === "approved") return review.isApproved;
-    return true;
-  });
 
   if (isLoading) {
     return (
