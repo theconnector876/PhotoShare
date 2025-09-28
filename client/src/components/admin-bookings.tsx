@@ -29,7 +29,8 @@ import {
   Eye,
   FolderPlus,
   CreditCard,
-  MessageSquare
+  MessageSquare,
+  Camera
 } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { SimpleUploader } from "@/components/SimpleUploader";
@@ -853,47 +854,120 @@ export function AdminBookings() {
               )}
 
               {/* Gallery Tab */}
-              {activeTab === 'gallery' && selectedGallery && (
+              {activeTab === 'gallery' && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div className="text-center p-4 bg-blue-50 rounded">
-                      <div className="text-2xl font-bold text-blue-600">{selectedGallery.galleryImages.length}</div>
-                      <div>Gallery Images</div>
-                    </div>
-                    <div className="text-center p-4 bg-orange-50 rounded">
-                      <div className="text-2xl font-bold text-orange-600">{selectedGallery.selectedImages.length}</div>
-                      <div>Selected Images</div>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded">
-                      <div className="text-2xl font-bold text-green-600">{selectedGallery.finalImages.length}</div>
-                      <div>Final Images</div>
-                    </div>
-                  </div>
-                  
-                  {selectedGallery.selectedImages.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold mb-2">Client's Selected Images:</h4>
-                      <div className="grid grid-cols-3 gap-2">
-                        {selectedGallery.selectedImages.slice(0, 6).map((image, index) => (
-                          <img
-                            key={index}
-                            src={image}
-                            alt={`Selected ${index + 1}`}
-                            className="w-full h-24 object-cover rounded"
-                          />
-                        ))}
+                  {selectedGallery ? (
+                    <>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="text-center p-4 bg-blue-50 rounded">
+                          <div className="text-2xl font-bold text-blue-600">{selectedGallery.galleryImages.length}</div>
+                          <div>Gallery Images</div>
+                        </div>
+                        <div className="text-center p-4 bg-orange-50 rounded">
+                          <div className="text-2xl font-bold text-orange-600">{selectedGallery.selectedImages.length}</div>
+                          <div>Selected Images</div>
+                        </div>
+                        <div className="text-center p-4 bg-green-50 rounded">
+                          <div className="text-2xl font-bold text-green-600">{selectedGallery.finalImages.length}</div>
+                          <div>Final Images</div>
+                        </div>
                       </div>
-                      {selectedGallery.selectedImages.length > 6 && (
-                        <p className="text-sm text-gray-500 mt-2">
-                          And {selectedGallery.selectedImages.length - 6} more images...
-                        </p>
+                      
+                      {selectedGallery.galleryImages.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold mb-2">Gallery Images:</h4>
+                          <div className="grid grid-cols-4 gap-2 max-h-96 overflow-y-auto">
+                            {selectedGallery.galleryImages.map((image, index) => (
+                              <div key={index} className="relative group">
+                                <img
+                                  src={image}
+                                  alt={`Gallery ${index + 1}`}
+                                  className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => window.open(image, '_blank')}
+                                />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded flex items-center justify-center">
+                                  <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
+                      
+                      {selectedGallery.selectedImages.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold mb-2">Client's Selected Images:</h4>
+                          <div className="grid grid-cols-4 gap-2 max-h-96 overflow-y-auto">
+                            {selectedGallery.selectedImages.map((image, index) => (
+                              <div key={index} className="relative group">
+                                <img
+                                  src={image}
+                                  alt={`Selected ${index + 1}`}
+                                  className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => window.open(image, '_blank')}
+                                />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded flex items-center justify-center">
+                                  <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedGallery.finalImages.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold mb-2">Final Edited Images:</h4>
+                          <div className="grid grid-cols-4 gap-2 max-h-96 overflow-y-auto">
+                            {selectedGallery.finalImages.map((image, index) => (
+                              <div key={index} className="relative group">
+                                <img
+                                  src={image}
+                                  alt={`Final ${index + 1}`}
+                                  className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => window.open(image, '_blank')}
+                                />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded flex items-center justify-center">
+                                  <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between items-center p-4 bg-gray-50 rounded">
+                        <div className="text-sm text-gray-500">
+                          Access Code: <strong className="text-gray-700">{selectedGallery.accessCode}</strong>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const galleryUrl = `/gallery?email=${selectedBooking?.email}&code=${selectedGallery.accessCode}`;
+                            window.open(galleryUrl, '_blank');
+                          }}
+                          data-testid="button-view-gallery"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View Client Gallery
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 mb-4">
+                        <Camera className="w-12 h-12 mx-auto" />
+                      </div>
+                      <h4 className="text-lg font-medium text-gray-600 mb-2">No Gallery Found</h4>
+                      <p className="text-sm text-gray-500 mb-4">
+                        This booking doesn't have an associated gallery yet.
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Gallery will be created automatically when you upload the first images.
+                      </p>
                     </div>
                   )}
-                  
-                  <div className="text-sm text-gray-500">
-                    Access Code: <strong>{selectedGallery.accessCode}</strong>
-                  </div>
                 </div>
               )}
 
