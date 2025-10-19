@@ -93,17 +93,16 @@ export default function BookingCalculator() {
           throw new Error('Invalid booking response structure');
         }
 
+        const paymentUrl = `/payment?booking=${result.booking.id}&type=deposit`;
+        console.log('Redirecting to:', paymentUrl);
+        
         toast({
           title: "Booking Confirmed!",
           description: "Redirecting to payment...",
         });
         
-        // Small delay to show toast before redirect
-        setTimeout(() => {
-          const paymentUrl = `/payment?booking=${result.booking.id}&type=deposit`;
-          console.log('Redirecting to:', paymentUrl);
-          navigate(paymentUrl);
-        }, 1000);
+        // Navigate immediately - toast will still show
+        navigate(paymentUrl);
         
       } catch (error) {
         console.error('Error in booking success:', error);
@@ -154,6 +153,8 @@ export default function BookingCalculator() {
     console.log('Form submission data:', data);
     console.log('Form validation errors:', form.formState.errors);
     console.log('Calculation data:', calculation);
+    
+    // Prevent any potential page reload
     createBookingMutation.mutate(data);
   };
 

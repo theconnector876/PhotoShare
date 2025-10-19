@@ -71,8 +71,8 @@ export default function Payment() {
   const [booking, setBooking] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Get booking ID from URL params
-  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  // Get booking ID from URL params - use window.location.search for query params
+  const urlParams = new URLSearchParams(window.location.search);
   const bookingId = urlParams.get('booking');
   const paymentType = urlParams.get('type') || 'deposit'; // 'deposit' or 'balance'
 
@@ -97,18 +97,23 @@ export default function Payment() {
   }, []);
 
   useEffect(() => {
+    console.log('Payment page loaded, bookingId:', bookingId, 'paymentType:', paymentType);
+    
     if (!bookingId) {
+      console.log('No booking ID, redirecting to home');
       navigate('/');
       return;
     }
 
     const fetchBookingAndCreatePayment = async () => {
       try {
+        console.log('Fetching booking and creating payment for:', bookingId);
         setIsLoading(true);
         
         // Get booking details (public payment endpoint)
         const bookingResponse = await apiRequest('GET', `/api/bookings/${bookingId}/payment`);
         const bookingData = await bookingResponse.json();
+        console.log('Booking data received:', bookingData);
         setBooking(bookingData);
 
         // Determine amount based on payment type
@@ -148,19 +153,22 @@ export default function Payment() {
         }
 
         // Create Lemon Squeezy checkout
+        console.log('Creating payment intent for booking:', bookingId);
         const checkoutResponse = await apiRequest('POST', '/api/create-payment-intent', {
           bookingId,
           paymentType
         });
         const checkoutData = await checkoutResponse.json();
+        console.log('Checkout data received:', checkoutData);
         setCheckoutUrl(checkoutData.checkoutUrl);
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Error in fetchBookingAndCreatePayment:', error);
         toast({
           title: "Error",
           description: "Failed to load payment information",
           variant: "destructive",
         });
+        console.log('Error occurred, redirecting to home');
         navigate('/');
       } finally {
         setIsLoading(false);
