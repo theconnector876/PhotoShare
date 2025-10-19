@@ -485,9 +485,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const customPriceInCents = Math.round(amount * 100);
       
       const newCheckout = {
+        customPrice: customPriceInCents,
         productOptions: {
           name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment`,
           description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}`,
+          redirectUrl: `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/payment-success?booking=${bookingId}`,
         },
         checkoutOptions: {
           embed: true,
@@ -501,13 +503,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             booking_id: bookingId,
             payment_type: paymentType,
             service_type: booking.serviceType,
-            total_amount: booking.totalPrice
+            total_amount: String(booking.totalPrice)
           }
         },
-        expiresAt: null,
-        preview: true,
-        testMode: true,
-        customPrice: customPriceInCents
       };
       
       const checkout = await createCheckout(storeId, variantId, newCheckout);
