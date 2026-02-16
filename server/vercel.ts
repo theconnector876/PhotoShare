@@ -11,7 +11,18 @@ app.use("/api/stripe/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-await registerRoutes(app);
+// Initialize routes - must complete before handling requests
+let initialized = false;
+let initPromise: Promise<void> | null = null;
+
+function ensureInitialized() {
+  if (!initPromise) {
+    initPromise = registerRoutes(app).then(() => {
+      initialized = true;
+    });
+  }
+  return initPromise;
+}
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;
@@ -19,4 +30,10 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ message });
 });
 
-export default app;
+// Vercel handler - ensure routes are initialized before handling
+const handler = async (req: Request, res: Response) => {
+  await ensureInitialized();
+  app(req, res);
+};
+
+export default handler;
