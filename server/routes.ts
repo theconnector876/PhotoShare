@@ -1,32 +1,29 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupPasswordAuth } from "./auth";
+import { setupPasswordAuth, hashPassword } from "./auth";
 import { getSession } from "./replitAuth"; // Keep session setup
 import passport from "passport";
 import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema, insertUserSchema } from "@shared/schema";
+import { defaultPricingConfig } from "@shared/pricing";
+import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
 import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
-import bcrypt from 'bcrypt';
 
-if (!process.env.LEMONSQUEEZY_API_KEY) {
-  throw new Error('Missing required Lemon Squeezy secret: LEMONSQUEEZY_API_KEY');
-}
+const lemonSqueezyEnabled = Boolean(
+  process.env.LEMONSQUEEZY_API_KEY &&
+  process.env.LEMONSQUEEZY_STORE_ID &&
+  process.env.LEMONSQUEEZY_VARIANT_ID &&
+  process.env.LEMONSQUEEZY_WEBHOOK_SECRET
+);
 
-// Configure Lemon Squeezy
-lemonSqueezySetup({
-  apiKey: process.env.LEMONSQUEEZY_API_KEY,
-  onError: (error) => console.error('Lemon Squeezy Error:', error),
-});
-
-if (!process.env.LEMONSQUEEZY_STORE_ID) {
-  throw new Error('Missing required Lemon Squeezy store ID: LEMONSQUEEZY_STORE_ID');
-}
-if (!process.env.LEMONSQUEEZY_VARIANT_ID) {
-  throw new Error('Missing required Lemon Squeezy variant ID: LEMONSQUEEZY_VARIANT_ID');
-}
-if (!process.env.LEMONSQUEEZY_WEBHOOK_SECRET) {
-  throw new Error('Missing required Lemon Squeezy webhook secret: LEMONSQUEEZY_WEBHOOK_SECRET');
+if (lemonSqueezyEnabled) {
+  lemonSqueezySetup({
+    apiKey: process.env.LEMONSQUEEZY_API_KEY,
+    onError: (error) => console.error('Lemon Squeezy Error:', error),
+  });
+} else {
+  console.warn("Lemon Squeezy disabled: missing required env vars.");
 }
 
 // Booking with user account creation schema
@@ -40,11 +37,16 @@ const bookingWithAccountSchema = insertBookingSchema.extend({
 
 // Admin-specific validation schemas
 const statusUpdateSchema = z.object({
-  status: z.enum(["pending", "confirmed", "completed", "cancelled"])
+  status: z.enum(["pending", "confirmed", "completed", "cancelled", "declined"])
 });
 
 // Catalogue validation schemas
 const catalogueSchema = insertCatalogueSchema;
+const updateCatalogueSchema = insertCatalogueSchema.partial().extend({
+  images: z.array(z.string()).optional(),
+  bookingId: z.string().nullable().optional(),
+  sortOrder: z.number().optional(),
+});
 
 // Review validation schemas
 const reviewSchema = insertReviewSchema.extend({
@@ -81,6 +83,19 @@ const isAdmin = async (req: any, res: any, next: any) => {
   res.status(403).json({ error: "Admin access required" });
 };
 
+const isPhotographerApproved = (req: any, res: any, next: any) => {
+  if (!req.isAuthenticated() || !req.user) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  if (req.user.role !== "photographer") {
+    return res.status(403).json({ error: "Photographer access required" });
+  }
+  if (req.user.photographerStatus !== "approved") {
+    return res.status(403).json({ error: "Photographer approval required" });
+  }
+  return next();
+};
+
 // Safe DTOs for public responses
 const createSafeCatalogueDTO = (catalogue: any) => ({
   id: catalogue.id,
@@ -89,6 +104,7 @@ const createSafeCatalogueDTO = (catalogue: any) => ({
   serviceType: catalogue.serviceType,
   coverImage: catalogue.coverImage,
   images: catalogue.images,
+  sortOrder: catalogue.sortOrder,
   createdAt: catalogue.createdAt,
   publishedAt: catalogue.publishedAt
 });
@@ -113,6 +129,185 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup password authentication (includes /api/register, /api/login, /api/logout, /api/user)
   setupPasswordAuth(app);
+
+  app.get("/api/photographer/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const role = (req as any).user?.role;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      if (role !== "photographer") {
+        return res.status(403).json({ error: "Photographer access required" });
+      }
+      const profile = await storage.getPhotographerProfileByUserId(userId);
+      res.json({ profile, status: (req as any).user?.photographerStatus });
+    } catch (error) {
+      console.error("Error fetching photographer profile:", error);
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  });
+
+  app.patch("/api/photographer/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const role = (req as any).user?.role;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      if (role !== "photographer") {
+        return res.status(403).json({ error: "Photographer access required" });
+      }
+      const existing = await storage.getPhotographerProfileByUserId(userId);
+      const profileData = {
+        displayName: req.body?.displayName,
+        bio: req.body?.bio,
+        location: req.body?.location,
+        specialties: req.body?.specialties ?? [],
+        portfolioLinks: req.body?.portfolioLinks ?? [],
+        pricing: req.body?.pricing,
+        availability: req.body?.availability,
+        phone: req.body?.phone,
+        socials: req.body?.socials ?? {},
+        verificationDocs: req.body?.verificationDocs ?? [],
+      };
+
+      const profile = existing
+        ? await storage.updatePhotographerProfile(userId, profileData)
+        : await storage.createPhotographerProfile({ userId, ...profileData });
+
+      res.json({ profile });
+    } catch (error) {
+      console.error("Error updating photographer profile:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
+  app.get("/api/pricing", async (req, res) => {
+    try {
+      const photographerId = typeof req.query.photographerId === "string" ? req.query.photographerId : null;
+      if (photographerId) {
+        const photographer = await storage.getUserById(photographerId);
+        if (!photographer || photographer.role !== "photographer" || photographer.photographerStatus !== "approved") {
+          return res.status(404).json({ error: "Photographer not found" });
+        }
+        const profile = await storage.getPhotographerProfileByUserId(photographerId);
+        return res.json(profile?.pricingConfig || defaultPricingConfig);
+      }
+
+      const row = await storage.getPricingConfig("global");
+      res.json(row?.config || defaultPricingConfig);
+    } catch (error) {
+      console.error("Error fetching pricing config:", error);
+      res.status(500).json({ error: "Failed to fetch pricing" });
+    }
+  });
+
+  app.put("/api/admin/pricing", isAdmin, async (req, res) => {
+    try {
+      const pricingSchema = z.object({ config: z.record(z.any()) });
+      const { config } = pricingSchema.parse(req.body);
+      const row = await storage.upsertPricingConfig("global", config);
+      res.json(row);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid pricing data", details: error.errors });
+      }
+      console.error("Error updating pricing config:", error);
+      res.status(500).json({ error: "Failed to update pricing" });
+    }
+  });
+
+  app.get("/api/site-config", async (_req, res) => {
+    try {
+      const row = await storage.getSiteConfig("global");
+      res.json(row?.config || defaultSiteConfig);
+    } catch (error) {
+      console.error("Error fetching site config:", error);
+      res.status(500).json({ error: "Failed to fetch site config" });
+    }
+  });
+
+  app.put("/api/admin/site-config", isAdmin, async (req, res) => {
+    try {
+      const siteConfigSchema = z.object({ config: z.record(z.any()) });
+      const { config } = siteConfigSchema.parse(req.body);
+      const row = await storage.upsertSiteConfig("global", config);
+      res.json(row);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid site config data", details: error.errors });
+      }
+      console.error("Error updating site config:", error);
+      res.status(500).json({ error: "Failed to update site config" });
+    }
+  });
+
+  app.get("/api/photographer/pricing", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const role = (req as any).user?.role;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      if (role !== "photographer") {
+        return res.status(403).json({ error: "Photographer access required" });
+      }
+      const profile = await storage.getPhotographerProfileByUserId(userId);
+      res.json({ config: profile?.pricingConfig || defaultPricingConfig });
+    } catch (error) {
+      console.error("Error fetching photographer pricing:", error);
+      res.status(500).json({ error: "Failed to fetch photographer pricing" });
+    }
+  });
+
+  app.put("/api/photographer/pricing", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const role = (req as any).user?.role;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      if (role !== "photographer") {
+        return res.status(403).json({ error: "Photographer access required" });
+      }
+      const pricingSchema = z.object({ config: z.record(z.any()) });
+      const { config } = pricingSchema.parse(req.body);
+      const existing = await storage.getPhotographerProfileByUserId(userId);
+      const profile = existing
+        ? await storage.updatePhotographerPricing(userId, config)
+        : await storage.createPhotographerProfile({ userId, pricingConfig: config });
+      res.json({ profile });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid pricing data", details: error.errors });
+      }
+      console.error("Error updating photographer pricing:", error);
+      res.status(500).json({ error: "Failed to update photographer pricing" });
+    }
+  });
+
+  app.get("/api/photographers/:id/public", async (req, res) => {
+    try {
+      const photographer = await storage.getUserById(req.params.id);
+      if (!photographer || photographer.role !== "photographer" || photographer.photographerStatus !== "approved") {
+        return res.status(404).json({ error: "Photographer not found" });
+      }
+      const profile = await storage.getPhotographerProfileByUserId(req.params.id);
+      const displayName =
+        profile?.displayName ||
+        [photographer.firstName, photographer.lastName].filter(Boolean).join(" ") ||
+        "Photographer";
+      res.json({
+        id: photographer.id,
+        displayName,
+      });
+    } catch (error) {
+      console.error("Error fetching photographer profile:", error);
+      res.status(500).json({ error: "Failed to fetch photographer" });
+    }
+  });
+
   // Booking routes with user account creation
   app.post("/api/bookings", async (req, res) => {
     try {
@@ -132,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If user doesn't exist, create a new account
       if (!user) {
-        const hashedPassword = await bcrypt.hash(validatedPassword, 10);
+        const hashedPassword = await hashPassword(validatedPassword);
         
         // Extract first and last name from clientName
         const [firstName, ...lastNameParts] = bookingData.clientName.split(' ');
@@ -146,6 +341,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: lastName,
           profileImageUrl: null,
           isAdmin: false, // New users are not admin by default
+          role: "client",
+          photographerStatus: null,
         });
         
         user = newUser;
@@ -154,6 +351,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Using existing user account for booking:', normalizedEmail);
       }
       
+      if (bookingData.photographerId) {
+        const photographer = await storage.getUserById(bookingData.photographerId);
+        if (!photographer || photographer.role !== "photographer" || photographer.photographerStatus !== "approved") {
+          return res.status(400).json({ error: "Invalid photographer selection" });
+        }
+      }
+
       // Calculate deposit and balance amounts (50% split)
       const depositAmount = Math.round(bookingData.totalPrice * 0.5);
       const balanceDue = bookingData.totalPrice - depositAmount;
@@ -437,9 +641,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/photographer/bookings', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const role = (req as any).user?.role;
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      if (role !== 'photographer') {
+        return res.status(403).json({ error: 'Photographer access required' });
+      }
+      const bookings = await storage.getPhotographerBookings(userId);
+      res.json(bookings);
+    } catch (error) {
+      console.error('Error fetching photographer bookings:', error);
+      res.status(500).json({ error: 'Failed to fetch photographer bookings' });
+    }
+  });
+
+  app.patch('/api/photographer/bookings/:id/status', isPhotographerApproved, async (req, res) => {
+    try {
+      const statusSchema = z.object({ status: z.enum(["pending", "confirmed", "completed", "cancelled", "declined"]) });
+      const { status } = statusSchema.parse(req.body);
+      const booking = await storage.getBooking(req.params.id);
+      const userId = (req as any).user?.id;
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+      if (booking.photographerId !== userId) {
+        return res.status(403).json({ error: 'Not assigned to this booking' });
+      }
+      const updated = await storage.updateBookingStatus(req.params.id, status);
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid status', details: error.errors });
+      }
+      console.error('Error updating booking status:', error);
+      res.status(500).json({ error: 'Failed to update booking status' });
+    }
+  });
+
+  app.get('/api/photographer/galleries', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const role = (req as any).user?.role;
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      if (role !== 'photographer') {
+        return res.status(403).json({ error: 'Photographer access required' });
+      }
+      const galleries = await storage.getPhotographerGalleries(userId);
+      res.json(galleries);
+    } catch (error) {
+      console.error('Error fetching photographer galleries:', error);
+      res.status(500).json({ error: 'Failed to fetch photographer galleries' });
+    }
+  });
+
+  app.post('/api/photographer/objects/upload', isPhotographerApproved, async (_req, res) => {
+    try {
+      const mockUploadURL = `https://storage.googleapis.com/mock-bucket/uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      res.json({
+        method: "PUT" as const,
+        url: mockUploadURL
+      });
+    } catch (error) {
+      console.error('Error generating upload URL:', error);
+      res.status(500).json({ error: 'Failed to generate upload URL' });
+    }
+  });
+
+  app.put('/api/photographer/gallery-images', isPhotographerApproved, async (req, res) => {
+    try {
+      const galleryImageSchema = z.object({
+        galleryId: z.string(),
+        imageURL: z.string(),
+        type: z.enum(['gallery', 'selected', 'final'])
+      });
+      
+      const { galleryId, imageURL, type } = galleryImageSchema.parse(req.body);
+
+      const gallery = await storage.getGalleryById(galleryId);
+      if (!gallery) {
+        return res.status(404).json({ error: 'Gallery not found' });
+      }
+      if (!gallery.bookingId) {
+        return res.status(400).json({ error: 'Gallery not linked to a booking' });
+      }
+      const booking = await storage.getBooking(gallery.bookingId);
+      const userId = (req as any).user?.id;
+      if (!booking || booking.photographerId !== userId) {
+        return res.status(403).json({ error: 'Not assigned to this gallery' });
+      }
+
+      const currentImages = {
+        gallery: gallery.galleryImages || [],
+        selected: gallery.selectedImages || [],
+        final: gallery.finalImages || []
+      };
+
+      const updatedImages = [...currentImages[type], imageURL];
+      const updatedGallery = await storage.updateGalleryImages(gallery.id, updatedImages, type);
+
+      res.json({
+        objectPath: imageURL,
+        gallery: updatedGallery
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      console.error('Error adding gallery image:', error);
+      res.status(500).json({ error: 'Failed to add gallery image' });
+    }
+  });
+
   // Lemon Squeezy payment routes
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
+      if (!lemonSqueezyEnabled) {
+        return res.status(501).json({ error: "Payments not configured" });
+      }
+
       const { bookingId, paymentType } = req.body;
       
       if (!bookingId || !paymentType || !['deposit', 'balance'].includes(paymentType)) {
@@ -598,6 +923,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Lemon Squeezy webhook to handle payment success
   app.post('/api/lemonsqueezy/webhook', async (req, res) => {
     try {
+      if (!lemonSqueezyEnabled) {
+        return res.status(501).json({ error: "Webhooks not configured" });
+      }
+
       const signature = req.headers['x-signature'] as string;
       
       if (!signature) {
@@ -735,6 +1064,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error('Error creating catalogue:', error);
       res.status(500).json({ error: 'Failed to create catalogue' });
+    }
+  });
+
+  app.put('/api/admin/catalogues/:id', isAdmin, async (req, res) => {
+    try {
+      const updateData = updateCatalogueSchema.parse(req.body);
+      const catalogue = await storage.updateCatalogue(req.params.id, updateData);
+      if (!catalogue) {
+        return res.status(404).json({ error: 'Catalogue not found' });
+      }
+      res.json(catalogue);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid catalogue data', details: error.errors });
+      }
+      console.error('Error updating catalogue:', error);
+      res.status(500).json({ error: 'Failed to update catalogue' });
+    }
+  });
+
+  app.patch('/api/admin/catalogues/reorder', isAdmin, async (req, res) => {
+    try {
+      const reorderSchema = z.object({ orderedIds: z.array(z.string().min(1)) });
+      const { orderedIds } = reorderSchema.parse(req.body);
+      await Promise.all(
+        orderedIds.map((id, index) => storage.updateCatalogueSortOrder(id, index + 1))
+      );
+      const updated = await storage.getAllCatalogues();
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid reorder data', details: error.errors });
+      }
+      console.error('Error reordering catalogues:', error);
+      res.status(500).json({ error: 'Failed to reorder catalogues' });
     }
   });
 
@@ -985,6 +1349,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: user.firstName,
         lastName: user.lastName,
         isAdmin: user.isAdmin,
+        role: user.role,
+        photographerStatus: user.photographerStatus,
         createdAt: user.createdAt
       }));
       
@@ -992,6 +1358,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching users:', error);
       res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  });
+
+  app.get('/api/admin/photographers/pending', isAdmin, async (_req, res) => {
+    try {
+      const pending = await storage.getPendingPhotographers();
+      res.json(pending);
+    } catch (error) {
+      console.error('Error fetching pending photographers:', error);
+      res.status(500).json({ error: 'Failed to fetch pending photographers' });
+    }
+  });
+
+  app.get('/api/admin/photographers', isAdmin, async (_req, res) => {
+    try {
+      const photographers = await storage.getAllPhotographers();
+      res.json(photographers);
+    } catch (error) {
+      console.error('Error fetching photographers:', error);
+      res.status(500).json({ error: 'Failed to fetch photographers' });
+    }
+  });
+
+  app.post('/api/admin/photographers/:userId/approve', isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.updatePhotographerStatus(req.params.userId, 'approved');
+      if (!updated) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error('Error approving photographer:', error);
+      res.status(500).json({ error: 'Failed to approve photographer' });
+    }
+  });
+
+  app.post('/api/admin/photographers/:userId/reject', isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.updatePhotographerStatus(req.params.userId, 'rejected');
+      if (!updated) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error('Error rejecting photographer:', error);
+      res.status(500).json({ error: 'Failed to reject photographer' });
+    }
+  });
+
+  app.put('/api/admin/photographers/:userId/pricing', isAdmin, async (req, res) => {
+    try {
+      const pricingSchema = z.object({ config: z.record(z.any()) });
+      const { config } = pricingSchema.parse(req.body);
+      const existing = await storage.getPhotographerProfileByUserId(req.params.userId);
+      const profile = existing
+        ? await storage.updatePhotographerPricing(req.params.userId, config)
+        : await storage.createPhotographerProfile({ userId: req.params.userId, pricingConfig: config });
+      res.json(profile);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid pricing data', details: error.errors });
+      }
+      console.error('Error updating photographer pricing:', error);
+      res.status(500).json({ error: 'Failed to update photographer pricing' });
+    }
+  });
+
+  app.get('/api/admin/photographers/:userId/pricing', isAdmin, async (req, res) => {
+    try {
+      const profile = await storage.getPhotographerProfileByUserId(req.params.userId);
+      res.json({ config: profile?.pricingConfig || defaultPricingConfig });
+    } catch (error) {
+      console.error('Error fetching photographer pricing:', error);
+      res.status(500).json({ error: 'Failed to fetch photographer pricing' });
+    }
+  });
+
+  app.post('/api/admin/bookings/:id/assign-photographer', isAdmin, async (req, res) => {
+    try {
+      const assignSchema = z.object({ photographerId: z.string().nullable() });
+      const { photographerId } = assignSchema.parse(req.body);
+      const booking = await storage.assignBookingPhotographer(req.params.id, photographerId);
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+      res.json(booking);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid assignment data', details: error.errors });
+      }
+      console.error('Error assigning photographer:', error);
+      res.status(500).json({ error: 'Failed to assign photographer' });
     }
   });
 

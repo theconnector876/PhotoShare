@@ -15,6 +15,8 @@ type User = {
   firstName?: string | null;
   lastName?: string | null;
   isAdmin: boolean;
+  role?: string | null;
+  photographerStatus?: string | null;
 };
 
 type LoginData = {
@@ -27,6 +29,19 @@ type RegisterData = {
   password: string;
   firstName: string;
   lastName: string;
+  role: "client" | "photographer";
+  photographerProfile?: {
+    displayName?: string;
+    bio?: string;
+    location?: string;
+    specialties?: string[];
+    portfolioLinks?: string[];
+    pricing?: string;
+    availability?: string;
+    phone?: string;
+    socials?: Record<string, string>;
+    verificationDocs?: string[];
+  };
 };
 
 type AuthContextType = {

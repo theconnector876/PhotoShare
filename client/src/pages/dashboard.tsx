@@ -64,6 +64,9 @@ export default function Dashboard() {
     if (!authLoading && !user) {
       setLocation("/auth");
     }
+    if (!authLoading && user?.role === "photographer") {
+      setLocation("/photographer");
+    }
   }, [authLoading, user, setLocation]);
   
   if (authLoading) {
@@ -398,8 +401,8 @@ export default function Dashboard() {
                               <CardTitle>{contact.name}</CardTitle>
                               <CardDescription>{contact.email}</CardDescription>
                             </div>
-                            <Badge className={getStatusColor(contact.status)}>
-                              {contact.status.charAt(0).toUpperCase() + contact.status.slice(1)}
+                            <Badge className={getStatusColor(contact.status || "unread")}>
+                              {(contact.status || "unread").charAt(0).toUpperCase() + (contact.status || "unread").slice(1)}
                             </Badge>
                           </div>
                         </CardHeader>

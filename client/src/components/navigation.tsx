@@ -4,11 +4,13 @@ import { Camera, Menu, X, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/use-auth";
+import { useSiteConfig } from "@/context/site-config";
 
 export default function Navigation() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const { user, logoutMutation } = useAuth();
+  const { config } = useSiteConfig();
 
   const publicNavItems = [
     { href: "/", label: "Home" },
@@ -18,9 +20,13 @@ export default function Navigation() {
     { href: "/contact", label: "Contact" },
   ];
 
+  const dashboardLink = user?.role === "photographer"
+    ? { href: "/photographer", label: "Photographer" }
+    : { href: "/dashboard", label: "Dashboard" };
+
   const authNavItems = user ? [
     ...publicNavItems,
-    { href: "/dashboard", label: "Dashboard" },
+    dashboardLink,
     ...(user.isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ] : [
     ...publicNavItems,
@@ -36,7 +42,7 @@ export default function Navigation() {
     const isActive = location === href;
     const baseClasses = mobile 
       ? "block px-3 py-2 text-lg font-medium transition-colors duration-300"
-      : "nav-link relative px-3 py-2 text-foreground transition-all duration-300 magnetic-btn";
+      : "nav-link relative px-2 py-2 text-sm font-medium text-foreground transition-all duration-300 magnetic-btn whitespace-nowrap";
     
     const activeClasses = isActive 
       ? "text-primary" 
@@ -61,21 +67,29 @@ export default function Navigation() {
           {/* Logo */}
           <Link href="/">
             <div className="flex items-center space-x-4 cursor-pointer group" data-testid="logo-link">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
-                <Camera className="text-white text-lg" />
-              </div>
-              <span className="text-xl font-bold gradient-text font-serif">The Connector</span>
+              {config.branding.logoUrl ? (
+                <img
+                  src={config.branding.logoUrl}
+                  alt={config.branding.appName}
+                  className="w-10 h-10 rounded-full object-cover shadow-sm"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
+                  <Camera className="text-white text-lg" />
+                </div>
+              )}
+              <span className="text-xl font-bold gradient-text font-serif">{config.branding.appName}</span>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center gap-4">
             {authNavItems.map((item) => (
               <NavLink key={item.href} {...item} />
             ))}
             {user && (
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-muted-foreground">
+              <div className="flex items-center gap-3 pl-2 border-l border-border/60">
+                <span className="text-xs text-muted-foreground hidden lg:inline">
                   Hi, {user.firstName || user.email}
                 </span>
                 <Button 
@@ -104,10 +118,18 @@ export default function Navigation() {
                 <div className="flex flex-col space-y-4 mt-8">
                   <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center">
-                        <Camera className="text-white text-sm" />
-                      </div>
-                      <span className="text-lg font-bold gradient-text font-serif">The Connector</span>
+                      {config.branding.logoUrl ? (
+                        <img
+                          src={config.branding.logoUrl}
+                          alt={config.branding.appName}
+                          className="w-8 h-8 rounded-full object-cover shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center">
+                          <Camera className="text-white text-sm" />
+                        </div>
+                      )}
+                      <span className="text-lg font-bold gradient-text font-serif">{config.branding.appName}</span>
                     </div>
                   </div>
                   

@@ -17,13 +17,15 @@ declare global {
       firstName?: string | null;
       lastName?: string | null;
       isAdmin: boolean;
+      role?: string | null;
+      photographerStatus?: string | null;
     }
   }
 }
 
 const scryptAsync = promisify(scrypt);
 
-async function hashPassword(password: string) {
+export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
@@ -42,6 +44,19 @@ const registerSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  role: z.enum(["client", "photographer"]).default("client"),
+  photographerProfile: z.object({
+    displayName: z.string().optional(),
+    bio: z.string().optional(),
+    location: z.string().optional(),
+    specialties: z.array(z.string()).optional(),
+    portfolioLinks: z.array(z.string()).optional(),
+    pricing: z.string().optional(),
+    availability: z.string().optional(),
+    phone: z.string().optional(),
+    socials: z.record(z.string()).optional(),
+    verificationDocs: z.array(z.string()).optional(),
+  }).optional(),
 });
 
 const loginSchema = z.object({
@@ -81,8 +96,10 @@ export function setupPasswordAuth(app: Express) {
             firstName: user.firstName,
             lastName: user.lastName,
             isAdmin: user.isAdmin || false,
+            role: user.role,
+            photographerStatus: user.photographerStatus,
           };
-          
+
           return done(null, userWithoutPassword);
         } catch (error) {
           return done(error);
@@ -102,6 +119,8 @@ export function setupPasswordAuth(app: Express) {
           firstName: user.firstName,
           lastName: user.lastName,
           isAdmin: user.isAdmin || false,
+          role: user.role,
+          photographerStatus: user.photographerStatus,
         };
         done(null, userWithoutPassword);
       } else {
@@ -136,7 +155,25 @@ export function setupPasswordAuth(app: Express) {
         lastName: validatedData.lastName,
         profileImageUrl: null,
         isAdmin: isFirstUser,
+        role: validatedData.role,
+        photographerStatus: validatedData.role === "photographer" ? "pending" : null,
       });
+
+      if (validatedData.role === "photographer") {
+        await storage.createPhotographerProfile({
+          userId: user.id,
+          displayName: validatedData.photographerProfile?.displayName,
+          bio: validatedData.photographerProfile?.bio,
+          location: validatedData.photographerProfile?.location,
+          specialties: validatedData.photographerProfile?.specialties ?? [],
+          portfolioLinks: validatedData.photographerProfile?.portfolioLinks ?? [],
+          pricing: validatedData.photographerProfile?.pricing,
+          availability: validatedData.photographerProfile?.availability,
+          phone: validatedData.photographerProfile?.phone,
+          socials: validatedData.photographerProfile?.socials ?? {},
+          verificationDocs: validatedData.photographerProfile?.verificationDocs ?? [],
+        });
+      }
 
       if (isFirstUser) {
         console.log(`First admin user created: ${user.email}`);
@@ -149,6 +186,8 @@ export function setupPasswordAuth(app: Express) {
         firstName: user.firstName,
         lastName: user.lastName,
         isAdmin: user.isAdmin || false,
+        role: user.role,
+        photographerStatus: user.photographerStatus,
       };
       
       req.login(safeUser, (err) => {
@@ -160,6 +199,8 @@ export function setupPasswordAuth(app: Express) {
           firstName: user.firstName,
           lastName: user.lastName,
           isAdmin: user.isAdmin || false,
+          role: user.role,
+          photographerStatus: user.photographerStatus,
         };
         
         res.status(201).json(userResponse);

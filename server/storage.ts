@@ -1,8 +1,31 @@
 import { 
-  users, bookings, galleries, contactMessages, catalogues, reviews, passwordResetTokens,
-  type User, type UpsertUser, type Booking, type InsertBooking, 
-  type Gallery, type InsertGallery, type ContactMessage, type InsertContactMessage,
-  type Catalogue, type InsertCatalogue, type Review, type InsertReview, type PasswordResetToken
+  users,
+  bookings,
+  galleries,
+  contactMessages,
+  catalogues,
+  reviews,
+  passwordResetTokens,
+  photographerProfiles,
+  pricingConfigs,
+  siteConfigs,
+  type User,
+  type UpsertUser,
+  type Booking,
+  type InsertBooking,
+  type Gallery,
+  type InsertGallery,
+  type ContactMessage,
+  type InsertContactMessage,
+  type Catalogue,
+  type InsertCatalogue,
+  type Review,
+  type InsertReview,
+  type PasswordResetToken,
+  type PhotographerProfile,
+  type InsertPhotographerProfile,
+  type PricingConfigRow,
+  type SiteConfigRow
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
@@ -14,11 +37,24 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
   createUser(user: Omit<User, 'createdAt' | 'updatedAt'>): Promise<User>; // Added for registration
+  createPhotographerProfile(profile: InsertPhotographerProfile): Promise<PhotographerProfile>;
+  getPhotographerProfileByUserId(userId: string): Promise<PhotographerProfile | undefined>;
+  updatePhotographerProfile(userId: string, profile: Partial<PhotographerProfile>): Promise<PhotographerProfile | undefined>;
+  getPendingPhotographers(): Promise<Array<{ user: User; profile?: PhotographerProfile }>>;
+  getAllPhotographers(): Promise<User[]>;
+  updatePhotographerStatus(userId: string, status: string): Promise<User | undefined>;
+  updatePhotographerPricing(userId: string, pricingConfig: Record<string, unknown>): Promise<PhotographerProfile | undefined>;
+  getPricingConfig(key: string): Promise<PricingConfigRow | undefined>;
+  upsertPricingConfig(key: string, config: Record<string, unknown>): Promise<PricingConfigRow>;
+  getSiteConfig(key: string): Promise<SiteConfigRow | undefined>;
+  upsertSiteConfig(key: string, config: Record<string, unknown>): Promise<SiteConfigRow>;
   makeUserAdmin(userId: string): Promise<User | undefined>;
   getAdminCount(): Promise<number>;
   getGalleryById(id: string): Promise<Gallery | undefined>;
   getUserBookings(userEmail: string): Promise<Booking[]>;
   getUserGalleries(userEmail: string): Promise<Gallery[]>;
+  getPhotographerBookings(userId: string): Promise<Booking[]>;
+  getPhotographerGalleries(userId: string): Promise<Gallery[]>;
   updateBookingLemonSqueezyCheckoutId(bookingId: string, checkoutId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
   updateBookingLemonSqueezyOrderId(bookingId: string, orderId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
   updateBookingPaymentStatus(bookingId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
@@ -29,6 +65,7 @@ export interface IStorage {
   getAllBookings(): Promise<Booking[]>;
   updateBookingStatus(id: string, status: string): Promise<Booking | undefined>;
   updateBooking(id: string, booking: Partial<Booking>): Promise<Booking | undefined>;
+  assignBookingPhotographer(id: string, photographerId: string | null): Promise<Booking | undefined>;
   
   // Gallery operations
   createGallery(gallery: InsertGallery): Promise<Gallery>;
@@ -48,6 +85,8 @@ export interface IStorage {
   getCataloguesByServiceType(serviceType: string): Promise<Catalogue[]>;
   publishCatalogue(id: string): Promise<Catalogue | undefined>;
   unpublishCatalogue(id: string): Promise<Catalogue | undefined>;
+  updateCatalogue(id: string, data: Partial<Catalogue>): Promise<Catalogue | undefined>;
+  updateCatalogueSortOrder(id: string, sortOrder: number): Promise<Catalogue | undefined>;
   
   // Review operations
   createReview(review: InsertReview): Promise<Review>;
@@ -115,6 +154,109 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async createPhotographerProfile(profile: InsertPhotographerProfile): Promise<PhotographerProfile> {
+    const [created] = await db
+      .insert(photographerProfiles)
+      .values({
+        ...profile,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return created;
+  }
+
+  async getPhotographerProfileByUserId(userId: string): Promise<PhotographerProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(photographerProfiles)
+      .where(eq(photographerProfiles.userId, userId));
+    return profile;
+  }
+
+  async updatePhotographerProfile(userId: string, profile: Partial<PhotographerProfile>): Promise<PhotographerProfile | undefined> {
+    const [updated] = await db
+      .update(photographerProfiles)
+      .set({ ...profile, updatedAt: new Date() })
+      .where(eq(photographerProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async getPendingPhotographers(): Promise<Array<{ user: User; profile?: PhotographerProfile }>> {
+    const rows = await db
+      .select({ user: users, profile: photographerProfiles })
+      .from(users)
+      .leftJoin(photographerProfiles, eq(photographerProfiles.userId, users.id))
+      .where(and(eq(users.role, "photographer"), eq(users.photographerStatus, "pending")));
+    return rows.map((row) => ({ user: row.user, profile: row.profile ?? undefined }));
+  }
+
+  async getAllPhotographers(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.role, "photographer"));
+  }
+
+  async updatePhotographerStatus(userId: string, status: string): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({ photographerStatus: status, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
+  }
+
+  async updatePhotographerPricing(userId: string, pricingConfig: Record<string, unknown>): Promise<PhotographerProfile | undefined> {
+    const [updated] = await db
+      .update(photographerProfiles)
+      .set({ pricingConfig, updatedAt: new Date() })
+      .where(eq(photographerProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async getPricingConfig(key: string): Promise<PricingConfigRow | undefined> {
+    const [row] = await db
+      .select()
+      .from(pricingConfigs)
+      .where(eq(pricingConfigs.key, key));
+    return row;
+  }
+
+  async upsertPricingConfig(key: string, config: Record<string, unknown>): Promise<PricingConfigRow> {
+    const [row] = await db
+      .insert(pricingConfigs)
+      .values({ key, config, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: pricingConfigs.key,
+        set: { config, updatedAt: new Date() },
+      })
+      .returning();
+    return row;
+  }
+
+  async getSiteConfig(key: string): Promise<SiteConfigRow | undefined> {
+    const [row] = await db
+      .select()
+      .from(siteConfigs)
+      .where(eq(siteConfigs.key, key));
+    return row;
+  }
+
+  async upsertSiteConfig(key: string, config: Record<string, unknown>): Promise<SiteConfigRow> {
+    const [row] = await db
+      .insert(siteConfigs)
+      .values({ key, config, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: siteConfigs.key,
+        set: { config, updatedAt: new Date() },
+      })
+      .returning();
+    return row;
+  }
+
   async createBooking(insertBooking: InsertBooking): Promise<Booking> {
     const [booking] = await db
       .insert(bookings)
@@ -150,6 +292,15 @@ export class DatabaseStorage implements IStorage {
     return booking;
   }
 
+  async assignBookingPhotographer(id: string, photographerId: string | null): Promise<Booking | undefined> {
+    const [booking] = await db
+      .update(bookings)
+      .set({ photographerId })
+      .where(eq(bookings.id, id))
+      .returning();
+    return booking;
+  }
+
   async createGallery(insertGallery: InsertGallery): Promise<Gallery> {
     const [gallery] = await db
       .insert(galleries)
@@ -175,6 +326,23 @@ export class DatabaseStorage implements IStorage {
       .from(galleries)
       .where(eq(galleries.bookingId, bookingId));
     return gallery;
+  }
+
+  async getPhotographerBookings(userId: string): Promise<Booking[]> {
+    return await db
+      .select()
+      .from(bookings)
+      .where(eq(bookings.photographerId, userId))
+      .orderBy(bookings.createdAt);
+  }
+
+  async getPhotographerGalleries(userId: string): Promise<Gallery[]> {
+    const rows = await db
+      .select({ gallery: galleries, booking: bookings })
+      .from(galleries)
+      .leftJoin(bookings, eq(bookings.id, galleries.bookingId))
+      .where(eq(bookings.photographerId, userId));
+    return rows.map((row) => row.gallery);
   }
 
   async updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined> {
@@ -294,9 +462,16 @@ export class DatabaseStorage implements IStorage {
 
   // Catalogue operations
   async createCatalogue(insertCatalogue: InsertCatalogue): Promise<Catalogue> {
+    const [maxRow] = await db
+      .select({ max: sql<number>`max(${catalogues.sortOrder})` })
+      .from(catalogues);
+    const nextSortOrder = (maxRow?.max ?? 0) + 1;
     const [catalogue] = await db
       .insert(catalogues)
-      .values(insertCatalogue)
+      .values({
+        ...insertCatalogue,
+        sortOrder: insertCatalogue.sortOrder ?? nextSortOrder,
+      })
       .returning();
     return catalogue;
   }
@@ -307,13 +482,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllCatalogues(): Promise<Catalogue[]> {
-    return await db.select().from(catalogues).orderBy(catalogues.createdAt);
+    return await db
+      .select()
+      .from(catalogues)
+      .orderBy(catalogues.sortOrder, catalogues.createdAt);
   }
 
   async getPublishedCatalogues(): Promise<Catalogue[]> {
     return await db.select().from(catalogues)
       .where(eq(catalogues.isPublished, true))
-      .orderBy(catalogues.publishedAt);
+      .orderBy(catalogues.sortOrder, catalogues.publishedAt);
   }
 
   async getCataloguesByServiceType(serviceType: string): Promise<Catalogue[]> {
@@ -322,7 +500,7 @@ export class DatabaseStorage implements IStorage {
         eq(catalogues.serviceType, serviceType),
         eq(catalogues.isPublished, true)
       ))
-      .orderBy(catalogues.publishedAt);
+      .orderBy(catalogues.sortOrder, catalogues.publishedAt);
   }
 
   async publishCatalogue(id: string): Promise<Catalogue | undefined> {
@@ -344,6 +522,24 @@ export class DatabaseStorage implements IStorage {
         isPublished: false,
         publishedAt: null
       })
+      .where(eq(catalogues.id, id))
+      .returning();
+    return catalogue;
+  }
+
+  async updateCatalogue(id: string, data: Partial<Catalogue>): Promise<Catalogue | undefined> {
+    const [catalogue] = await db
+      .update(catalogues)
+      .set(data)
+      .where(eq(catalogues.id, id))
+      .returning();
+    return catalogue;
+  }
+
+  async updateCatalogueSortOrder(id: string, sortOrder: number): Promise<Catalogue | undefined> {
+    const [catalogue] = await db
+      .update(catalogues)
+      .set({ sortOrder })
       .where(eq(catalogues.id, id))
       .returning();
     return catalogue;

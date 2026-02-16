@@ -25,6 +25,17 @@ const registerSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  role: z.enum(["client", "photographer"]).default("client"),
+  displayName: z.string().optional(),
+  bio: z.string().optional(),
+  location: z.string().optional(),
+  specialties: z.string().optional(),
+  portfolioLinks: z.string().optional(),
+  pricing: z.string().optional(),
+  availability: z.string().optional(),
+  phone: z.string().optional(),
+  socials: z.string().optional(),
+  verificationDocs: z.string().optional(),
 });
 
 const forgotPasswordSchema = z.object({
@@ -138,15 +149,60 @@ export default function AuthPage() {
       password: "",
       firstName: "",
       lastName: "",
+      role: "client",
+      displayName: "",
+      bio: "",
+      location: "",
+      specialties: "",
+      portfolioLinks: "",
+      pricing: "",
+      availability: "",
+      phone: "",
+      socials: "",
+      verificationDocs: "",
     },
   });
+
+  const registerRole = registerForm.watch("role");
 
   const onLogin = (data: LoginFormData) => {
     loginMutation.mutate(data);
   };
 
+  const parseCsv = (value?: string) =>
+    value ? value.split(",").map((item) => item.trim()).filter(Boolean) : [];
+  const parseSocials = (value?: string) => {
+    if (!value) return {};
+    return value.split(",").reduce<Record<string, string>>((acc, entry) => {
+      const [key, rawVal] = entry.split(":");
+      if (key && rawVal) {
+        acc[key.trim()] = rawVal.trim();
+      }
+      return acc;
+    }, {});
+  };
+
   const onRegister = (data: RegisterFormData) => {
-    registerMutation.mutate(data);
+    const payload = {
+      email: data.email,
+      password: data.password,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      role: data.role,
+      photographerProfile: data.role === "photographer" ? {
+        displayName: data.displayName,
+        bio: data.bio,
+        location: data.location,
+        specialties: parseCsv(data.specialties),
+        portfolioLinks: parseCsv(data.portfolioLinks),
+        pricing: data.pricing,
+        availability: data.availability,
+        phone: data.phone,
+        socials: parseSocials(data.socials),
+        verificationDocs: parseCsv(data.verificationDocs),
+      } : undefined,
+    };
+    registerMutation.mutate(payload);
   };
 
   // Redirect if already logged in (after all hooks to avoid rules of hooks violation)
@@ -301,6 +357,36 @@ export default function AuthPage() {
                 </div>
                 <FormField
                   control={registerForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account Type</FormLabel>
+                      <FormControl>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant={field.value === "client" ? "default" : "outline"}
+                            className="flex-1"
+                            onClick={() => field.onChange("client")}
+                          >
+                            Client
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === "photographer" ? "default" : "outline"}
+                            className="flex-1"
+                            onClick={() => field.onChange("photographer")}
+                          >
+                            Photographer
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={registerForm.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
@@ -335,6 +421,180 @@ export default function AuthPage() {
                     </FormItem>
                   )}
                 />
+                {registerRole === "photographer" && (
+                  <>
+                    <FormField
+                      control={registerForm.control}
+                      name="displayName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Display Name / Business Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Studio Name"
+                              data-testid="input-register-displayname"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="bio"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bio</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Short bio"
+                              data-testid="input-register-bio"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="location"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Location / Service Area</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Kingston, JA"
+                              data-testid="input-register-location"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="specialties"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Specialties (comma-separated)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Wedding, Portrait, Events"
+                              data-testid="input-register-specialties"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="portfolioLinks"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Portfolio Links (comma-separated)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://site.com, https://instagram.com/..."
+                              data-testid="input-register-portfolio"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="pricing"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Starting Price / Packages</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Starting at $200"
+                              data-testid="input-register-pricing"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="availability"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Availability</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Weekends, evenings"
+                              data-testid="input-register-availability"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="+1 876 ..."
+                              data-testid="input-register-phone"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="socials"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Socials (comma-separated key:value)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="instagram:@handle, facebook:page"
+                              data-testid="input-register-socials"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="verificationDocs"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Verification Docs (comma-separated)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="link1, link2"
+                              data-testid="input-register-verification"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
                 <Button
                   type="submit"
                   className="w-full"

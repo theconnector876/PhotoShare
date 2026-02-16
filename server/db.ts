@@ -1,9 +1,9 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
+import { Pool as NeonPool, neonConfig } from '@neondatabase/serverless';
+import { Pool as PgPool } from 'pg';
+import { drizzle as drizzleNeon } from 'drizzle-orm/neon-serverless';
+import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
 import ws from "ws";
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -11,5 +11,20 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+const databaseUrl = process.env.DATABASE_URL;
+const host = new URL(databaseUrl).hostname;
+const isLocalDb = host === "localhost" || host === "127.0.0.1";
+
+let pool: PgPool | NeonPool;
+let db: ReturnType<typeof drizzlePg> | ReturnType<typeof drizzleNeon>;
+
+if (isLocalDb) {
+  pool = new PgPool({ connectionString: databaseUrl });
+  db = drizzlePg(pool, { schema });
+} else {
+  neonConfig.webSocketConstructor = ws;
+  pool = new NeonPool({ connectionString: databaseUrl });
+  db = drizzleNeon({ client: pool, schema });
+}
+
+export { pool, db };

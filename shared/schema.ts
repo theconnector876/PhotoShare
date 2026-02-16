@@ -23,12 +23,45 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   isAdmin: boolean("is_admin").default(false),
+  role: text("role").notNull().default("client"), // client, photographer
+  photographerStatus: text("photographer_status").default("pending"), // pending, approved, rejected
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const photographerProfiles = pgTable("photographer_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  displayName: text("display_name"),
+  bio: text("bio"),
+  location: text("location"),
+  specialties: text("specialties").array().default([]),
+  portfolioLinks: text("portfolio_links").array().default([]),
+  pricing: text("pricing"),
+  pricingConfig: jsonb("pricing_config").default({}),
+  availability: text("availability"),
+  phone: text("phone"),
+  socials: jsonb("socials").default({}),
+  verificationDocs: text("verification_docs").array().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const pricingConfigs = pgTable("pricing_configs", {
+  key: text("key").primaryKey(),
+  config: jsonb("config").notNull().default({}),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const siteConfigs = pgTable("site_configs", {
+  key: text("key").primaryKey(),
+  config: jsonb("config").notNull().default({}),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const bookings = pgTable("bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  photographerId: varchar("photographer_id").references(() => users.id),
   clientName: text("client_name").notNull(),
   email: text("email").notNull(),
   contactNumber: text("contact_number").notNull(),
@@ -91,6 +124,7 @@ export const catalogues = pgTable("catalogues", {
   coverImage: text("cover_image").notNull(), // main display image for portfolio
   images: text("images").array().default([]), // all images in the catalogue
   isPublished: boolean("is_published").notNull().default(false), // admin control
+  sortOrder: integer("sort_order").notNull().default(0), // admin order for display
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -154,9 +188,29 @@ export const upsertUserSchema = createInsertSchema(users).omit({
   updatedAt: true,
 });
 
+export const insertPhotographerProfileSchema = createInsertSchema(photographerProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPricingConfigSchema = createInsertSchema(pricingConfigs).omit({
+  updatedAt: true,
+});
+
+export const insertSiteConfigSchema = createInsertSchema(siteConfigs).omit({
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type PhotographerProfile = typeof photographerProfiles.$inferSelect;
+export type InsertPhotographerProfile = z.infer<typeof insertPhotographerProfileSchema>;
+export type PricingConfigRow = typeof pricingConfigs.$inferSelect;
+export type InsertPricingConfig = z.infer<typeof insertPricingConfigSchema>;
+export type SiteConfigRow = typeof siteConfigs.$inferSelect;
+export type InsertSiteConfig = z.infer<typeof insertSiteConfigSchema>;
 
 export type Booking = typeof bookings.$inferSelect;
 export type InsertBooking = z.infer<typeof insertBookingSchema>;

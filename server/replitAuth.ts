@@ -8,9 +8,8 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
+const replitDomains = process.env.REPLIT_DOMAINS;
+const isReplitAuthEnabled = Boolean(replitDomains);
 
 const getOidcConfig = memoize(
   async () => {
@@ -69,6 +68,8 @@ async function upsertUser(
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
     isAdmin: isFirstUser, // First user becomes admin automatically
+    role: "client",
+    photographerStatus: null,
   });
   
   if (isFirstUser) {
@@ -82,6 +83,17 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  if (!isReplitAuthEnabled) {
+    console.warn("Replit auth disabled: REPLIT_DOMAINS not set.");
+    app.get("/api/login", (_req, res) => {
+      res.status(501).json({ message: "Replit auth not configured" });
+    });
+    app.get("/api/logout", (_req, res) => {
+      res.json({ message: "Logged out" });
+    });
+    return;
+  }
+
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (
@@ -94,8 +106,7 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
+  for (const domain of replitDomains!.split(",")) {
     const strategy = new Strategy(
       {
         name: `replitauth:${domain}`,
@@ -138,6 +149,10 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  if (!isReplitAuthEnabled) {
+    return next();
+  }
+
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {
@@ -168,6 +183,10 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
 // Middleware to check admin access
 export const isAdmin: RequestHandler = async (req, res, next) => {
+  if (!isReplitAuthEnabled) {
+    return next();
+  }
+
   const user = req.user as any;
   
   if (!req.isAuthenticated() || !user.claims?.sub) {

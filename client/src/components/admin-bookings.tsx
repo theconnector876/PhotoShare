@@ -37,6 +37,7 @@ import { SimpleUploader } from "@/components/SimpleUploader";
 
 interface Booking {
   id: string;
+  photographerId?: string | null;
   clientName: string;
   email: string;
   contactNumber: string;
@@ -59,6 +60,14 @@ interface Booking {
   depositAmount: number;
   balanceDue: number;
   createdAt: string;
+}
+
+interface Photographer {
+  id: string;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  photographerStatus?: string | null;
 }
 
 interface Gallery {
@@ -129,6 +138,11 @@ export function AdminBookings() {
     retry: false,
   });
 
+  const { data: photographers } = useQuery<Photographer[]>({
+    queryKey: ["/api/admin/photographers"],
+    retry: false,
+  });
+
   // Filter bookings based on search and filter criteria
   const filteredBookings = bookings?.filter(booking => {
     // Search term filter
@@ -154,6 +168,10 @@ export function AdminBookings() {
 
     return true;
   }) || [];
+
+  const approvedPhotographers = (photographers || []).filter(
+    (photographer) => photographer.photographerStatus === "approved"
+  );
 
   const editForm = useForm<EditBookingData>({
     resolver: zodResolver(editBookingSchema),
@@ -318,6 +336,26 @@ export function AdminBookings() {
       toast({
         title: "Error",
         description: "Failed to process refund.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const assignPhotographerMutation = useMutation({
+    mutationFn: async ({ bookingId, photographerId }: { bookingId: string; photographerId: string | null }) => {
+      await apiRequest("POST", `/api/admin/bookings/${bookingId}/assign-photographer`, { photographerId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/bookings"] });
+      toast({
+        title: "Photographer Assigned",
+        description: "Booking assignment updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to assign photographer.",
         variant: "destructive",
       });
     },
@@ -738,6 +776,33 @@ export function AdminBookings() {
                     <div>
                       <Label>Balance Due</Label>
                       <p>{formatCurrency(selectedBooking.balanceDue)} - {selectedBooking.balancePaid ? "✓ Paid" : "Pending"}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Assigned Photographer</Label>
+                      <Select
+                        value={selectedBooking.photographerId || "unassigned"}
+                        onValueChange={(value) => {
+                          const nextId = value === "unassigned" ? null : value;
+                          assignPhotographerMutation.mutate({ bookingId: selectedBooking.id, photographerId: nextId });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select photographer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          {approvedPhotographers.map((photographer) => (
+                            <SelectItem key={photographer.id} value={photographer.id}>
+                              {photographer.firstName || photographer.lastName
+                                ? `${photographer.firstName || ""} ${photographer.lastName || ""}`.trim()
+                                : photographer.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 

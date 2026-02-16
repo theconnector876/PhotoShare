@@ -20,30 +20,36 @@ export function AdminContacts() {
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("");
+  const [dateFilter, setDateFilter] = useState<string>("all");
 
   const { data: contacts, isLoading } = useQuery<ContactMessage[]>({
     queryKey: ["/api/admin/contacts"],
     retry: false,
   });
 
+  const safeContacts = Array.isArray(contacts) ? contacts : [];
+
   // Filter contacts based on search and filter criteria
-  const filteredContacts = contacts?.filter(contact => {
+  const filteredContacts = safeContacts.filter(contact => {
+    const name = contact.name || "";
+    const email = contact.email || "";
+    const message = contact.message || "";
+    const status = contact.status || "unread";
     // Search term filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
-        contact.name.toLowerCase().includes(searchLower) ||
-        contact.email.toLowerCase().includes(searchLower) ||
-        contact.message.toLowerCase().includes(searchLower);
+        name.toLowerCase().includes(searchLower) ||
+        email.toLowerCase().includes(searchLower) ||
+        message.toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
     }
 
     // Status filter
-    if (statusFilter !== "all" && contact.status !== statusFilter) return false;
+    if (statusFilter !== "all" && status !== statusFilter) return false;
 
     // Date filter (today only)
-    if (dateFilter && dateFilter === "today") {
+    if (dateFilter === "today") {
       const today = new Date().toDateString();
       const contactDate = new Date(contact.createdAt).toDateString();
       if (today !== contactDate) return false;
@@ -126,7 +132,7 @@ export function AdminContacts() {
                 onClick={() => {
                   setSearchTerm("");
                   setStatusFilter("all");
-                  setDateFilter("");
+                  setDateFilter("all");
                 }}
                 data-testid="button-clear-filters"
               >
@@ -140,7 +146,7 @@ export function AdminContacts() {
                   <SelectValue placeholder="All Dates" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Dates</SelectItem>
+                  <SelectItem value="all">All Dates</SelectItem>
                   <SelectItem value="today">Today Only</SelectItem>
                 </SelectContent>
               </Select>
@@ -156,7 +162,7 @@ export function AdminContacts() {
           <div className="grid gap-4">
             {filteredContacts.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                {contacts?.length === 0 ? "No contact messages found." : "No messages match your filters."}
+                {safeContacts.length === 0 ? "No contact messages found." : "No messages match your filters."}
               </div>
             ) : (
               filteredContacts.map((contact: ContactMessage) => (
@@ -181,11 +187,11 @@ export function AdminContacts() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <Badge 
-                          className={`${getStatusColor(contact.status)} text-white mb-2`}
+                        <Badge
+                          className={`${getStatusColor(contact.status || "unread")} text-white mb-2`}
                           data-testid={`contact-status-${contact.id}`}
                         >
-                          {contact.status.toUpperCase()}
+                          {(contact.status || "unread").toUpperCase()}
                         </Badge>
                         <div className="text-xs text-gray-500">
                           {formatDate(contact.createdAt)}

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { defaultPricingConfig, type PricingConfig } from "@shared/pricing";
 
 export interface BookingCalculation {
   serviceType: 'photoshoot' | 'wedding' | 'event';
@@ -25,10 +26,17 @@ function getServiceTypeFromURL(): 'photoshoot' | 'wedding' | 'event' {
   return 'photoshoot';
 }
 
-function getInitialState(serviceType: 'photoshoot' | 'wedding' | 'event'): BookingCalculation {
-  const basePrice = serviceType === 'photoshoot' ? 150 : serviceType === 'wedding' ? 500 : 300;
-  const transportationFee = 35;
-  
+function getInitialState(serviceType: 'photoshoot' | 'wedding' | 'event', config: PricingConfig): BookingCalculation {
+  let basePrice = 0;
+  if (serviceType === 'photoshoot') {
+    basePrice = config.packages.photoshoot.photography.bronze.price;
+  } else if (serviceType === 'wedding') {
+    basePrice = config.packages.wedding.photography.bronze;
+  } else {
+    basePrice = config.packages.event.photography.baseRate * config.packages.event.photography.minimumHours;
+  }
+
+  const transportationFee = config.fees.transportation.manchesterStElizabeth;
   return {
     serviceType,
     packageType: 'bronze',
@@ -44,68 +52,56 @@ function getInitialState(serviceType: 'photoshoot' | 'wedding' | 'event'): Booki
   };
 }
 
-export function useBookingCalculator() {
-  const [calculation, setCalculation] = useState<BookingCalculation>(() => 
-    getInitialState(getServiceTypeFromURL())
+export function useBookingCalculator(photographerId?: string) {
+  const [pricingConfig, setPricingConfig] = useState<PricingConfig>(defaultPricingConfig);
+  const [calculation, setCalculation] = useState<BookingCalculation>(() =>
+    getInitialState(getServiceTypeFromURL(), defaultPricingConfig)
   );
 
-  const packages = {
-    photoshoot: {
-      photography: {
-        bronze: { price: 150, duration: 45, images: 6, locations: 1 },
-        silver: { price: 200, duration: 60, images: 10, locations: 1 },
-        gold: { price: 300, duration: 120, images: 15, locations: 1 },
-        platinum: { price: 500, duration: 150, images: 25, locations: 2 },
-      },
-      videography: {
-        bronze: 250, // 30-min highlights
-        silver: 350, // 1-hour highlights  
-        gold: 500, // 2-hour highlights + raw footage
-        platinum: 750, // Full day video + cinematic edit
-      }
-    },
-    wedding: {
-      photography: {
-        bronze: 500, silver: 800, gold: 1250, platinum: 2500
-      },
-      videography: {
-        bronze: 600, silver: 800, gold: 1250, platinum: 1800
-      }
-    },
-    event: {
-      photography: {
-        baseRate: 150, // per hour
-        minimumHours: 2,
-      },
-      videography: {
-        baseRate: 100, // per hour for video
-        minimumHours: 2,
-      }
-    }
-  };
+  const packages = pricingConfig.packages;
+  const addonPrices = pricingConfig.addons;
 
-  const addonPrices = {
-    highlightReel: 250,
-    expressDelivery: 120,
-    dronePhotoshoot: 150,
-    droneWedding: 250,
-    studioRental: 80,
-    flyingDress: 120,
-    clearKayak: 100,
-  };
+  const [eventHours, setEventHours] = useState(pricingConfig.packages.event.photography.minimumHours);
 
-  const [eventHours, setEventHours] = useState(2);
+  useEffect(() => {
+    let isMounted = true;
+    const loadPricing = async () => {
+      try {
+        const url = photographerId ? `/api/pricing?photographerId=${encodeURIComponent(photographerId)}` : "/api/pricing";
+        const response = await fetch(url);
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (isMounted && data) {
+          setPricingConfig(data);
+        }
+      } catch (error) {
+        console.warn("Failed to load pricing config, using defaults.");
+      }
+    };
+
+    loadPricing();
+    return () => {
+      isMounted = false;
+    };
+  }, [photographerId]);
+
+  useEffect(() => {
+    const minHours = pricingConfig.packages.event.photography.minimumHours;
+    setEventHours((prev) => Math.max(prev, minHours));
+  }, [pricingConfig.packages.event.photography.minimumHours]);
 
   // Watch for URL changes and update service type accordingly
   useEffect(() => {
     const handleURLChange = () => {
       const newServiceType = getServiceTypeFromURL();
       if (newServiceType !== calculation.serviceType) {
-        const newState = getInitialState(newServiceType);
+        const newState = getInitialState(newServiceType, pricingConfig);
         setCalculation(newState);
         // Reset event hours when switching to event service
         if (newServiceType === 'event') {
-          setEventHours(packages.event.photography.minimumHours);
+          setEventHours(pricingConfig.packages.event.photography.minimumHours);
         }
       }
     };
@@ -119,7 +115,41 @@ export function useBookingCalculator() {
       window.removeEventListener('popstate', handleURLChange);
       window.removeEventListener('pushstate', handleURLChange);
     };
-  }, [calculation.serviceType]);
+  }, [calculation.serviceType, pricingConfig]);
+
+  useEffect(() => {
+    setCalculation((prev) => {
+      let basePrice = prev.basePrice;
+      let videoPrice = prev.videoPrice;
+      let videoPackageType = prev.videoPackageType;
+
+      if (prev.serviceType === 'photoshoot') {
+        basePrice = packages.photoshoot.photography[prev.packageType as keyof typeof packages.photoshoot.photography]?.price || basePrice;
+        if (prev.hasVideoPackage) {
+          videoPackageType = prev.packageType;
+          videoPrice = packages.photoshoot.videography[prev.packageType as keyof typeof packages.photoshoot.videography] || 0;
+        }
+      } else if (prev.serviceType === 'wedding') {
+        basePrice = packages.wedding.photography[prev.packageType as keyof typeof packages.wedding.photography] || basePrice;
+        if (prev.hasVideoPackage) {
+          videoPackageType = prev.packageType;
+          videoPrice = packages.wedding.videography[prev.packageType as keyof typeof packages.wedding.videography] || 0;
+        }
+      } else {
+        basePrice = packages.event.photography.baseRate * eventHours;
+        if (prev.hasVideoPackage) {
+          videoPrice = packages.event.videography.baseRate * eventHours;
+        }
+      }
+
+      return {
+        ...prev,
+        basePrice,
+        videoPrice,
+        videoPackageType,
+      };
+    });
+  }, [packages, eventHours]);
 
   // Automatically calculate total whenever relevant values change
   useEffect(() => {
@@ -137,7 +167,7 @@ export function useBookingCalculator() {
     
     // Add people cost (additional people after first) - only for photoshoots
     if (calculation.serviceType === 'photoshoot' && calculation.peopleCount > 1) {
-      total += (calculation.peopleCount - 1) * 50;
+      total += (calculation.peopleCount - 1) * pricingConfig.fees.additionalPerson;
     }
     
     // Add transportation
@@ -156,7 +186,7 @@ export function useBookingCalculator() {
     if (calculation.totalPrice !== total) {
       setCalculation(prev => ({ ...prev, totalPrice: total }));
     }
-  }, [calculation.basePrice, calculation.videoPrice, calculation.hasPhotoPackage, calculation.hasVideoPackage, calculation.peopleCount, calculation.transportationFee, calculation.addons, calculation.serviceType]);
+  }, [calculation.basePrice, calculation.videoPrice, calculation.hasPhotoPackage, calculation.hasVideoPackage, calculation.peopleCount, calculation.transportationFee, calculation.addons, calculation.serviceType, pricingConfig.fees.additionalPerson]);
 
   const updateService = useCallback((serviceType: 'photoshoot' | 'wedding' | 'event') => {
     let newPackageType = 'bronze';
@@ -182,7 +212,7 @@ export function useBookingCalculator() {
     if (serviceType === 'event') {
       setEventHours(packages.event.photography.minimumHours);
     }
-  }, []);
+  }, [packages]);
 
   const updatePackage = useCallback((packageType: string) => {
     let newBasePrice = 150;
@@ -218,7 +248,7 @@ export function useBookingCalculator() {
       videoPrice: newVideoPrice,
       videoPackageType: newVideoPackageType,
     }));
-  }, [calculation.serviceType, calculation.hasVideoPackage, calculation.videoPackageType, eventHours]);
+  }, [calculation.serviceType, calculation.hasVideoPackage, calculation.videoPackageType, eventHours, packages]);
 
   const updatePeople = useCallback((count: number) => {
     setCalculation(prev => ({
@@ -308,6 +338,7 @@ export function useBookingCalculator() {
   return {
     calculation,
     packages,
+    pricingConfig,
     eventHours,
     updateService,
     updatePackage,

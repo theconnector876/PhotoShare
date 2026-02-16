@@ -40,8 +40,12 @@ const bookingFormSchema = z.object({
 
 type BookingFormData = z.infer<typeof bookingFormSchema>;
 
-export default function BookingCalculator() {
-  const { calculation, packages, eventHours, updateService, updatePackage, updatePeople, updateTransportation, updateEventHours, toggleAddon, toggleVideoPackage, updateVideoPackage } = useBookingCalculator();
+type BookingCalculatorProps = {
+  photographerId?: string;
+};
+
+export default function BookingCalculator({ photographerId }: BookingCalculatorProps) {
+  const { calculation, packages, pricingConfig, eventHours, updateService, updatePackage, updatePeople, updateTransportation, updateEventHours, toggleAddon, toggleVideoPackage, updateVideoPackage } = useBookingCalculator(photographerId);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isTermsOpen, setIsTermsOpen] = useState(false);
@@ -79,6 +83,7 @@ export default function BookingCalculator() {
         transportationFee: calculation.transportationFee,
         addons: calculation.addons,
         totalPrice: calculation.totalPrice,
+        photographerId: photographerId || undefined,
       };
       
       return apiRequest('POST', '/api/bookings', bookingData);
@@ -183,12 +188,12 @@ export default function BookingCalculator() {
   ];
 
   const addons = [
-    { id: 'highlightReel', label: 'Highlight Reel', description: '1-3 min video', price: 250 },
-    { id: 'expressDelivery', label: 'Express Delivery', description: '1-2 days', price: 120 },
-    { id: 'drone', label: 'Drone Photography', description: 'Aerial shots', price: calculation.serviceType === 'wedding' ? 250 : 150 },
-    { id: 'studioRental', label: 'Studio Rental', description: 'Professional studio', price: 80 },
-    { id: 'flyingDress', label: 'Flying Dress', description: 'Dramatic dress rental', price: 120 },
-    { id: 'clearKayak', label: 'Clear Kayak', description: 'Water photoshoot prop', price: 100 },
+    { id: 'highlightReel', label: 'Highlight Reel', description: '1-3 min video', price: pricingConfig.addons.highlightReel },
+    { id: 'expressDelivery', label: 'Express Delivery', description: '1-2 days', price: pricingConfig.addons.expressDelivery },
+    { id: 'drone', label: 'Drone Photography', description: 'Aerial shots', price: calculation.serviceType === 'wedding' ? pricingConfig.addons.droneWedding : pricingConfig.addons.dronePhotoshoot },
+    { id: 'studioRental', label: 'Studio Rental', description: 'Professional studio', price: pricingConfig.addons.studioRental },
+    { id: 'flyingDress', label: 'Flying Dress', description: 'Dramatic dress rental', price: pricingConfig.addons.flyingDress },
+    { id: 'clearKayak', label: 'Clear Kayak', description: 'Water photoshoot prop', price: pricingConfig.addons.clearKayak },
   ];
 
   return (
@@ -554,7 +559,7 @@ export default function BookingCalculator() {
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
-                Additional people: <span className="font-semibold text-primary">$50 each</span>
+                Additional people: <span className="font-semibold text-primary">${pricingConfig.fees.additionalPerson} each</span>
               </p>
             </Card>
           )}
@@ -572,9 +577,15 @@ export default function BookingCalculator() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="35">Manchester & St. Elizabeth (+$35)</SelectItem>
-                <SelectItem value="50">Montego Bay, Negril & Ocho Rios (+$50)</SelectItem>
-                <SelectItem value="65">All Other Parishes (+$65)</SelectItem>
+                <SelectItem value={pricingConfig.fees.transportation.manchesterStElizabeth.toString()}>
+                  Manchester & St. Elizabeth (+${pricingConfig.fees.transportation.manchesterStElizabeth})
+                </SelectItem>
+                <SelectItem value={pricingConfig.fees.transportation.montegoBayNegrilOchoRios.toString()}>
+                  Montego Bay, Negril & Ocho Rios (+${pricingConfig.fees.transportation.montegoBayNegrilOchoRios})
+                </SelectItem>
+                <SelectItem value={pricingConfig.fees.transportation.otherParishes.toString()}>
+                  All Other Parishes (+${pricingConfig.fees.transportation.otherParishes})
+                </SelectItem>
               </SelectContent>
             </Select>
           </Card>

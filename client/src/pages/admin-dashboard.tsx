@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,10 @@ import {
   XCircleIcon,
   FolderIcon,
   Star,
-  Shield
+  Shield,
+  Camera,
+  DollarSignIcon,
+  Settings
 } from "lucide-react";
 import { AdminBookings } from "@/components/admin-bookings";
 import { AdminGalleries } from "@/components/admin-galleries";
@@ -24,10 +28,22 @@ import { AdminContacts } from "@/components/admin-contacts";
 import { AdminCatalogues } from "@/components/admin-catalogues";
 import { AdminReviews } from "@/components/admin-reviews";
 import { AdminUsers } from "@/components/admin-users";
+import { AdminPhotographers } from "@/components/admin-photographers";
+import { AdminPricing } from "@/components/admin-pricing";
+import { AdminSite } from "@/components/admin-site";
 
 export function AdminDashboard() {
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
+  const [location] = useLocation();
+  const [tabValue, setTabValue] = useState(
+    () => new URLSearchParams(window.location.search).get("tab") || "bookings"
+  );
+
+  useEffect(() => {
+    const nextTab = new URLSearchParams(window.location.search).get("tab") || "bookings";
+    setTabValue(nextTab);
+  }, [location]);
 
   // Fetch dashboard statistics
   const { data: bookings } = useQuery<any[]>({
@@ -55,16 +71,27 @@ export function AdminDashboard() {
 
   });
 
+  const { data: pendingPhotographers } = useQuery<any[]>({
+    queryKey: ["/api/admin/photographers/pending"],
+  });
 
 
-  const pendingBookings = bookings?.filter((b: any) => b.status === 'pending').length || 0;
-  const confirmedBookings = bookings?.filter((b: any) => b.status === 'confirmed').length || 0;
-  const pendingGalleries = galleries?.filter((g: any) => g.status === 'pending').length || 0;
-  const unreadContacts = contacts?.filter((c: any) => c.status === 'unread').length || 0;
-  const publishedCatalogues = catalogues?.filter((c: any) => c.isPublished).length || 0;
-  const draftCatalogues = catalogues?.filter((c: any) => !c.isPublished).length || 0;
-  const pendingReviews = reviews?.filter((r: any) => !r.isApproved).length || 0;
-  const approvedReviews = reviews?.filter((r: any) => r.isApproved).length || 0;
+
+  const safeBookings = Array.isArray(bookings) ? bookings : [];
+  const safeGalleries = Array.isArray(galleries) ? galleries : [];
+  const safeContacts = Array.isArray(contacts) ? contacts : [];
+  const safeCatalogues = Array.isArray(catalogues) ? catalogues : [];
+  const safeReviews = Array.isArray(reviews) ? reviews : [];
+
+  const pendingBookings = safeBookings.filter((b: any) => b.status === 'pending').length;
+  const confirmedBookings = safeBookings.filter((b: any) => b.status === 'confirmed').length;
+  const pendingGalleries = safeGalleries.filter((g: any) => g.status === 'pending').length;
+  const unreadContacts = safeContacts.filter((c: any) => c.status === 'unread').length;
+  const publishedCatalogues = safeCatalogues.filter((c: any) => c.isPublished).length;
+  const draftCatalogues = safeCatalogues.filter((c: any) => !c.isPublished).length;
+  const pendingReviews = safeReviews.filter((r: any) => !r.isApproved).length;
+  const approvedReviews = safeReviews.filter((r: any) => r.isApproved).length;
+  const pendingPhotographerCount = pendingPhotographers?.length || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 p-4">
@@ -191,8 +218,8 @@ export function AdminDashboard() {
         </div>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="bookings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+        <Tabs value={tabValue} onValueChange={setTabValue} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="bookings" data-testid="tab-bookings">
               <CalendarIcon className="w-4 h-4 mr-2" />
               Bookings
@@ -242,6 +269,23 @@ export function AdminDashboard() {
               <Shield className="w-4 h-4 mr-2" />
               Users
             </TabsTrigger>
+            <TabsTrigger value="photographers" data-testid="tab-photographers">
+              <Camera className="w-4 h-4 mr-2" />
+              Photographers
+              {pendingPhotographerCount > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {pendingPhotographerCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="pricing" data-testid="tab-pricing">
+              <DollarSignIcon className="w-4 h-4 mr-2" />
+              Pricing
+            </TabsTrigger>
+            <TabsTrigger value="site" data-testid="tab-site">
+              <Settings className="w-4 h-4 mr-2" />
+              Site
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings">
@@ -266,6 +310,17 @@ export function AdminDashboard() {
 
           <TabsContent value="users">
             <AdminUsers />
+          </TabsContent>
+
+          <TabsContent value="photographers">
+            <AdminPhotographers />
+          </TabsContent>
+
+          <TabsContent value="pricing">
+            <AdminPricing />
+          </TabsContent>
+          <TabsContent value="site">
+            <AdminSite />
           </TabsContent>
         </Tabs>
       </div>

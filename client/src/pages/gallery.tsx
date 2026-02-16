@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Key, Eye, Heart, Download, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useParams } from "wouter";
+import { defaultGalleryImages } from "@/data/photo-catalogues";
 
 const galleryAccessSchema = z.object({
   email: z.string().email("Valid email is required"),
@@ -33,16 +35,18 @@ interface Gallery {
 }
 
 export default function Gallery() {
+  const params = useParams<{ email?: string; code?: string }>();
   const [gallery, setGallery] = useState<Gallery | null>(null);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'gallery' | 'selected' | 'final'>('gallery');
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<GalleryAccessData>({
     resolver: zodResolver(galleryAccessSchema),
     defaultValues: {
-      email: "",
-      accessCode: "",
+      email: params.email ? decodeURIComponent(params.email) : "",
+      accessCode: params.code || "",
     },
   });
 
@@ -67,6 +71,16 @@ export default function Gallery() {
       });
     },
   });
+
+  // Auto-submit if URL params are provided
+  useEffect(() => {
+    if (params.email && params.code && !autoSubmitted && !gallery) {
+      setAutoSubmitted(true);
+      const email = decodeURIComponent(params.email);
+      const accessCode = params.code;
+      accessGalleryMutation.mutate({ email, accessCode });
+    }
+  }, [params.email, params.code, autoSubmitted, gallery]);
 
   const updateSelectionMutation = useMutation({
     mutationFn: async (images: string[]) => {
@@ -107,15 +121,7 @@ export default function Gallery() {
     updateSelectionMutation.mutate(selectedImages);
   };
 
-  // Sample gallery images for demonstration
-  const sampleGalleryImages = [
-    "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=800",
-    "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=800",
-    "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=800",
-    "https://images.unsplash.com/photo-1544551763-46a013bb70d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=800",
-    "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=800",
-    "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=800",
-  ];
+  const sampleGalleryImages = defaultGalleryImages;
 
   const currentImages = viewMode === 'gallery' 
     ? (gallery?.galleryImages.length ? gallery.galleryImages : sampleGalleryImages)

@@ -21,6 +21,8 @@ interface User {
   firstName: string | null;
   lastName: string | null;
   isAdmin: boolean;
+  role?: string | null;
+  photographerStatus?: string | null;
   createdAt: string;
 }
 
@@ -48,15 +50,9 @@ export function AdminUsers() {
     },
   });
 
-  // Note: We'll need to add a GET /api/admin/users endpoint to the backend
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
     retry: false,
-    queryFn: async () => {
-      // For now, return mock data since the endpoint doesn't exist yet
-      // In production, this would fetch from /api/admin/users
-      return [];
-    },
   });
 
   const makeAdminMutation = useMutation({
@@ -284,6 +280,16 @@ export function AdminUsers() {
                                 Admin
                               </Badge>
                             )}
+                          {user.role && (
+                            <Badge variant="secondary">
+                              {user.role}
+                            </Badge>
+                          )}
+                          {user.photographerStatus && (
+                            <Badge variant="outline">
+                              {user.photographerStatus}
+                            </Badge>
+                          )}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <div className="flex items-center gap-1">

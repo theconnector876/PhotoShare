@@ -14,7 +14,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, ShareIcon, StarIcon, TrashIcon } from "lucide-react";
+import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, StarIcon, ArrowUp, ArrowDown } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 interface Catalogue {
@@ -28,6 +28,7 @@ interface Catalogue {
   bookingId: string | null;
   createdAt: string;
   publishedAt: string | null;
+  sortOrder?: number;
 }
 
 interface Review {
@@ -76,8 +77,12 @@ export function AdminCatalogues() {
     retry: false,
   });
 
+  const orderedCatalogues = [...(catalogues || [])].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+  );
+
   // Filter catalogues based on search and filter criteria
-  const filteredCatalogues = catalogues?.filter(catalogue => {
+  const filteredCatalogues = orderedCatalogues.filter(catalogue => {
     // Search term filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -101,6 +106,18 @@ export function AdminCatalogues() {
   }) || [];
 
   const form = useForm<CatalogueFormData>({
+    resolver: zodResolver(catalogueFormSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      serviceType: "photoshoot",
+      coverImage: "",
+      images: "",
+      bookingId: "",
+    },
+  });
+
+  const editForm = useForm<CatalogueFormData>({
     resolver: zodResolver(catalogueFormSchema),
     defaultValues: {
       title: "",
@@ -162,8 +179,98 @@ export function AdminCatalogues() {
     },
   });
 
+  const updateCatalogueMutation = useMutation({
+    mutationFn: async (data: CatalogueFormData & { id: string }) => {
+      const imagesArray = data.images.split('\n').map(url => url.trim()).filter(url => url);
+      await apiRequest(`/api/admin/catalogues/${data.id}`, "PUT", {
+        title: data.title,
+        description: data.description,
+        serviceType: data.serviceType,
+        coverImage: data.coverImage,
+        images: imagesArray,
+        bookingId: data.bookingId || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogues"] });
+      toast({
+        title: "Catalogue Updated",
+        description: "Catalogue changes have been saved.",
+      });
+      setIsEditDialogOpen(false);
+      setSelectedCatalogue(null);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/auth";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update catalogue.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const reorderCataloguesMutation = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      await apiRequest("/api/admin/catalogues/reorder", "PATCH", { orderedIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogues"] });
+      toast({
+        title: "Order Updated",
+        description: "Catalogue order has been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update catalogue order.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: CatalogueFormData) => {
     createCatalogueMutation.mutate(data);
+  };
+
+  const onEditSubmit = (data: CatalogueFormData) => {
+    if (!selectedCatalogue) return;
+    updateCatalogueMutation.mutate({ ...data, id: selectedCatalogue.id });
+  };
+
+  const openEditDialog = (catalogue: Catalogue) => {
+    setSelectedCatalogue(catalogue);
+    editForm.reset({
+      title: catalogue.title,
+      description: catalogue.description || "",
+      serviceType: catalogue.serviceType as "photoshoot" | "wedding" | "event",
+      coverImage: catalogue.coverImage,
+      images: (catalogue.images || []).join("\n"),
+      bookingId: catalogue.bookingId || "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const moveCatalogue = (catalogueId: string, direction: "up" | "down") => {
+    const index = orderedCatalogues.findIndex((c) => c.id === catalogueId);
+    if (index === -1) return;
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= orderedCatalogues.length) return;
+    const newOrder = [...orderedCatalogues];
+    const [removed] = newOrder.splice(index, 1);
+    newOrder.splice(targetIndex, 0, removed);
+    reorderCataloguesMutation.mutate(newOrder.map((c) => c.id));
   };
 
   if (isLoading) {
@@ -307,6 +414,119 @@ export function AdminCatalogues() {
                 </Form>
               </DialogContent>
             </Dialog>
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Edit Catalogue</DialogTitle>
+                  <DialogDescription>
+                    Update the catalogue details, images, and cover.
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...editForm}>
+                  <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                    <FormField
+                      control={editForm.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Title</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter catalogue title" {...field} data-testid="input-edit-title" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editForm.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Describe this catalogue..." {...field} data-testid="input-edit-description" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editForm.control}
+                      name="serviceType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Service Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-edit-service-type">
+                                <SelectValue placeholder="Select service type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="photoshoot">Photoshoot</SelectItem>
+                              <SelectItem value="wedding">Wedding</SelectItem>
+                              <SelectItem value="event">Event</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editForm.control}
+                      name="coverImage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cover Image URL</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter cover image URL" {...field} data-testid="input-edit-cover-image" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editForm.control}
+                      name="images"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Gallery Images</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Enter image URLs (one per line)"
+                              {...field}
+                              data-testid="input-edit-images"
+                              rows={5}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Add image URLs, one per line
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsEditDialogOpen(false)}
+                        data-testid="button-cancel-edit"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={updateCatalogueMutation.isPending}
+                        data-testid="button-save-edit"
+                      >
+                        {updateCatalogueMutation.isPending ? "Saving..." : "Save Changes"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent>
@@ -419,7 +639,7 @@ export function AdminCatalogues() {
                         </div>
                       </div>
 
-                      <div className="flex justify-end pt-4 border-t">
+                      <div className="flex flex-wrap justify-between items-center pt-4 border-t gap-2">
                         <div className="flex gap-2">
                           <Button
                             variant="outline"
@@ -429,6 +649,35 @@ export function AdminCatalogues() {
                           >
                             <EyeIcon className="w-4 h-4 mr-2" />
                             View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(catalogue)}
+                            data-testid={`button-edit-catalogue-${catalogue.id}`}
+                          >
+                            <EditIcon className="w-4 h-4 mr-2" />
+                            Edit
+                          </Button>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => moveCatalogue(catalogue.id, "up")}
+                            data-testid={`button-move-up-${catalogue.id}`}
+                          >
+                            <ArrowUp className="w-4 h-4 mr-2" />
+                            Move Up
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => moveCatalogue(catalogue.id, "down")}
+                            data-testid={`button-move-down-${catalogue.id}`}
+                          >
+                            <ArrowDown className="w-4 h-4 mr-2" />
+                            Move Down
                           </Button>
                         </div>
                       </div>
