@@ -814,7 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         productOptions: {
           name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment`,
           description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}`,
-          redirectUrl: `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/payment-success?booking=${bookingId}`,
+          redirectUrl: `${process.env.APP_URL || (process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000')}/payment-success?booking=${bookingId}`,
         },
         checkoutOptions: {
           embed: true,
