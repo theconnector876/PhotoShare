@@ -52378,16 +52378,24 @@ var import_express_session = __toESM(require_express_session(), 1);
 var import_connect_pg_simple = __toESM(require_connect_pg_simple(), 1);
 function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1e3;
-  const pgStore = (0, import_connect_pg_simple.default)(import_express_session.default);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL?.trim(),
-    createTableIfMissing: true,
-    ttl: sessionTtl,
-    tableName: "sessions"
-  });
-  return (0, import_express_session.default)({
-    secret: process.env.SESSION_SECRET,
-    store: sessionStore,
+  const dbUrl = process.env.DATABASE_URL?.trim();
+  let store;
+  if (dbUrl) {
+    try {
+      const pgStore = (0, import_connect_pg_simple.default)(import_express_session.default);
+      store = new pgStore({
+        conString: dbUrl,
+        createTableIfMissing: true,
+        ttl: sessionTtl,
+        tableName: "sessions",
+        errorLog: console.error.bind(console, "Session store error:")
+      });
+    } catch (err) {
+      console.error("Failed to create PG session store:", err);
+    }
+  }
+  const opts = {
+    secret: process.env.SESSION_SECRET || "dev-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -52396,7 +52404,11 @@ function getSession() {
       sameSite: "lax",
       maxAge: sessionTtl
     }
-  });
+  };
+  if (store) {
+    opts.store = store;
+  }
+  return (0, import_express_session.default)(opts);
 }
 
 // server/routes.ts
