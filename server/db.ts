@@ -11,8 +11,10 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-const databaseUrl = process.env.DATABASE_URL;
-const host = new URL(databaseUrl).hostname;
+const databaseUrl = process.env.DATABASE_URL.trim();
+const host = databaseUrl.includes("@")
+  ? databaseUrl.split("@")[1]?.split("/")[0]?.split(":")[0] || ""
+  : "localhost";
 const isLocalDb = host === "localhost" || host === "127.0.0.1";
 
 let pool: PgPool | NeonPool;

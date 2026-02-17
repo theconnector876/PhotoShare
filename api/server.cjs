@@ -51789,8 +51789,8 @@ if (!process.env.DATABASE_URL) {
     "DATABASE_URL must be set. Did you forget to provision a database?"
   );
 }
-var databaseUrl = process.env.DATABASE_URL;
-var host = new URL(databaseUrl).hostname;
+var databaseUrl = process.env.DATABASE_URL.trim();
+var host = databaseUrl.includes("@") ? databaseUrl.split("@")[1]?.split("/")[0]?.split(":")[0] || "" : "localhost";
 var isLocalDb = host === "localhost" || host === "127.0.0.1";
 var pool;
 var db;
