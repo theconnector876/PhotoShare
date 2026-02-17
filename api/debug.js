@@ -1,7 +1,6 @@
 export default async function handler(req, res) {
   try {
-    // Try to import the main app bundle
-    const app = await import('./index.js');
+    const app = await import('./index.mjs');
     res.status(200).json({
       status: "loaded",
       hasDefault: typeof app.default === 'function',
