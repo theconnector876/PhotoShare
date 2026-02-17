@@ -1,0 +1,1845 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Connector Photography - Jamaica's Premier Photography Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                    chart: {
+                        "1": "var(--chart-1)",
+                        "2": "var(--chart-2)",
+                        "3": "var(--chart-3)",
+                        "4": "var(--chart-4)",
+                        "5": "var(--chart-5)",
+                    },
+                    jamaica: {
+                        green: "var(--jamaica-green)",
+                        gold: "var(--jamaica-gold)",
+                        forest: "var(--jamaica-forest)",
+                        orange: "var(--jamaica-orange)",
+                        blue: "var(--jamaica-blue)",
+                    }
+                },
+                fontFamily: {
+                    sans: ["Inter", "var(--font-sans)"],
+                    serif: ["var(--font-serif)"],
+                    mono: ["var(--font-mono)"],
+                    heading: ["Poppins", "sans-serif"],
+                    script: ["Dancing Script", "cursive"],
+                },
+                animation: {
+                    'float': 'float 3s ease-in-out infinite',
+                    'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    'bounce-slow': 'bounce 2s infinite',
+                    'spin-slow': 'spin 8s linear infinite',
+                    'fade-in': 'fadeIn 0.6s ease-out',
+                    'slide-up': 'slideUp 0.6s ease-out',
+                    'scale-in': 'scaleIn 0.4s ease-out',
+                }
+            },
+        }
+    };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Dancing+Script:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --radius: 0.5rem;
+            --background: hsl(60 9% 98%);
+            --foreground: hsl(24 10% 10%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(24 10% 10%);
+            --popover: hsl(0 0% 100%);
+            --popover-foreground: hsl(24 10% 10%);
+            --primary: hsl(144 61% 20%);
+            --primary-foreground: hsl(0 0% 98%);
+            --secondary: hsl(60 4% 96%);
+            --secondary-foreground: hsl(24 10% 10%);
+            --muted: hsl(60 4% 96%);
+            --muted-foreground: hsl(25 5% 45%);
+            --accent: hsl(60 4% 96%);
+            --accent-foreground: hsl(24 10% 10%);
+            --destructive: hsl(0 84% 60%);
+            --destructive-foreground: hsl(0 0% 98%);
+            --border: hsl(20 6% 90%);
+            --input: hsl(20 6% 90%);
+            --ring: hsl(144 61% 20%);
+            --jamaica-green: hsl(144 100% 30%);
+            --jamaica-gold: hsl(51 100% 50%);
+            --jamaica-forest: hsl(144 47% 20%);
+            --jamaica-orange: hsl(30 100% 50%);
+            --jamaica-blue: hsl(203 100% 37%);
+        }
+
+        .dark {
+            --background: hsl(20 14% 4%);
+            --foreground: hsl(0 0% 95%);
+            --card: hsl(24 10% 10%);
+            --card-foreground: hsl(0 0% 95%);
+            --popover: hsl(20 14% 4%);
+            --popover-foreground: hsl(0 0% 95%);
+            --primary: hsl(144 61% 35%);
+            --primary-foreground: hsl(144 61% 20%);
+            --secondary: hsl(12 7% 15%);
+            --secondary-foreground: hsl(0 0% 95%);
+            --muted: hsl(12 7% 15%);
+            --muted-foreground: hsl(24 5% 64%);
+            --accent: hsl(12 7% 15%);
+            --accent-foreground: hsl(0 0% 95%);
+            --destructive: hsl(0 63% 31%);
+            --destructive-foreground: hsl(0 0% 95%);
+            --border: hsl(12 7% 15%);
+            --input: hsl(12 7% 15%);
+            --ring: hsl(144 61% 35%);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .hero-bg {
+            background: linear-gradient(135deg, 
+                hsl(144 100% 30% / 0.9) 0%, 
+                hsl(51 100% 50% / 0.8) 50%, 
+                hsl(203 100% 37% / 0.9) 100%);
+        }
+
+        .geometric-float {
+            position: absolute;
+            background: linear-gradient(45deg, hsl(144 100% 30% / 0.6), hsl(51 100% 50% / 0.4));
+            border-radius: 50%;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .wave-animation {
+            background: linear-gradient(90deg, 
+                transparent, 
+                hsl(51 100% 50% / 0.3), 
+                transparent);
+            animation: wave 3s linear infinite;
+        }
+
+        @keyframes wave {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .package-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .package-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                hsl(51 100% 50% / 0.2), 
+                transparent);
+            transition: left 0.5s;
+        }
+
+        .package-card:hover::before {
+            left: 100%;
+        }
+
+        .package-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px hsl(144 61% 20% / 0.3);
+        }
+
+        .scroll-animate {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease-out;
+        }
+
+        .scroll-animate.animate {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .pricing-calculator {
+            background: linear-gradient(135deg, 
+                hsl(0 0% 100% / 0.95) 0%, 
+                hsl(60 9% 98% / 0.9) 100%);
+        }
+
+        .form-step {
+            display: none;
+        }
+
+        .form-step.active {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, 
+                hsl(144 100% 30%) 0%, 
+                hsl(51 100% 50%) 100%);
+        }
+
+        .image-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .gallery-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 1rem;
+            transition: transform 0.3s ease;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.05);
+        }
+
+        .gallery-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, 
+                transparent 0%, 
+                hsl(24 10% 10% / 0.8) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            display: flex;
+            align-items: end;
+            padding: 1.5rem;
+        }
+
+        .gallery-item:hover .gallery-overlay {
+            opacity: 1;
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                hsl(144 100% 30%), 
+                hsl(51 100% 50%));
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            width: 100%;
+        }
+
+        .service-icon {
+            background: linear-gradient(135deg, 
+                hsl(144 100% 30%), 
+                hsl(51 100% 50%));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .testimonial-card {
+            background: linear-gradient(135deg, 
+                hsl(0 0% 100% / 0.9) 0%, 
+                hsl(60 9% 98% / 0.8) 100%);
+            backdrop-filter: blur(10px);
+        }
+
+        .mobile-menu {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .mobile-menu.open {
+            transform: translateX(0);
+        }
+
+        .booking-form input,
+        .booking-form select,
+        .booking-form textarea {
+            transition: all 0.3s ease;
+        }
+
+        .booking-form input:focus,
+        .booking-form select:focus,
+        .booking-form textarea:focus {
+            border-color: hsl(144 100% 30%);
+            box-shadow: 0 0 0 3px hsl(144 100% 30% / 0.1);
+        }
+
+        .price-display {
+            background: linear-gradient(135deg, 
+                hsl(144 100% 30%), 
+                hsl(51 100% 50%));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .floating-shapes {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .shape {
+            position: absolute;
+            opacity: 0.1;
+        }
+
+        .shape-1 {
+            top: 10%;
+            left: 5%;
+            width: 50px;
+            height: 50px;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .shape-2 {
+            top: 20%;
+            right: 10%;
+            width: 30px;
+            height: 30px;
+            animation: float 4s ease-in-out infinite reverse;
+        }
+
+        .shape-3 {
+            bottom: 15%;
+            left: 15%;
+            width: 40px;
+            height: 40px;
+            animation: float 5s ease-in-out infinite;
+        }
+
+        .shape-4 {
+            bottom: 25%;
+            right: 5%;
+            width: 60px;
+            height: 60px;
+            animation: float 7s ease-in-out infinite reverse;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: hsl(24 10% 10% / 0.8);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal.open {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-content {
+            background: hsl(0 0% 100%);
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: scaleIn 0.3s ease-out;
+        }
+
+        .client-dashboard {
+            background: linear-gradient(135deg, 
+                hsl(60 9% 98%) 0%, 
+                hsl(0 0% 100%) 100%);
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .photo-item {
+            position: relative;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .photo-item:hover {
+            transform: scale(1.05);
+        }
+
+        .photo-item.liked {
+            border: 3px solid hsl(144 100% 30%);
+        }
+
+        .like-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: hsl(0 0% 100% / 0.9);
+            border: none;
+            border-radius: 50%;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .like-btn:hover {
+            background: hsl(144 100% 30%);
+            color: white;
+        }
+
+        .like-btn.liked {
+            background: hsl(144 100% 30%);
+            color: white;
+        }
+
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .step {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            background: hsl(60 4% 96%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 0.5rem;
+            position: relative;
+        }
+
+        .step.active {
+            background: hsl(144 100% 30%);
+            color: white;
+        }
+
+        .step.completed {
+            background: hsl(144 100% 30%);
+            color: white;
+        }
+
+        .step::after {
+            content: '';
+            position: absolute;
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3rem;
+            height: 2px;
+            background: hsl(60 4% 96%);
+        }
+
+        .step:last-child::after {
+            display: none;
+        }
+
+        .step.completed::after {
+            background: hsl(144 100% 30%);
+        }
+    </style>
+</head>
+<body class="bg-background text-foreground font-sans">
+
+    <!-- Navigation -->
+    <!-- @COMPONENT: Navigation [responsive navigation with mobile menu] -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass-effect">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-camera text-2xl service-icon"></i>
+                    <span class="font-heading font-bold text-xl text-foreground">The Connector</span>
+                </div>
+                
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#home" class="nav-link font-medium hover:text-primary" data-nav="home">Home</a>
+                    <a href="#services" class="nav-link font-medium hover:text-primary" data-nav="services">Services</a>
+                    <a href="#portfolio" class="nav-link font-medium hover:text-primary" data-nav="portfolio">Portfolio</a>
+                    <a href="#booking" class="nav-link font-medium hover:text-primary" data-nav="booking">Book Now</a>
+                    <a href="#about" class="nav-link font-medium hover:text-primary" data-nav="about">About</a>
+                    <a href="#contact" class="nav-link font-medium hover:text-primary" data-nav="contact">Contact</a>
+                    <button id="clientDashboardBtn" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                        Client Access
+                    </button>
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobileMenuBtn" class="md:hidden text-foreground">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 h-full w-64 bg-card shadow-xl md:hidden">
+            <div class="p-4">
+                <div class="flex items-center justify-between mb-8">
+                    <span class="font-heading font-bold text-lg">Menu</span>
+                    <button id="closeMobileMenu">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <a href="#home" class="block py-2 hover:text-primary">Home</a>
+                    <a href="#services" class="block py-2 hover:text-primary">Services</a>
+                    <a href="#portfolio" class="block py-2 hover:text-primary">Portfolio</a>
+                    <a href="#booking" class="block py-2 hover:text-primary">Book Now</a>
+                    <a href="#about" class="block py-2 hover:text-primary">About</a>
+                    <a href="#contact" class="block py-2 hover:text-primary">Contact</a>
+                    <button class="w-full bg-primary text-primary-foreground px-4 py-2 rounded-lg mt-4">
+                        Client Access
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <!-- @END_COMPONENT: Navigation -->
+
+    <!-- Hero Section -->
+    <!-- @COMPONENT: HeroSection [animated hero with dynamic background] -->
+    <section id="home" class="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <!-- Dynamic Background -->
+        <div class="absolute inset-0 hero-bg">
+            <!-- Beautiful tropical beach landscape with crystal clear turquoise water and palm trees -->
+            <div class="absolute inset-0" style="background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1920&h=1080'); background-size: cover; background-position: center; opacity: 0.3;"></div>
+        </div>
+
+        <!-- Floating Geometric Shapes -->
+        <div class="floating-shapes">
+            <div class="shape shape-1 geometric-float rounded-full"></div>
+            <div class="shape shape-2 geometric-float rounded-full"></div>
+            <div class="shape shape-3 geometric-float rounded-full"></div>
+            <div class="shape shape-4 geometric-float rounded-full"></div>
+        </div>
+
+        <!-- Hero Content -->
+        <div class="relative z-10 text-center px-4 max-w-4xl mx-auto">
+            <h1 class="font-heading font-bold text-5xl md:text-7xl text-white mb-6 animate-fade-in">
+                Capturing Jamaica's
+                <span class="text-jamaica-gold font-script text-6xl md:text-8xl block">Beautiful Moments</span>
+            </h1>
+            <p class="text-xl md:text-2xl text-white/90 mb-8 animate-slide-up">
+                Professional photography services across the beautiful island of Jamaica. 
+                From intimate photoshoots to grand weddings and special events.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center animate-scale-in">
+                <button onclick="scrollToSection('booking')" class="bg-jamaica-green text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-jamaica-green/90 transition-all duration-300 transform hover:scale-105">
+                    Book Your Session
+                </button>
+                <button onclick="scrollToSection('portfolio')" class="glass-effect text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white/20 transition-all duration-300">
+                    View Portfolio
+                </button>
+            </div>
+        </div>
+
+        <!-- Scroll Indicator -->
+        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce-slow">
+            <i class="fas fa-chevron-down text-white text-2xl"></i>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: HeroSection -->
+
+    <!-- Services Overview -->
+    <!-- @COMPONENT: ServicesOverview [three main service categories] -->
+    <section id="services" class="py-20 bg-background">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16 scroll-animate">
+                <h2 class="font-heading font-bold text-4xl md:text-5xl text-foreground mb-4">
+                    Our Photography Services
+                </h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Choose from our comprehensive range of photography services, each designed to capture your unique story
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Photoshoots -->
+                <div class="package-card bg-card rounded-2xl p-8 text-center shadow-lg border">
+                    <div class="w-16 h-16 bg-jamaica-green/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-camera service-icon text-3xl"></i>
+                    </div>
+                    <h3 class="font-heading font-bold text-2xl mb-4">Photoshoots</h3>
+                    <p class="text-muted-foreground mb-6">
+                        Professional portrait and lifestyle photography sessions at stunning Jamaica locations
+                    </p>
+                    <div class="space-y-2 text-sm text-muted-foreground mb-6">
+                        <div>• Bronze: $150 (45 mins, 6 images)</div>
+                        <div>• Silver: $200 (60 mins, 10 images)</div>
+                        <div>• Gold: $300 (120 mins, 15 images)</div>
+                        <div>• Platinum: $500 (150 mins, 25 images)</div>
+                    </div>
+                    <button onclick="openBookingModal('photoshoot')" class="w-full bg-jamaica-green text-white py-3 rounded-lg hover:bg-jamaica-green/90 transition-colors">
+                        Book Photoshoot
+                    </button>
+                </div>
+
+                <!-- Weddings -->
+                <div class="package-card bg-card rounded-2xl p-8 text-center shadow-lg border">
+                    <div class="w-16 h-16 bg-jamaica-gold/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-heart service-icon text-3xl"></i>
+                    </div>
+                    <h3 class="font-heading font-bold text-2xl mb-4">Weddings</h3>
+                    <p class="text-muted-foreground mb-6">
+                        Complete wedding photography and videography packages for your special day
+                    </p>
+                    <div class="space-y-2 text-sm text-muted-foreground mb-6">
+                        <div>• Photography: $500 - $2,500</div>
+                        <div>• Videography add-ons available</div>
+                        <div>• Multiple package options</div>
+                        <div>• Full day coverage</div>
+                    </div>
+                    <button onclick="openBookingModal('wedding')" class="w-full bg-jamaica-gold text-white py-3 rounded-lg hover:bg-jamaica-gold/90 transition-colors">
+                        Book Wedding
+                    </button>
+                </div>
+
+                <!-- Events -->
+                <div class="package-card bg-card rounded-2xl p-8 text-center shadow-lg border">
+                    <div class="w-16 h-16 bg-jamaica-blue/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-calendar-alt service-icon text-3xl"></i>
+                    </div>
+                    <h3 class="font-heading font-bold text-2xl mb-4">Events</h3>
+                    <p class="text-muted-foreground mb-6">
+                        Professional event photography for corporate functions, parties, and celebrations
+                    </p>
+                    <div class="space-y-2 text-sm text-muted-foreground mb-6">
+                        <div>• $150/hour (2 hour minimum)</div>
+                        <div>• All photos color-graded</div>
+                        <div>• Video highlight reel add-on</div>
+                        <div>• Same-day preview available</div>
+                    </div>
+                    <button onclick="openBookingModal('event')" class="w-full bg-jamaica-blue text-white py-3 rounded-lg hover:bg-jamaica-blue/90 transition-colors">
+                        Book Event
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: ServicesOverview -->
+
+    <!-- Portfolio Preview -->
+    <!-- @COMPONENT: PortfolioPreview [expandable portfolio gallery] -->
+    <section id="portfolio" class="py-20 bg-muted/30">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16 scroll-animate">
+                <h2 class="font-heading font-bold text-4xl md:text-5xl text-foreground mb-4">
+                    Our Work Speaks
+                </h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Explore our portfolio of beautiful moments captured across Jamaica's most stunning locations
+                </p>
+            </div>
+
+            <!-- Portfolio Grid -->
+            <div class="image-gallery mb-12">
+                <!-- Stunning sunset wedding ceremony on a pristine beach with crystal clear water -->
+                <div class="gallery-item">
+                    <img src="https://images.unsplash.com/photo-1519741497674-611481863552?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600" alt="Beach wedding ceremony" class="w-full h-64 object-cover" />
+                    <div class="gallery-overlay">
+                        <div class="text-white">
+                            <h4 class="font-semibold text-lg">Beach Wedding</h4>
+                            <p class="text-sm">Negril, Jamaica</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Beautiful couple portrait session at tropical garden with lush greenery -->
+                <div class="gallery-item">
+                    <img src="https://images.unsplash.com/photo-1511285560929-80b456fea0bc?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600" alt="Couple portrait in tropical garden" class="w-full h-64 object-cover" />
+                    <div class="gallery-overlay">
+                        <div class="text-white">
+                            <h4 class="font-semibold text-lg">Couple's Session</h4>
+                            <p class="text-sm">Blue Mountains</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Elegant family portrait at luxury resort with pool and ocean view -->
+                <div class="gallery-item">
+                    <img src="https://pixabay.com/get/g1aecb837b6fedc80c6b13fa95f652b380ab4b34532c49684e508d0f59b02f2950c21fc557ff12f2d4ebd9799935923df268eecd7e220f7b45aa81f88113dbeb8_1280.jpg" alt="Family portrait at resort" class="w-full h-64 object-cover" />
+                    <div class="gallery-overlay">
+                        <div class="text-white">
+                            <h4 class="font-semibold text-lg">Family Portrait</h4>
+                            <p class="text-sm">Montego Bay</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Professional event photography at upscale corporate function -->
+                <div class="gallery-item">
+                    <img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600" alt="Corporate event photography" class="w-full h-64 object-cover" />
+                    <div class="gallery-overlay">
+                        <div class="text-white">
+                            <h4 class="font-semibold text-lg">Corporate Event</h4>
+                            <p class="text-sm">Kingston</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Artistic maternity photoshoot in natural lighting with tropical backdrop -->
+                <div class="gallery-item">
+                    <img src="https://images.unsplash.com/photo-1555252333-9f8e92e65df9?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600" alt="Maternity photoshoot outdoors" class="w-full h-64 object-cover" />
+                    <div class="gallery-overlay">
+                        <div class="text-white">
+                            <h4 class="font-semibold text-lg">Maternity Session</h4>
+                            <p class="text-sm">Ocho Rios</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Glamorous fashion portrait session with dramatic lighting and tropical setting -->
+                <div class="gallery-item">
+                    <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600" alt="Fashion portrait session" class="w-full h-64 object-cover" />
+                    <div class="gallery-overlay">
+                        <div class="text-white">
+                            <h4 class="font-semibold text-lg">Fashion Portrait</h4>
+                            <p class="text-sm">Port Antonio</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button id="viewFullPortfolio" class="bg-primary text-primary-foreground px-8 py-3 rounded-lg hover:bg-primary/90 transition-colors">
+                    View Full Portfolio
+                </button>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: PortfolioPreview -->
+
+    <!-- Interactive Booking Section -->
+    <!-- @COMPONENT: BookingSection [multi-step booking form with pricing calculator] -->
+    <section id="booking" class="py-20 bg-background">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16 scroll-animate">
+                <h2 class="font-heading font-bold text-4xl md:text-5xl text-foreground mb-4">
+                    Book Your Session
+                </h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Use our interactive booking system to calculate pricing and schedule your photography session
+                </p>
+            </div>
+
+            <!-- Pricing Calculator -->
+            <div class="pricing-calculator rounded-2xl p-8 shadow-xl border max-w-4xl mx-auto mb-12">
+                <h3 class="font-heading font-bold text-2xl text-center mb-8">Pricing Calculator</h3>
+                
+                <!-- Service Type Selection -->
+                <div class="mb-8">
+                    <label class="block text-sm font-medium mb-3">Select Service Type</label>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <button type="button" onclick="selectServiceType('photoshoot')" class="service-btn p-4 border rounded-lg text-left hover:border-primary transition-colors" data-service="photoshoot">
+                            <div class="font-semibold">Photoshoot</div>
+                            <div class="text-sm text-muted-foreground">Portrait & Lifestyle</div>
+                        </button>
+                        <button type="button" onclick="selectServiceType('wedding')" class="service-btn p-4 border rounded-lg text-left hover:border-primary transition-colors" data-service="wedding">
+                            <div class="font-semibold">Wedding</div>
+                            <div class="text-sm text-muted-foreground">Photography & Video</div>
+                        </button>
+                        <button type="button" onclick="selectServiceType('event')" class="service-btn p-4 border rounded-lg text-left hover:border-primary transition-colors" data-service="event">
+                            <div class="font-semibold">Event</div>
+                            <div class="text-sm text-muted-foreground">Corporate & Parties</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Package Selection (for photoshoot and wedding) -->
+                <div id="packageSelection" class="mb-8 hidden">
+                    <label class="block text-sm font-medium mb-3">Select Package</label>
+                    <div id="packageOptions" class="grid md:grid-cols-2 gap-4">
+                        <!-- Package options will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Event Hours Selection (for events) -->
+                <div id="eventHours" class="mb-8 hidden">
+                    <label class="block text-sm font-medium mb-3">Event Duration (hours)</label>
+                    <input type="number" id="hoursInput" min="2" value="2" class="w-full p-3 border rounded-lg focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Minimum 2 hours">
+                </div>
+
+                <!-- Add-ons -->
+                <div class="mb-8">
+                    <label class="block text-sm font-medium mb-3">Add-ons</label>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:border-primary">
+                            <input type="checkbox" class="addon-checkbox mr-3" data-price="50" data-name="additional-person">
+                            <div>
+                                <div class="font-medium">Additional Person</div>
+                                <div class="text-sm text-muted-foreground">+$50 each</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:border-primary">
+                            <input type="checkbox" class="addon-checkbox mr-3" data-price="150" data-name="drone" data-services="photoshoot,wedding">
+                            <div>
+                                <div class="font-medium">Drone Photography</div>
+                                <div class="text-sm text-muted-foreground">+$150 (Photoshoot), +$250 (Wedding)</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:border-primary">
+                            <input type="checkbox" class="addon-checkbox mr-3" data-price="250" data-name="highlight-reel">
+                            <div>
+                                <div class="font-medium">Highlight Reel (1-3 min)</div>
+                                <div class="text-sm text-muted-foreground">+$250</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:border-primary">
+                            <input type="checkbox" class="addon-checkbox mr-3" data-price="120" data-name="express-delivery">
+                            <div>
+                                <div class="font-medium">Express Delivery (1-2 days)</div>
+                                <div class="text-sm text-muted-foreground">+$120</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:border-primary">
+                            <input type="checkbox" class="addon-checkbox mr-3" data-price="80" data-name="studio-rental">
+                            <div>
+                                <div class="font-medium">Studio Rental</div>
+                                <div class="text-sm text-muted-foreground">+$80</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:border-primary">
+                            <input type="checkbox" class="addon-checkbox mr-3" data-price="120" data-name="flying-dress">
+                            <div>
+                                <div class="font-medium">Flying Dress</div>
+                                <div class="text-sm text-muted-foreground">+$120</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Location & Transportation -->
+                <div class="mb-8">
+                    <label class="block text-sm font-medium mb-3">Primary Location (Parish)</label>
+                    <select id="parishSelect" class="w-full p-3 border rounded-lg focus:border-primary focus:ring-1 focus:ring-primary">
+                        <option value="">Select Parish</option>
+                        <option value="manchester" data-fee="35">Manchester</option>
+                        <option value="st-elizabeth" data-fee="35">St. Elizabeth</option>
+                        <option value="montego-bay" data-fee="50">Montego Bay</option>
+                        <option value="negril" data-fee="50">Negril</option>
+                        <option value="ocho-rios" data-fee="50">Ocho Rios</option>
+                        <option value="other" data-fee="65">Other Parish</option>
+                    </select>
+                </div>
+
+                <!-- Price Display -->
+                <div class="bg-white p-6 rounded-xl border-2 border-primary/20">
+                    <div class="text-center">
+                        <div class="text-lg text-muted-foreground mb-2">Total Estimated Price</div>
+                        <div id="totalPrice" class="price-display font-heading font-bold text-4xl">$0</div>
+                        <div class="text-sm text-muted-foreground mt-2">* Prices in USD</div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-8">
+                    <button onclick="startBookingProcess()" class="bg-primary text-primary-foreground px-8 py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold">
+                        Continue to Booking Form
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: BookingSection -->
+
+    <!-- About Section -->
+    <!-- @COMPONENT: AboutSection [photographer background and story] -->
+    <section id="about" class="py-20 bg-muted/30">
+        <div class="container mx-auto px-4">
+            <div class="max-w-6xl mx-auto">
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+                    <div class="scroll-animate">
+                        <!-- Professional photographer capturing moments at golden hour in Jamaica -->
+                        <img src="https://images.unsplash.com/photo-1502920917128-1aa500764cbd?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600" alt="Professional photographer at work" class="rounded-2xl shadow-xl w-full" />
+                    </div>
+                    <div class="scroll-animate">
+                        <h2 class="font-heading font-bold text-4xl md:text-5xl text-foreground mb-6">
+                            About The Connector
+                        </h2>
+                        <p class="text-lg text-muted-foreground mb-6">
+                            Based in the heart of Jamaica, The Connector Photography specializes in capturing the natural beauty and vibrant culture of our beloved island. With years of experience and a passion for storytelling through imagery, we bring a unique Caribbean perspective to every shoot.
+                        </p>
+                        <p class="text-lg text-muted-foreground mb-6">
+                            From the pristine beaches of Negril to the lush mountains of Blue Mountain, we know Jamaica's most photogenic locations. Our goal is to create timeless memories that you'll treasure forever, whether it's an intimate portrait session, your dream wedding, or a special celebration.
+                        </p>
+                        <div class="grid md:grid-cols-2 gap-6 mb-8">
+                            <div>
+                                <h4 class="font-semibold text-lg mb-2">Our Specialties</h4>
+                                <ul class="text-muted-foreground space-y-1">
+                                    <li>• Beach & Tropical Photography</li>
+                                    <li>• Destination Weddings</li>
+                                    <li>• Cultural Events</li>
+                                    <li>• Corporate Functions</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-lg mb-2">Coverage Areas</h4>
+                                <ul class="text-muted-foreground space-y-1">
+                                    <li>• All 14 Parishes of Jamaica</li>
+                                    <li>• Popular Tourist Destinations</li>
+                                    <li>• Private Resorts & Venues</li>
+                                    <li>• Outdoor Locations</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <span class="font-script text-3xl text-jamaica-gold">Let's Connect</span>
+                            <i class="fas fa-arrow-right text-jamaica-green"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: AboutSection -->
+
+    <!-- Contact Section -->
+    <!-- @COMPONENT: ContactSection [contact information and quick contact form] -->
+    <section id="contact" class="py-20 bg-background">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16 scroll-animate">
+                <h2 class="font-heading font-bold text-4xl md:text-5xl text-foreground mb-4">
+                    Get In Touch
+                </h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Ready to capture your special moments? Contact us to discuss your photography needs
+                </p>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
+                <!-- Contact Information -->
+                <div class="scroll-animate">
+                    <div class="space-y-8">
+                        <div>
+                            <h3 class="font-heading font-bold text-2xl mb-6">Contact Information</h3>
+                            <div class="space-y-4">
+                                <div class="flex items-center space-x-4">
+                                    <div class="w-12 h-12 bg-jamaica-green/10 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-phone text-jamaica-green"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold">Phone</div>
+                                        <div class="text-muted-foreground">1-876-388-1801</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <div class="w-12 h-12 bg-jamaica-gold/10 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-envelope text-jamaica-gold"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold">Email</div>
+                                        <div class="text-muted-foreground">theconnectorphotography@gmail.com</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <div class="w-12 h-12 bg-jamaica-blue/10 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-map-marker-alt text-jamaica-blue"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold">Location</div>
+                                        <div class="text-muted-foreground">New Forest District, Manchester, Jamaica</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="font-semibold text-lg mb-4">Business Hours</h4>
+                            <div class="space-y-2 text-muted-foreground">
+                                <div class="flex justify-between">
+                                    <span>Monday - Friday</span>
+                                    <span>9:00 AM - 6:00 PM</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Saturday</span>
+                                    <span>10:00 AM - 4:00 PM</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Sunday</span>
+                                    <span>By Appointment Only</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Contact Form -->
+                <div class="scroll-animate">
+                    <div class="bg-card rounded-2xl p-8 shadow-lg border">
+                        <h3 class="font-heading font-bold text-2xl mb-6">Send a Message</h3>
+                        <form id="quickContactForm" class="space-y-4">
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">First Name</label>
+                                    <input type="text" required class="w-full p-3 border rounded-lg focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Your first name">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Last Name</label>
+                                    <input type="text" required class="w-full p-3 border rounded-lg focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Your last name">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Email</label>
+                                <input type="email" required class="w-full p-3 border rounded-lg focus:border-primary focus:ring-1 focus:ring-primary" placeholder="your.email@example.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Phone</label>
+                                <input type="tel" class="w-full p-3 border rounded-lg focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Your phone number">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Service Interest</label>
+                                <select class="w-full p-3 border rounded-lg focus:border-primary focus:ring-1 focus:ring-primary">
+                                    <option value="">Select a service</option>
+                                    <option value="photoshoot">Photoshoot</option>
+                                    <option value="wedding">Wedding Photography</option>
+                                    <option value="event">Event Photography</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Message</label>
+                                <textarea rows="4" class="w-full p-3 border rounded-lg focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Tell us about your photography needs..."></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-primary text-primary-foreground py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold">
+                                Send Message
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: ContactSection -->
+
+    <!-- Footer -->
+    <!-- @COMPONENT: Footer [site footer with links and social media] -->
+    <footer class="bg-foreground text-background py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <i class="fas fa-camera text-2xl text-jamaica-gold"></i>
+                        <span class="font-heading font-bold text-xl">The Connector</span>
+                    </div>
+                    <p class="text-background/80 mb-4">
+                        Capturing Jamaica's beautiful moments with professional photography services across the island.
+                    </p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-jamaica-gold hover:text-jamaica-gold/80">
+                            <i class="fab fa-instagram text-xl"></i>
+                        </a>
+                        <a href="#" class="text-jamaica-gold hover:text-jamaica-gold/80">
+                            <i class="fab fa-facebook text-xl"></i>
+                        </a>
+                        <a href="#" class="text-jamaica-gold hover:text-jamaica-gold/80">
+                            <i class="fab fa-whatsapp text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-lg mb-4">Services</h4>
+                    <ul class="space-y-2 text-background/80">
+                        <li><a href="#services" class="hover:text-jamaica-gold">Photoshoots</a></li>
+                        <li><a href="#services" class="hover:text-jamaica-gold">Wedding Photography</a></li>
+                        <li><a href="#services" class="hover:text-jamaica-gold">Event Photography</a></li>
+                        <li><a href="#portfolio" class="hover:text-jamaica-gold">Portfolio</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-lg mb-4">Quick Links</h4>
+                    <ul class="space-y-2 text-background/80">
+                        <li><a href="#about" class="hover:text-jamaica-gold">About Us</a></li>
+                        <li><a href="#booking" class="hover:text-jamaica-gold">Book Now</a></li>
+                        <li><a href="#contact" class="hover:text-jamaica-gold">Contact</a></li>
+                        <li><a href="#" class="hover:text-jamaica-gold">Client Access</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-lg mb-4">Contact Info</h4>
+                    <ul class="space-y-2 text-background/80">
+                        <li>1-876-388-1801</li>
+                        <li>theconnectorphotography@gmail.com</li>
+                        <li>New Forest District</li>
+                        <li>Manchester, Jamaica</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-background/20 mt-8 pt-8 text-center text-background/60">
+                <p>&copy; 2024 The Connector Photography. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+    <!-- @END_COMPONENT: Footer -->
+
+    <!-- Booking Modal -->
+    <!-- @COMPONENT: BookingModal [complete booking form with contract] -->
+    <div id="bookingModal" class="modal">
+        <div class="modal-content max-w-4xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="font-heading font-bold text-2xl">Complete Your Booking</h2>
+                <button onclick="closeBookingModal()" class="text-muted-foreground hover:text-foreground">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Progress Indicator -->
+            <div class="step-indicator">
+                <div class="step active" data-step="1">1</div>
+                <div class="step" data-step="2">2</div>
+                <div class="step" data-step="3">3</div>
+                <div class="step" data-step="4">4</div>
+            </div>
+
+            <form id="bookingForm" class="booking-form">
+                <!-- Step 1: Service Details -->
+                <div class="form-step active" data-step="1">
+                    <h3 class="font-heading font-bold text-xl mb-6">Service Details</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Service Type *</label>
+                            <select id="serviceType" required class="w-full p-3 border rounded-lg">
+                                <option value="">Select service type</option>
+                                <option value="photoshoot">Photoshoot</option>
+                                <option value="wedding">Wedding</option>
+                                <option value="event">Event</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Package *</label>
+                            <select id="packageSelect" required class="w-full p-3 border rounded-lg">
+                                <option value="">Select package</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Date of Shoot *</label>
+                            <input type="date" required class="w-full p-3 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Start Time *</label>
+                            <input type="time" required class="w-full p-3 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Number of People *</label>
+                            <input type="number" min="1" required class="w-full p-3 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Primary Location (Parish) *</label>
+                            <select required class="w-full p-3 border rounded-lg">
+                                <option value="">Select parish</option>
+                                <option value="manchester">Manchester</option>
+                                <option value="st-elizabeth">St. Elizabeth</option>
+                                <option value="montego-bay">Montego Bay</option>
+                                <option value="negril">Negril</option>
+                                <option value="ocho-rios">Ocho Rios</option>
+                                <option value="other">Other Parish</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium mb-2">Specific Location Details</label>
+                        <textarea rows="3" class="w-full p-3 border rounded-lg" placeholder="Please provide specific location details, venue name, or address..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Step 2: Personal Information -->
+                <div class="form-step" data-step="2">
+                    <h3 class="font-heading font-bold text-xl mb-6">Personal Information</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Full Name *</label>
+                            <input type="text" required class="w-full p-3 border rounded-lg" placeholder="Your full name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Email Address *</label>
+                            <input type="email" required class="w-full p-3 border rounded-lg" placeholder="your.email@example.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Phone Number *</label>
+                            <input type="tel" required class="w-full p-3 border rounded-lg" placeholder="Your phone number">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">How did you hear about us?</label>
+                            <select class="w-full p-3 border rounded-lg">
+                                <option value="">Select option</option>
+                                <option value="search">Search Engine</option>
+                                <option value="social">Social Media</option>
+                                <option value="word-of-mouth">Word of Mouth</option>
+                                <option value="referral">Referral</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium mb-2">Special Requests or Notes</label>
+                        <textarea rows="4" class="w-full p-3 border rounded-lg" placeholder="Any special requests, themes, or important details we should know about..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Step 3: Contract Terms -->
+                <div class="form-step" data-step="3">
+                    <h3 class="font-heading font-bold text-xl mb-6">Contract Terms & Conditions</h3>
+                    <div class="bg-muted/30 p-6 rounded-lg max-h-96 overflow-y-auto text-sm">
+                        <!-- Contract content from the uploaded document -->
+                        <div class="space-y-4">
+                            <p><strong>1.</strong> PHOTOGRAPHERS/PRODUCERS agree to provide no less than the amount of photos provided on the chosen package, and is not required to provide more than this number of images. Raw photos are not included and will come at an additional fee.</p>
+                            <p><strong>2.</strong> PHOTOGRAPHERS/PRODUCERS will perform post-processing or digital image editing services on these photos and video footage's where artistically necessary depending on the package chosen.</p>
+                            <p><strong>3.</strong> CLIENT/S grants permission to PHOTOGRAPHERS/PRODUCERS and its assigns, licensees, and sub licensees to use CLIENT'S image or likeness in any and all forms of media for commercial purposes, advertising, trade, personal use, or any and all other uses.</p>
+                            <p><strong>4.</strong> PHOTOGRAPHERS/PRODUCERS may promote photos containing client's likeness to third parties.</p>
+                            <p><strong>5.</strong> CLIENT/S agree/s and understand/s that, unless otherwise specified in this Contract, CLIENT is not contracting for a personal service that will be performed by any specific photographer.</p>
+                            <p><strong>6.</strong> PHOTOGRAPHERS/PRODUCERS may sub-contract or assign this contract to any second-shooter, PHOTOGRAPHER/S may assign any photographers associated with the PHOTOGRAPHY COMPANY to perform its duties under this contract.</p>
+                            <p><strong>7.</strong> A refund is applicable where the terms and condition of this contract has been breached by Connectors Photography. All deposits/retainers are non-refundable even if the date is changed or cancelled.</p>
+                            <p><strong>8.</strong> If any UNNATURAL DISASTERS occur (Damage memory cards, Car-accident, Stolen cameras) that will impact delivering of package, PHOTOGRAPHERS/PRODUCERS cannot be held responsible.</p>
+                            <p><strong>9.</strong> If time exceeded, We will have an additional fee of $150 per hour outside the contract. An additional $100 will be due for all cancellations within 48 hours of the session.</p>
+                            <p><strong>10.</strong> If any unnatural accident happens to any of the equipment from any individual that attends to the event (water damage, stolen, broken, any type of damage) client will be held responsible.</p>
+                            <!-- Additional contract terms continue... -->
+                        </div>
+                    </div>
+                    <div class="mt-6 space-y-4">
+                        <label class="flex items-start space-x-3">
+                            <input type="checkbox" required class="mt-1">
+                            <span class="text-sm">I acknowledge that I have read, understand and agree to the above terms and conditions. *</span>
+                        </label>
+                        <label class="flex items-start space-x-3">
+                            <input type="checkbox" required class="mt-1">
+                            <span class="text-sm">I confirm that the information provided is absolutely correct. *</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Step 4: Payment & Confirmation -->
+                <div class="form-step" data-step="4">
+                    <h3 class="font-heading font-bold text-xl mb-6">Payment & Confirmation</h3>
+                    <div class="bg-card p-6 rounded-lg border mb-6">
+                        <h4 class="font-semibold text-lg mb-4">Booking Summary</h4>
+                        <div id="bookingSummary" class="space-y-2 text-sm">
+                            <!-- Booking summary will be populated by JavaScript -->
+                        </div>
+                        <div class="border-t pt-4 mt-4">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold">Total Amount:</span>
+                                <span id="finalTotal" class="font-bold text-xl price-display">$0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Payment Method</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="radio" name="payment" value="cash" class="mr-3">
+                                    <span>Cash Payment</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="payment" value="check" class="mr-3">
+                                    <span>Check Payment</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="payment" value="bank-transfer" class="mr-3">
+                                    <span>Bank Transfer</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Client Initials *</label>
+                            <input type="text" required class="w-full p-3 border rounded-lg" placeholder="Your initials" maxlength="5">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex justify-between mt-8">
+                    <button type="button" id="prevBtn" onclick="changeStep(-1)" class="px-6 py-3 border border-primary text-primary rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors hidden">
+                        Previous
+                    </button>
+                    <button type="button" id="nextBtn" onclick="changeStep(1)" class="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors ml-auto">
+                        Next
+                    </button>
+                    <button type="submit" id="submitBtn" class="px-6 py-3 bg-jamaica-green text-white rounded-lg hover:bg-jamaica-green/90 transition-colors hidden">
+                        Submit Booking
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: BookingModal -->
+
+    <!-- Client Dashboard Modal -->
+    <!-- @COMPONENT: ClientDashboard [photo selection and gallery access] -->
+    <div id="clientDashboardModal" class="modal">
+        <div class="modal-content max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="font-heading font-bold text-2xl">Client Dashboard</h2>
+                <button onclick="closeClientDashboard()" class="text-muted-foreground hover:text-foreground">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Client Login -->
+            <div id="clientLogin" class="text-center py-12">
+                <h3 class="font-heading font-bold text-xl mb-6">Access Your Photos</h3>
+                <p class="text-muted-foreground mb-6">Enter your email to view and select your favorite photos</p>
+                <div class="max-w-md mx-auto">
+                    <input type="email" id="clientEmail" class="w-full p-3 border rounded-lg mb-4" placeholder="Enter your email address">
+                    <button onclick="accessClientGallery()" class="w-full bg-primary text-primary-foreground py-3 rounded-lg hover:bg-primary/90 transition-colors">
+                        Access Gallery
+                    </button>
+                </div>
+            </div>
+
+            <!-- Client Gallery -->
+            <div id="clientGallery" class="hidden">
+                <div class="client-dashboard p-6 rounded-lg mb-6">
+                    <div class="grid md:grid-cols-3 gap-6 mb-6">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-primary">45</div>
+                            <div class="text-sm text-muted-foreground">Total Photos</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-jamaica-gold">6</div>
+                            <div class="text-sm text-muted-foreground">Photos Selected</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-jamaica-green">In Progress</div>
+                            <div class="text-sm text-muted-foreground">Editing Status</div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-muted-foreground">Select your favorite photos by clicking the heart icon. We'll edit your selected images and deliver them within 1-3 weeks.</p>
+                    </div>
+                </div>
+
+                <!-- Photo Grid -->
+                <div class="photo-grid">
+                    <!-- Sample photos - in real implementation, these would be dynamically loaded -->
+                    <!-- Professional portrait photo in golden hour lighting -->
+                    <div class="photo-item" data-photo-id="1">
+                        <img src="https://pixabay.com/get/g6f9bcd0941aa16f797eb33a123e9e648288f0a3a795b8f887a5d311ffbee51ab8220886a9d7e27e3cb9d704ecf85f1b27d83cd99f078fb3ad24861180ac38ef4_1280.jpg" alt="Portrait photo" class="w-full h-48 object-cover">
+                        <button class="like-btn" onclick="toggleLike(this, 1)">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Beautiful beach lifestyle photo with tropical setting -->
+                    <div class="photo-item" data-photo-id="2">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=400" alt="Beach lifestyle photo" class="w-full h-48 object-cover">
+                        <button class="like-btn" onclick="toggleLike(this, 2)">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                    </div>
+
+                    <!-- Candid moment captured during photoshoot -->
+                    <div class="photo-item" data-photo-id="3">
+                        <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=400" alt="Candid portrait" class="w-full h-48 object-cover">
+                        <button class="like-btn" onclick="toggleLike(this, 3)">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                    </div>
+
+                    <!-- Artistic composition with natural lighting -->
+                    <div class="photo-item" data-photo-id="4">
+                        <img src="https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=400" alt="Natural portrait" class="w-full h-48 object-cover">
+                        <button class="like-btn" onclick="toggleLike(this, 4)">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                    </div>
+
+                    <!-- Group photo with beautiful background -->
+                    <div class="photo-item" data-photo-id="5">
+                        <img src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=400" alt="Group photo" class="w-full h-48 object-cover">
+                        <button class="like-btn" onclick="toggleLike(this, 5)">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                    </div>
+
+                    <!-- Professional headshot with studio lighting -->
+                    <div class="photo-item" data-photo-id="6">
+                        <img src="https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=400" alt="Professional headshot" class="w-full h-48 object-cover">
+                        <button class="like-btn" onclick="toggleLike(this, 6)">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="text-center mt-8">
+                    <button class="bg-primary text-primary-foreground px-8 py-3 rounded-lg hover:bg-primary/90 transition-colors">
+                        Submit Selection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: ClientDashboard -->
+
+    <script>
+        (function() {
+            // Global variables
+            let currentStep = 1;
+            let selectedService = '';
+            let selectedPackage = '';
+            let totalPrice = 0;
+            let likedPhotos = [];
+
+            // Package data
+            const packages = {
+                photoshoot: {
+                    bronze: { name: 'Bronze', price: 150, duration: '45 mins', images: '6 retouched images', locations: '1 location' },
+                    silver: { name: 'Silver', price: 200, duration: '60 mins', images: '10 retouched images', locations: '1 location' },
+                    gold: { name: 'Gold', price: 300, duration: '120 mins', images: '15 retouched images', locations: '1 location' },
+                    platinum: { name: 'Platinum', price: 500, duration: '150 mins', images: '25 retouched images', locations: '2 locations' }
+                },
+                wedding: {
+                    bronze: { name: 'Bronze Photography', price: 500 },
+                    silver: { name: 'Silver Photography', price: 800 },
+                    gold: { name: 'Gold Photography', price: 1250 },
+                    platinum: { name: 'Platinum Photography', price: 2500 }
+                },
+                event: {
+                    hourly: { name: 'Event Photography', price: 150, unit: 'per hour', minimum: 2 }
+                }
+            };
+
+            // Transportation fees
+            const transportationFees = {
+                manchester: 35,
+                'st-elizabeth': 35,
+                'montego-bay': 50,
+                negril: 50,
+                'ocho-rios': 50,
+                other: 65
+            };
+
+            // Initialize the application
+            function init() {
+                setupEventListeners();
+                setupScrollAnimations();
+                updateNavigation();
+            }
+
+            // Event listeners
+            function setupEventListeners() {
+                // Navigation
+                document.getElementById('mobileMenuBtn').addEventListener('click', openMobileMenu);
+                document.getElementById('closeMobileMenu').addEventListener('click', closeMobileMenu);
+                document.getElementById('clientDashboardBtn').addEventListener('click', openClientDashboard);
+
+                // Smooth scrolling for navigation links
+                document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                    anchor.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        const target = document.querySelector(this.getAttribute('href'));
+                        if (target) {
+                            target.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start'
+                            });
+                        }
+                        closeMobileMenu();
+                    });
+                });
+
+                // Forms
+                document.getElementById('quickContactForm').addEventListener('submit', handleQuickContact);
+                document.getElementById('bookingForm').addEventListener('submit', handleBookingSubmit);
+
+                // Pricing calculator
+                document.querySelectorAll('.service-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        selectServiceType(this.dataset.service);
+                    });
+                });
+
+                document.querySelectorAll('.addon-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', updatePricing);
+                });
+
+                document.getElementById('parishSelect').addEventListener('change', updatePricing);
+                document.getElementById('hoursInput').addEventListener('input', updatePricing);
+            }
+
+            // Navigation functions
+            function openMobileMenu() {
+                document.getElementById('mobileMenu').classList.add('open');
+            }
+
+            function closeMobileMenu() {
+                document.getElementById('mobileMenu').classList.remove('open');
+            }
+
+            function updateNavigation() {
+                const sections = document.querySelectorAll('section[id]');
+                const navLinks = document.querySelectorAll('.nav-link');
+
+                window.addEventListener('scroll', () => {
+                    let current = '';
+                    sections.forEach(section => {
+                        const sectionTop = section.offsetTop;
+                        const sectionHeight = section.clientHeight;
+                        if (scrollY >= (sectionTop - 200)) {
+                            current = section.getAttribute('id');
+                        }
+                    });
+
+                    navLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === `#${current}`) {
+                            link.classList.add('active');
+                        }
+                    });
+                });
+            }
+
+            // Scroll animations
+            function setupScrollAnimations() {
+                const observerOptions = {
+                    threshold: 0.1,
+                    rootMargin: '0px 0px -50px 0px'
+                };
+
+                const observer = new IntersectionObserver(function(entries) {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('animate');
+                        }
+                    });
+                }, observerOptions);
+
+                document.querySelectorAll('.scroll-animate').forEach(el => {
+                    observer.observe(el);
+                });
+            }
+
+            // Service type selection
+            window.selectServiceType = function(service) {
+                selectedService = service;
+                
+                // Update UI
+                document.querySelectorAll('.service-btn').forEach(btn => {
+                    btn.classList.remove('border-primary', 'bg-primary/5');
+                });
+                document.querySelector(`[data-service="${service}"]`).classList.add('border-primary', 'bg-primary/5');
+
+                // Show/hide relevant sections
+                const packageSelection = document.getElementById('packageSelection');
+                const eventHours = document.getElementById('eventHours');
+                
+                if (service === 'event') {
+                    packageSelection.classList.add('hidden');
+                    eventHours.classList.remove('hidden');
+                } else {
+                    packageSelection.classList.remove('hidden');
+                    eventHours.classList.add('hidden');
+                    populatePackages(service);
+                }
+
+                updatePricing();
+            };
+
+            // Populate package options
+            function populatePackages(service) {
+                const packageOptions = document.getElementById('packageOptions');
+                packageOptions.innerHTML = '';
+
+                if (packages[service]) {
+                    Object.keys(packages[service]).forEach(key => {
+                        const pkg = packages[service][key];
+                        const packageDiv = document.createElement('div');
+                        packageDiv.className = 'package-option p-4 border rounded-lg cursor-pointer hover:border-primary transition-colors';
+                        packageDiv.onclick = () => selectPackage(key);
+                        packageDiv.innerHTML = `
+                            <div class="font-semibold">${pkg.name}</div>
+                            <div class="text-sm text-muted-foreground">${pkg.duration || ''} ${pkg.images || ''}</div>
+                            <div class="font-bold text-primary">$${pkg.price}</div>
+                        `;
+                        packageDiv.dataset.package = key;
+                        packageOptions.appendChild(packageDiv);
+                    });
+                }
+            }
+
+            // Package selection
+            window.selectPackage = function(packageKey) {
+                selectedPackage = packageKey;
+                
+                // Update UI
+                document.querySelectorAll('.package-option').forEach(opt => {
+                    opt.classList.remove('border-primary', 'bg-primary/5');
+                });
+                document.querySelector(`[data-package="${packageKey}"]`).classList.add('border-primary', 'bg-primary/5');
+
+                updatePricing();
+            };
+
+            // Update pricing calculation
+            function updatePricing() {
+                let total = 0;
+
+                // Base package price
+                if (selectedService === 'event') {
+                    const hours = parseInt(document.getElementById('hoursInput').value) || 2;
+                    total = packages.event.hourly.price * Math.max(hours, 2);
+                } else if (selectedService && selectedPackage && packages[selectedService][selectedPackage]) {
+                    total = packages[selectedService][selectedPackage].price;
+                }
+
+                // Add-ons
+                document.querySelectorAll('.addon-checkbox:checked').forEach(checkbox => {
+                    const price = parseInt(checkbox.dataset.price);
+                    const services = checkbox.dataset.services;
+                    
+                    if (!services || services.includes(selectedService)) {
+                        // Special handling for drone pricing
+                        if (checkbox.dataset.name === 'drone' && selectedService === 'wedding') {
+                            total += 250;
+                        } else {
+                            total += price;
+                        }
+                    }
+                });
+
+                // Transportation
+                const parish = document.getElementById('parishSelect').value;
+                if (parish && transportationFees[parish]) {
+                    total += transportationFees[parish];
+                }
+
+                totalPrice = total;
+                document.getElementById('totalPrice').textContent = `$${total}`;
+            }
+
+            // Booking process
+            window.startBookingProcess = function() {
+                if (!selectedService) {
+                    alert('Please select a service type first.');
+                    return;
+                }
+                openBookingModal();
+            };
+
+            window.openBookingModal = function(service) {
+                if (service) {
+                    selectServiceType(service);
+                }
+                document.getElementById('bookingModal').classList.add('open');
+                currentStep = 1;
+                updateStepDisplay();
+            };
+
+            window.closeBookingModal = function() {
+                document.getElementById('bookingModal').classList.remove('open');
+            };
+
+            // Form step navigation
+            window.changeStep = function(direction) {
+                const newStep = currentStep + direction;
+                if (newStep >= 1 && newStep <= 4) {
+                    currentStep = newStep;
+                    updateStepDisplay();
+                }
+            };
+
+            function updateStepDisplay() {
+                // Update step indicators
+                document.querySelectorAll('.step').forEach((step, index) => {
+                    step.classList.remove('active', 'completed');
+                    if (index + 1 < currentStep) {
+                        step.classList.add('completed');
+                    } else if (index + 1 === currentStep) {
+                        step.classList.add('active');
+                    }
+                });
+
+                // Show/hide form steps
+                document.querySelectorAll('.form-step').forEach((step, index) => {
+                    step.classList.remove('active');
+                    if (index + 1 === currentStep) {
+                        step.classList.add('active');
+                    }
+                });
+
+                // Update navigation buttons
+                const prevBtn = document.getElementById('prevBtn');
+                const nextBtn = document.getElementById('nextBtn');
+                const submitBtn = document.getElementById('submitBtn');
+
+                prevBtn.classList.toggle('hidden', currentStep === 1);
+                nextBtn.classList.toggle('hidden', currentStep === 4);
+                submitBtn.classList.toggle('hidden', currentStep !== 4);
+
+                // Populate booking summary on final step
+                if (currentStep === 4) {
+                    updateBookingSummary();
+                }
+            }
+
+            function updateBookingSummary() {
+                const summary = document.getElementById('bookingSummary');
+                const finalTotal = document.getElementById('finalTotal');
+                
+                // TODO: Populate with actual form data
+                summary.innerHTML = `
+                    <div>Service: ${selectedService}</div>
+                    <div>Package: ${selectedPackage}</div>
+                    <div>Total: $${totalPrice}</div>
+                `;
+                
+                finalTotal.textContent = `$${totalPrice}`;
+            }
+
+            // Form submissions
+            function handleQuickContact(e) {
+                e.preventDefault();
+                // TODO: Implement form submission
+                alert('Thank you for your message! We will get back to you soon.');
+            }
+
+            function handleBookingSubmit(e) {
+                e.preventDefault();
+                // TODO: Implement booking submission
+                alert('Your booking has been submitted! We will contact you within 24 hours to confirm.');
+                closeBookingModal();
+            }
+
+            // Client dashboard
+            window.openClientDashboard = function() {
+                document.getElementById('clientDashboardModal').classList.add('open');
+            };
+
+            window.closeClientDashboard = function() {
+                document.getElementById('clientDashboardModal').classList.remove('open');
+            };
+
+            window.accessClientGallery = function() {
+                const email = document.getElementById('clientEmail').value;
+                if (!email) {
+                    alert('Please enter your email address.');
+                    return;
+                }
+                
+                // TODO: Implement client authentication
+                document.getElementById('clientLogin').classList.add('hidden');
+                document.getElementById('clientGallery').classList.remove('hidden');
+            };
+
+            window.toggleLike = function(button, photoId) {
+                const photoItem = button.closest('.photo-item');
+                const isLiked = button.classList.contains('liked');
+                
+                if (isLiked) {
+                    button.classList.remove('liked');
+                    photoItem.classList.remove('liked');
+                    likedPhotos = likedPhotos.filter(id => id !== photoId);
+                } else {
+                    button.classList.add('liked');
+                    photoItem.classList.add('liked');
+                    likedPhotos.push(photoId);
+                }
+                
+                // Update liked count
+                // TODO: Update the counter in the dashboard
+            };
+
+            // Utility functions
+            window.scrollToSection = function(sectionId) {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth' });
+                }
+            };
+
+            // Initialize the application when DOM is loaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>

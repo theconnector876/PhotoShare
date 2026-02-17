@@ -52282,8 +52282,7 @@ function setupPasswordAuth(app2) {
         });
       }
       console.error("Registration error:", error);
-      const errMsg = error instanceof Error ? error.message : String(error);
-      res.status(500).json({ error: "Registration failed", details: errMsg });
+      res.status(500).json({ error: "Registration failed" });
     }
   });
   app2.post("/api/login", (req, res, next) => {

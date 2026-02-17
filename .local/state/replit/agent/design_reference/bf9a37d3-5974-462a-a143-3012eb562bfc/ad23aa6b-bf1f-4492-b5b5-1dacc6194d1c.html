@@ -1,0 +1,968 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Connector - Premium Photography Services Jamaica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                },
+                fontFamily: {
+                    sans: ["Inter", "sans-serif"],
+                },
+                animation: {
+                    'float': 'float 6s ease-in-out infinite',
+                    'glow': 'glow 2s ease-in-out infinite alternate',
+                    'slide-up': 'slideUp 0.8s ease-out',
+                }
+            },
+        }
+    };
+    </script>
+    <style>
+        :root {
+            --background: hsl(215 28% 17%);
+            --foreground: hsl(210 40% 98%);
+            --card: hsl(215 28% 17% / 0.1);
+            --card-foreground: hsl(210 40% 98%);
+            --popover: hsl(215 28% 17%);
+            --popover-foreground: hsl(210 40% 98%);
+            --primary: hsl(168 76% 42%);
+            --primary-foreground: hsl(210 40% 98%);
+            --secondary: hsl(45 93% 47%);
+            --secondary-foreground: hsl(215 28% 17%);
+            --muted: hsl(215 28% 25%);
+            --muted-foreground: hsl(215 20% 65%);
+            --accent: hsl(45 93% 47%);
+            --accent-foreground: hsl(215 28% 17%);
+            --destructive: hsl(0 84% 60%);
+            --destructive-foreground: hsl(210 40% 98%);
+            --border: hsl(215 28% 25%);
+            --input: hsl(215 28% 25%);
+            --ring: hsl(168 76% 42%);
+            --radius: 0.5rem;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--background);
+            color: var(--foreground);
+            overflow-x: hidden;
+        }
+
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes glow {
+            from { box-shadow: 0 0 20px rgba(22, 163, 74, 0.3); }
+            to { box-shadow: 0 0 30px rgba(22, 163, 74, 0.6); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-on-scroll {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.8s ease-out;
+        }
+
+        .animate-on-scroll.in-view {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .package-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .package-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+        }
+
+        .nav-item {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        .nav-item:hover::after {
+            width: 100%;
+        }
+
+        .hero-title {
+            background: linear-gradient(135deg, #ffffff 0%, #16a34a 50%, #f59e0b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .calculate-btn {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            transition: all 0.3s ease;
+        }
+
+        .calculate-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(22, 163, 74, 0.3);
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body class="bg-background text-foreground">
+    <!-- Particle Background -->
+    <div id="particles-js"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass-card">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center">
+                        <i data-lucide="camera" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <span class="text-xl font-bold hero-title">The Connector</span>
+                </div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="#home" class="nav-item cursor-pointer hover:text-accent transition-colors">Home</a>
+                    <a href="#portfolio" class="nav-item cursor-pointer hover:text-accent transition-colors">Portfolio</a>
+                    <a href="#booking" class="nav-item cursor-pointer hover:text-accent transition-colors">Book Now</a>
+                    <a href="#gallery" class="nav-item cursor-pointer hover:text-accent transition-colors">Client Gallery</a>
+                    <a href="#about" class="nav-item cursor-pointer hover:text-accent transition-colors">About</a>
+                    <a href="#contact" class="nav-item cursor-pointer hover:text-accent transition-colors">Contact</a>
+                </div>
+                <button class="md:hidden">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="min-h-screen flex items-center justify-center pt-20">
+        <div class="container mx-auto px-6 text-center animate-on-scroll">
+            <h1 class="text-6xl md:text-8xl font-black mb-6 hero-title animate-float">
+                The Connector
+            </h1>
+            <p class="text-xl md:text-2xl mb-8 text-muted-foreground max-w-3xl mx-auto">
+                Capturing Jamaica's most precious moments with professional photography and videography services. From intimate photoshoots to grand celebrations.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button class="calculate-btn px-8 py-4 rounded-lg text-white font-semibold" onclick="scrollToSection('booking')">
+                    Book Your Session
+                </button>
+                <button class="border border-primary px-8 py-4 rounded-lg text-primary font-semibold hover:bg-primary hover:text-white transition-all duration-300" onclick="scrollToSection('portfolio')">
+                    View Portfolio
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Portfolio Preview -->
+    <section id="portfolio" class="py-20">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16 animate-on-scroll">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">Our Work</h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Discover the artistry behind our lens through our diverse portfolio of weddings, events, and photoshoots across Jamaica.
+                </p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                <!-- Caribbean beach wedding photography -->
+                <div class="package-card rounded-xl overflow-hidden group animate-on-scroll">
+                    <img src="https://images.unsplash.com/photo-1519741497674-611481863552?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400" alt="Beach wedding ceremony in Jamaica" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg">Beach Weddings</h3>
+                        <p class="text-muted-foreground text-sm">Romantic Caribbean ceremonies</p>
+                    </div>
+                </div>
+
+                <!-- Professional event photography in tropical setting -->
+                <div class="package-card rounded-xl overflow-hidden group animate-on-scroll">
+                    <img src="https://images.unsplash.com/photo-1511578314322-379afb476865?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400" alt="Corporate event photography" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg">Corporate Events</h3>
+                        <p class="text-muted-foreground text-sm">Professional business gatherings</p>
+                    </div>
+                </div>
+
+                <!-- Fashion photoshoot on tropical beach -->
+                <div class="package-card rounded-xl overflow-hidden group animate-on-scroll">
+                    <img src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400" alt="Fashion photoshoot on beach" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg">Fashion Shoots</h3>
+                        <p class="text-muted-foreground text-sm">Creative portrait sessions</p>
+                    </div>
+                </div>
+
+                <!-- Jamaica landscape photography -->
+                <div class="package-card rounded-xl overflow-hidden group animate-on-scroll">
+                    <img src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400" alt="Beautiful Jamaica landscape" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg">Destination Shoots</h3>
+                        <p class="text-muted-foreground text-sm">Jamaica's stunning locations</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button class="border border-primary px-8 py-3 rounded-lg text-primary font-semibold hover:bg-primary hover:text-white transition-all duration-300">
+                    View Full Portfolio
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Booking Calculator -->
+    <section id="booking" class="py-20 bg-muted/10">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16 animate-on-scroll">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">Book Your Session</h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Choose your perfect package and calculate your total investment with our interactive booking system.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <!-- Package Selection -->
+                <div class="space-y-8 animate-on-scroll">
+                    <div>
+                        <h3 class="text-2xl font-bold mb-6">Choose Your Service</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                            <button class="service-btn p-4 rounded-lg border border-border hover:border-primary transition-all duration-300" onclick="selectService('photoshoot')" data-service="photoshoot">
+                                <i data-lucide="camera" class="w-6 h-6 mb-2 mx-auto"></i>
+                                <span class="block font-semibold">Photoshoot</span>
+                            </button>
+                            <button class="service-btn p-4 rounded-lg border border-border hover:border-primary transition-all duration-300" onclick="selectService('wedding')" data-service="wedding">
+                                <i data-lucide="heart" class="w-6 h-6 mb-2 mx-auto"></i>
+                                <span class="block font-semibold">Wedding</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Photoshoot Packages -->
+                    <div id="photoshoot-packages" class="space-y-4 hidden">
+                        <h4 class="text-xl font-semibold">Photoshoot Packages</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="package-option glass-card rounded-lg p-4 cursor-pointer" onclick="selectPackage('bronze', 150)" data-package="bronze">
+                                <h5 class="font-bold text-lg text-secondary">Bronze - $150</h5>
+                                <p class="text-sm text-muted-foreground">45 mins • 6 retouched images • 1 location</p>
+                            </div>
+                            <div class="package-option glass-card rounded-lg p-4 cursor-pointer" onclick="selectPackage('silver', 200)" data-package="silver">
+                                <h5 class="font-bold text-lg text-secondary">Silver - $200</h5>
+                                <p class="text-sm text-muted-foreground">60 mins • 10 retouched images • 1 location</p>
+                            </div>
+                            <div class="package-option glass-card rounded-lg p-4 cursor-pointer" onclick="selectPackage('gold', 300)" data-package="gold">
+                                <h5 class="font-bold text-lg text-secondary">Gold - $300</h5>
+                                <p class="text-sm text-muted-foreground">120 mins • 15 retouched images • 1 location</p>
+                            </div>
+                            <div class="package-option glass-card rounded-lg p-4 cursor-pointer" onclick="selectPackage('platinum', 500)" data-package="platinum">
+                                <h5 class="font-bold text-lg text-secondary">Platinum - $500</h5>
+                                <p class="text-sm text-muted-foreground">150 mins • 25 retouched images • 2 locations</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Wedding Packages -->
+                    <div id="wedding-packages" class="space-y-4 hidden">
+                        <h4 class="text-xl font-semibold">Wedding Photography Packages</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="package-option glass-card rounded-lg p-4 cursor-pointer" onclick="selectPackage('wedding-bronze', 500)" data-package="wedding-bronze">
+                                <h5 class="font-bold text-lg text-secondary">Bronze - $500</h5>
+                                <p class="text-sm text-muted-foreground">2 hours • 200+ images • Online gallery</p>
+                            </div>
+                            <div class="package-option glass-card rounded-lg p-4 cursor-pointer" onclick="selectPackage('wedding-silver', 800)" data-package="wedding-silver">
+                                <h5 class="font-bold text-lg text-secondary">Silver - $800</h5>
+                                <p class="text-sm text-muted-foreground">4 hours • 500+ images • Online gallery</p>
+                            </div>
+                            <div class="package-option glass-card rounded-lg p-4 cursor-pointer" onclick="selectPackage('wedding-gold', 1250)" data-package="wedding-gold">
+                                <h5 class="font-bold text-lg text-secondary">Gold - $1,250</h5>
+                                <p class="text-sm text-muted-foreground">8 hours • Extensive coverage • Online gallery</p>
+                            </div>
+                            <div class="package-option glass-card rounded-lg p-4 cursor-pointer" onclick="selectPackage('wedding-platinum', 2500)" data-package="wedding-platinum">
+                                <h5 class="font-bold text-lg text-secondary">Platinum - $2,500</h5>
+                                <p class="text-sm text-muted-foreground">Full day • Canvas print • Photo book • Engagement shoot</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add-ons -->
+                    <div class="space-y-4">
+                        <h4 class="text-xl font-semibold">Add-ons & Extras</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <label class="addon-option glass-card rounded-lg p-4 cursor-pointer flex items-center">
+                                <input type="checkbox" class="mr-3" onchange="updateAddons()" data-addon="drone" data-price="150">
+                                <div>
+                                    <span class="font-semibold">Drone Photography</span>
+                                    <p class="text-sm text-muted-foreground">+$150</p>
+                                </div>
+                            </label>
+                            <label class="addon-option glass-card rounded-lg p-4 cursor-pointer flex items-center">
+                                <input type="checkbox" class="mr-3" onchange="updateAddons()" data-addon="express" data-price="120">
+                                <div>
+                                    <span class="font-semibold">Express Delivery</span>
+                                    <p class="text-sm text-muted-foreground">+$120 (1-2 days)</p>
+                                </div>
+                            </label>
+                            <label class="addon-option glass-card rounded-lg p-4 cursor-pointer flex items-center">
+                                <input type="checkbox" class="mr-3" onchange="updateAddons()" data-addon="studio" data-price="80">
+                                <div>
+                                    <span class="font-semibold">Studio Rental</span>
+                                    <p class="text-sm text-muted-foreground">+$80</p>
+                                </div>
+                            </label>
+                            <label class="addon-option glass-card rounded-lg p-4 cursor-pointer flex items-center">
+                                <input type="checkbox" class="mr-3" onchange="updateAddons()" data-addon="dress" data-price="120">
+                                <div>
+                                    <span class="font-semibold">Flying Dress</span>
+                                    <p class="text-sm text-muted-foreground">+$120</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Transportation -->
+                    <div class="space-y-4">
+                        <h4 class="text-xl font-semibold">Location & Transportation</h4>
+                        <select class="w-full p-3 rounded-lg bg-input border border-border text-foreground" onchange="updateTransportation()" id="parish-select">
+                            <option value="">Select Parish</option>
+                            <option value="35">Manchester / St. Elizabeth - $35</option>
+                            <option value="50">Montego Bay / Negril / Ocho Rios - $50</option>
+                            <option value="65">Other Parishes - $65</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Booking Summary -->
+                <div class="animate-on-scroll">
+                    <div class="glass-card rounded-xl p-8 sticky top-24">
+                        <h3 class="text-2xl font-bold mb-6">Booking Summary</h3>
+                        
+                        <div class="space-y-4 mb-6">
+                            <div class="flex justify-between" id="package-line" style="display: none;">
+                                <span id="package-name">Package</span>
+                                <span id="package-price">$0</span>
+                            </div>
+                            <div class="flex justify-between" id="addons-line" style="display: none;">
+                                <span>Add-ons</span>
+                                <span id="addons-price">$0</span>
+                            </div>
+                            <div class="flex justify-between" id="transport-line" style="display: none;">
+                                <span>Transportation</span>
+                                <span id="transport-price">$0</span>
+                            </div>
+                            <hr class="border-border">
+                            <div class="flex justify-between text-xl font-bold">
+                                <span>Total</span>
+                                <span id="total-price" class="text-accent">$0</span>
+                            </div>
+                        </div>
+
+                        <button class="calculate-btn w-full py-4 rounded-lg text-white font-semibold" onclick="openBookingForm()">
+                            Continue to Booking Form
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Booking Form Modal -->
+    <div id="booking-modal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card rounded-xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold">Complete Your Booking</h3>
+                <button onclick="closeBookingForm()" class="text-muted-foreground hover:text-foreground">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <form class="space-y-6" onsubmit="submitBooking(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Full Name *</label>
+                        <input type="text" required class="w-full p-3 rounded-lg bg-input border border-border text-foreground" placeholder="Your full name">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Email Address *</label>
+                        <input type="email" required class="w-full p-3 rounded-lg bg-input border border-border text-foreground" placeholder="your@email.com">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Contact Number *</label>
+                        <input type="tel" required class="w-full p-3 rounded-lg bg-input border border-border text-foreground" placeholder="876-xxx-xxxx">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Number of People *</label>
+                        <input type="number" required min="1" class="w-full p-3 rounded-lg bg-input border border-border text-foreground" placeholder="1">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Date of Shoot *</label>
+                        <input type="date" required class="w-full p-3 rounded-lg bg-input border border-border text-foreground">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Start Time *</label>
+                        <input type="time" required class="w-full p-3 rounded-lg bg-input border border-border text-foreground">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2">Primary Location & Additional Details *</label>
+                    <textarea required class="w-full p-3 rounded-lg bg-input border border-border text-foreground h-24" placeholder="Describe your location and any special requirements..."></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2">How did you hear about us?</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="checkbox" class="mr-2">
+                            <span>Search Engine (Google, Bing, etc.)</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" class="mr-2">
+                            <span>Social Media</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" class="mr-2">
+                            <span>Word of Mouth</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" class="mr-2">
+                            <span>Referral</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Contract Agreement -->
+                <div class="bg-muted/20 p-6 rounded-lg">
+                    <h4 class="font-bold mb-4">Contract Terms & Conditions</h4>
+                    <div class="max-h-40 overflow-y-auto text-sm text-muted-foreground space-y-2">
+                        <p><strong>1.</strong> PHOTOGRAPHERS/PRODUCERS agree to provide no less than the amount of photos provided on the chosen package.</p>
+                        <p><strong>2.</strong> PHOTOGRAPHERS/PRODUCERS will perform post-processing or digital image editing services on these photos and video footage's where artistically necessary.</p>
+                        <p><strong>3.</strong> CLIENT/S grants permission to PHOTOGRAPHERS/PRODUCERS to use CLIENT'S image or likeness for commercial purposes, advertising, trade, personal use.</p>
+                        <p><strong>4.</strong> A refund is applicable where the terms and condition of this contract has been breached by Connectors Photography. All deposits/retainers are non-refundable even if the date is changed or cancelled.</p>
+                        <p><strong>5.</strong> If time exceeded, additional fee of $150 per hour. $100 fee for cancellations within 48 hours.</p>
+                        <p><strong>6.</strong> CLIENT is responsible for provision of location, admission fees and travel costs.</p>
+                        <p><strong>7.</strong> THE CONNECTOR will not be held liable for loss of photographs caused by theft, fire, hurricane, flood or failure to deliver photographs for any reason.</p>
+                        <p class="text-xs">For complete terms, please review the full contract.</p>
+                    </div>
+                    
+                    <div class="mt-4 space-y-3">
+                        <label class="flex items-center">
+                            <input type="checkbox" required class="mr-2">
+                            <span class="text-sm">I acknowledge that I have read, understand and agree to the above terms and conditions. *</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" required class="mr-2">
+                            <span class="text-sm">I confirm that the information provided is absolutely correct. *</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <button type="button" onclick="closeBookingForm()" class="flex-1 py-3 px-6 rounded-lg border border-border text-foreground hover:bg-muted transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 calculate-btn py-3 px-6 rounded-lg text-white font-semibold">
+                        Submit Booking
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Client Gallery Access -->
+    <section id="gallery" class="py-20">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16 animate-on-scroll">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">Client Gallery</h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Access your photos, select your favorites for editing, and download your final retouched images.
+                </p>
+            </div>
+
+            <div class="max-w-md mx-auto">
+                <div class="glass-card rounded-xl p-8 animate-on-scroll">
+                    <h3 class="text-xl font-bold mb-6 text-center">Access Your Gallery</h3>
+                    <form onsubmit="accessGallery(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Email Address</label>
+                            <input type="email" required class="w-full p-3 rounded-lg bg-input border border-border text-foreground" placeholder="your@email.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Booking ID</label>
+                            <input type="text" required class="w-full p-3 rounded-lg bg-input border border-border text-foreground" placeholder="CONN-XXXX">
+                        </div>
+                        <button type="submit" class="w-full calculate-btn py-3 rounded-lg text-white font-semibold">
+                            Access Gallery
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-20 bg-muted/10">
+        <div class="container mx-auto px-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div class="animate-on-scroll">
+                    <!-- Professional Jamaican photographer at work -->
+                    <img src="https://pixabay.com/get/ge6a51fb0819430495a9f00f4a789aeca02e2455246dd0e79541dae6e751b866a51c62d3dfda1525664d351fa6760bf35fa9ec381f4f1dd320f576a66ad09d07e_1280.jpg" alt="Professional photographer working with camera equipment" class="rounded-xl shadow-lg w-full" />
+                </div>
+                <div class="animate-on-scroll">
+                    <h2 class="text-4xl md:text-5xl font-bold mb-6">About The Connector</h2>
+                    <p class="text-lg text-muted-foreground mb-6">
+                        Based in the beautiful parish of Manchester, Jamaica, The Connector is your premier photography and videography service specializing in weddings, events, and professional photoshoots across the island.
+                    </p>
+                    <p class="text-lg text-muted-foreground mb-6">
+                        We travel throughout Jamaica, from the stunning beaches of Negril to the lush mountains of the Blue Mountains, capturing your most precious moments with artistic excellence and professional expertise.
+                    </p>
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <i data-lucide="map-pin" class="w-5 h-5 text-accent mr-3"></i>
+                            <span>Based in New Forest District, Manchester, Jamaica</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="camera" class="w-5 h-5 text-accent mr-3"></i>
+                            <span>Professional Photography & Videography</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i data-lucide="award" class="w-5 h-5 text-accent mr-3"></i>
+                            <span>Island-wide Service Coverage</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-20">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16 animate-on-scroll">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">Get In Touch</h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Ready to capture your special moments? Contact us today to discuss your photography needs.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="glass-card rounded-xl p-8 text-center animate-on-scroll">
+                    <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="phone" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Phone</h3>
+                    <p class="text-muted-foreground">Call us directly</p>
+                    <a href="tel:18763881801" class="text-accent hover:text-accent/80 transition-colors font-semibold">
+                        876-388-1801
+                    </a>
+                </div>
+
+                <div class="glass-card rounded-xl p-8 text-center animate-on-scroll">
+                    <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="mail" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Email</h3>
+                    <p class="text-muted-foreground">Send us a message</p>
+                    <a href="mailto:theconnectorphotography@gmail.com" class="text-accent hover:text-accent/80 transition-colors font-semibold break-all">
+                        theconnectorphotography@gmail.com
+                    </a>
+                </div>
+
+                <div class="glass-card rounded-xl p-8 text-center animate-on-scroll md:col-span-2 lg:col-span-1">
+                    <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="map-pin" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Location</h3>
+                    <p class="text-muted-foreground">Based in</p>
+                    <p class="text-accent font-semibold">
+                        New Forest District<br>
+                        Manchester, Jamaica
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 border-t border-border">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center space-x-3 mb-4 md:mb-0">
+                    <div class="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center">
+                        <i data-lucide="camera" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <span class="text-lg font-bold hero-title">The Connector</span>
+                </div>
+                <p class="text-muted-foreground text-center md:text-right">
+                    © 2025 The Connector Photography. All rights reserved.<br>
+                    Professional photography services across Jamaica.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Particle.js configuration
+        particlesJS('particles-js', {
+            particles: {
+                number: {
+                    value: 80,
+                    density: {
+                        enable: true,
+                        value_area: 800
+                    }
+                },
+                color: {
+                    value: "#16a34a"
+                },
+                shape: {
+                    type: "circle",
+                    stroke: {
+                        width: 0,
+                        color: "#000000"
+                    },
+                },
+                opacity: {
+                    value: 0.5,
+                    random: false,
+                    anim: {
+                        enable: false,
+                        speed: 1,
+                        opacity_min: 0.1,
+                        sync: false
+                    }
+                },
+                size: {
+                    value: 3,
+                    random: true,
+                    anim: {
+                        enable: false,
+                        speed: 40,
+                        size_min: 0.1,
+                        sync: false
+                    }
+                },
+                line_linked: {
+                    enable: true,
+                    distance: 150,
+                    color: "#16a34a",
+                    opacity: 0.4,
+                    width: 1
+                },
+                move: {
+                    enable: true,
+                    speed: 6,
+                    direction: "none",
+                    random: false,
+                    straight: false,
+                    out_mode: "out",
+                    bounce: false,
+                    attract: {
+                        enable: false,
+                        rotateX: 600,
+                        rotateY: 1200
+                    }
+                }
+            },
+            interactivity: {
+                detect_on: "canvas",
+                events: {
+                    onhover: {
+                        enable: true,
+                        mode: "repulse"
+                    },
+                    onclick: {
+                        enable: true,
+                        mode: "push"
+                    },
+                    resize: true
+                },
+                modes: {
+                    grab: {
+                        distance: 400,
+                        line_linked: {
+                            opacity: 1
+                        }
+                    },
+                    bubble: {
+                        distance: 400,
+                        size: 40,
+                        duration: 2,
+                        opacity: 8,
+                        speed: 3
+                    },
+                    repulse: {
+                        distance: 200,
+                        duration: 0.4
+                    },
+                    push: {
+                        particles_nb: 4
+                    },
+                    remove: {
+                        particles_nb: 2
+                    }
+                }
+            },
+            retina_detect: true
+        });
+
+        // Scroll animations
+        function isElementInViewport(el) {
+            const rect = el.getBoundingClientRect();
+            return (
+                rect.top >= 0 &&
+                rect.left >= 0 &&
+                rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+            );
+        }
+
+        function handleScrollAnimations() {
+            const elements = document.querySelectorAll('.animate-on-scroll');
+            elements.forEach(el => {
+                if (isElementInViewport(el)) {
+                    el.classList.add('in-view');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', handleScrollAnimations);
+        window.addEventListener('load', handleScrollAnimations);
+
+        // Smooth scrolling
+        function scrollToSection(sectionId) {
+            document.getElementById(sectionId).scrollIntoView({
+                behavior: 'smooth'
+            });
+        }
+
+        // Booking calculator functionality
+        let selectedService = '';
+        let selectedPackage = '';
+        let packagePrice = 0;
+        let addonsPrice = 0;
+        let transportPrice = 0;
+
+        function selectService(service) {
+            selectedService = service;
+            
+            // Reset selections
+            document.querySelectorAll('.service-btn').forEach(btn => {
+                btn.classList.remove('border-primary', 'bg-primary/10');
+            });
+            
+            // Highlight selected service
+            document.querySelector(`[data-service="${service}"]`).classList.add('border-primary', 'bg-primary/10');
+            
+            // Show/hide packages
+            document.getElementById('photoshoot-packages').classList.toggle('hidden', service !== 'photoshoot');
+            document.getElementById('wedding-packages').classList.toggle('hidden', service !== 'wedding');
+            
+            updatePricing();
+        }
+
+        function selectPackage(packageName, price) {
+            selectedPackage = packageName;
+            packagePrice = price;
+            
+            // Reset package selections
+            document.querySelectorAll('.package-option').forEach(option => {
+                option.classList.remove('border-primary', 'bg-primary/10');
+            });
+            
+            // Highlight selected package
+            document.querySelector(`[data-package="${packageName}"]`).classList.add('border-primary', 'bg-primary/10');
+            
+            updatePricing();
+        }
+
+        function updateAddons() {
+            addonsPrice = 0;
+            document.querySelectorAll('input[data-addon]:checked').forEach(checkbox => {
+                addonsPrice += parseInt(checkbox.dataset.price);
+            });
+            updatePricing();
+        }
+
+        function updateTransportation() {
+            const select = document.getElementById('parish-select');
+            transportPrice = parseInt(select.value) || 0;
+            updatePricing();
+        }
+
+        function updatePricing() {
+            const total = packagePrice + addonsPrice + transportPrice;
+            
+            // Update package line
+            const packageLine = document.getElementById('package-line');
+            if (packagePrice > 0) {
+                packageLine.style.display = 'flex';
+                document.getElementById('package-name').textContent = selectedPackage.charAt(0).toUpperCase() + selectedPackage.slice(1).replace('-', ' ');
+                document.getElementById('package-price').textContent = `$${packagePrice}`;
+            } else {
+                packageLine.style.display = 'none';
+            }
+            
+            // Update addons line
+            const addonsLine = document.getElementById('addons-line');
+            if (addonsPrice > 0) {
+                addonsLine.style.display = 'flex';
+                document.getElementById('addons-price').textContent = `$${addonsPrice}`;
+            } else {
+                addonsLine.style.display = 'none';
+            }
+            
+            // Update transport line
+            const transportLine = document.getElementById('transport-line');
+            if (transportPrice > 0) {
+                transportLine.style.display = 'flex';
+                document.getElementById('transport-price').textContent = `$${transportPrice}`;
+            } else {
+                transportLine.style.display = 'none';
+            }
+            
+            // Update total
+            document.getElementById('total-price').textContent = `$${total}`;
+        }
+
+        function openBookingForm() {
+            if (packagePrice === 0) {
+                alert('Please select a package first.');
+                return;
+            }
+            document.getElementById('booking-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeBookingForm() {
+            document.getElementById('booking-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        function submitBooking(event) {
+            event.preventDefault();
+            
+            // TODO: Implement booking submission logic
+            alert('Booking submitted successfully! You will receive a confirmation email shortly.');
+            closeBookingForm();
+        }
+
+        function accessGallery(event) {
+            event.preventDefault();
+            
+            // TODO: Implement gallery access logic
+            alert('Gallery access feature will be implemented. You will be redirected to your personal gallery.');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('booking-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeBookingForm();
+            }
+        });
+
+        // Initialize animations on load
+        window.addEventListener('load', function() {
+            handleScrollAnimations();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

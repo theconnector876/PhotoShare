@@ -1,0 +1,1107 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Connector - Futuristic Photography Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                },
+                fontFamily: {
+                    sans: ["var(--font-sans)"],
+                    serif: ["var(--font-serif)"],
+                    mono: ["var(--font-mono)"],
+                    futuristic: ["Orbitron", "sans-serif"],
+                }
+            },
+        }
+    };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --background: hsl(225 15% 4%);
+            --foreground: hsl(210 40% 98%);
+            --card: hsl(225 15% 8%);
+            --card-foreground: hsl(210 40% 98%);
+            --popover: hsl(225 15% 8%);
+            --popover-foreground: hsl(210 40% 98%);
+            --primary: hsl(186 100% 50%);
+            --primary-foreground: hsl(225 15% 4%);
+            --secondary: hsl(7 89% 70%);
+            --secondary-foreground: hsl(210 40% 98%);
+            --muted: hsl(225 15% 12%);
+            --muted-foreground: hsl(210 40% 65%);
+            --accent: hsl(48 100% 67%);
+            --accent-foreground: hsl(225 15% 4%);
+            --destructive: hsl(0 63% 31%);
+            --destructive-foreground: hsl(210 40% 98%);
+            --border: hsl(225 15% 15%);
+            --input: hsl(225 15% 15%);
+            --ring: hsl(186 100% 50%);
+            --radius: 0.75rem;
+            --font-sans: 'Inter', sans-serif;
+            --font-serif: 'Inter', serif;
+            --font-mono: 'Fira Code', monospace;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--background);
+            color: var(--foreground);
+            overflow-x: hidden;
+        }
+
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .animate-pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite alternate;
+        }
+
+        .animate-rotate-slow {
+            animation: rotate-slow 20s linear infinite;
+        }
+
+        .animate-gradient {
+            background-size: 200% 200%;
+            animation: gradient 3s ease infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.3); }
+            100% { box-shadow: 0 0 40px rgba(0, 212, 255, 0.8); }
+        }
+
+        @keyframes rotate-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: particle-float 8s infinite linear;
+        }
+
+        @keyframes particle-float {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) scale(1); opacity: 0; }
+        }
+
+        .morphing-shape {
+            clip-path: polygon(0% 0%, 100% 0%, 85% 100%, 15% 100%);
+            transition: clip-path 0.5s ease-in-out;
+        }
+
+        .morphing-shape:hover {
+            clip-path: polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%);
+        }
+
+        .glitch-effect {
+            position: relative;
+        }
+
+        .glitch-effect::before,
+        .glitch-effect::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .glitch-effect::before {
+            animation: glitch 2s infinite;
+            color: var(--secondary);
+            z-index: -1;
+        }
+
+        .glitch-effect::after {
+            animation: glitch 2s infinite reverse;
+            color: var(--accent);
+            z-index: -2;
+        }
+
+        @keyframes glitch {
+            0%, 100% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+        }
+
+        .booking-card {
+            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .booking-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            background: rgba(0, 212, 255, 0.1);
+            border-color: var(--primary);
+        }
+
+        .interactive-bg {
+            background: linear-gradient(-45deg, var(--background), hsl(225 15% 6%), hsl(225 15% 8%), var(--background));
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+
+        .neon-text {
+            text-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary), 0 0 30px var(--primary);
+        }
+
+        .slide-in-left {
+            transform: translateX(-100%);
+            opacity: 0;
+            transition: all 0.8s ease;
+        }
+
+        .slide-in-left.visible {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .slide-in-right {
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.8s ease;
+        }
+
+        .slide-in-right.visible {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .fade-in-up {
+            transform: translateY(50px);
+            opacity: 0;
+            transition: all 0.8s ease;
+        }
+
+        .fade-in-up.visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="interactive-bg">
+    <!-- Particles Background -->
+    <div id="particles-container" class="fixed inset-0 pointer-events-none z-0"></div>
+
+    <!-- Navigation -->
+    <!-- @COMPONENT: NavigationHeader [mobile responsive, animated] -->
+    <nav class="fixed top-0 w-full z-50 backdrop-blur-md bg-card/80 border-b border-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-2">
+                    <div class="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-lg animate-pulse-glow flex items-center justify-center">
+                        <i class="fas fa-camera text-primary-foreground text-lg"></i>
+                    </div>
+                    <span class="font-futuristic text-2xl font-bold neon-text">The Connector</span>
+                </div>
+                
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#home" class="text-foreground hover:text-primary transition-colors">Home</a>
+                    <a href="#portfolio" class="text-foreground hover:text-primary transition-colors">Portfolio</a>
+                    <a href="#packages" class="text-foreground hover:text-primary transition-colors">Packages</a>
+                    <a href="#booking" class="text-foreground hover:text-primary transition-colors">Book Now</a>
+                    <a href="#gallery" class="text-foreground hover:text-primary transition-colors">Client Gallery</a>
+                </div>
+
+                <button class="md:hidden text-foreground" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-card/95 backdrop-blur-md">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="#home" class="block px-3 py-2 text-foreground hover:text-primary transition-colors">Home</a>
+                <a href="#portfolio" class="block px-3 py-2 text-foreground hover:text-primary transition-colors">Portfolio</a>
+                <a href="#packages" class="block px-3 py-2 text-foreground hover:text-primary transition-colors">Packages</a>
+                <a href="#booking" class="block px-3 py-2 text-foreground hover:text-primary transition-colors">Book Now</a>
+                <a href="#gallery" class="block px-3 py-2 text-foreground hover:text-primary transition-colors">Client Gallery</a>
+            </div>
+        </div>
+    </nav>
+    <!-- @END_COMPONENT: NavigationHeader -->
+
+    <!-- Hero Section -->
+    <!-- @COMPONENT: HeroSection [animated particles, morphing elements] -->
+    <section id="home" class="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+        <div class="absolute inset-0 bg-gradient-to-br from-background via-muted/20 to-background"></div>
+        
+        <!-- Floating geometric shapes -->
+        <div class="absolute top-20 left-10 w-20 h-20 bg-primary/20 rounded-lg animate-float"></div>
+        <div class="absolute top-40 right-20 w-16 h-16 bg-secondary/20 rounded-full animate-float" style="animation-delay: 2s;"></div>
+        <div class="absolute bottom-20 left-20 w-24 h-24 bg-accent/20 polygon animate-rotate-slow"></div>
+        
+        <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 class="font-futuristic text-6xl md:text-8xl font-bold mb-6 glitch-effect neon-text" data-text="THE CONNECTOR">
+                THE CONNECTOR
+            </h1>
+            <p class="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+                Capturing Jamaica's Beauty Through Futuristic Lens Technology
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <button onclick="scrollToBooking()" class="px-8 py-4 bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-lg font-semibold morphing-shape hover:shadow-2xl transition-all duration-300 animate-pulse-glow">
+                    Book Your Session
+                </button>
+                <button onclick="scrollToPortfolio()" class="px-8 py-4 border border-primary text-primary rounded-lg font-semibold hover:bg-primary hover:text-primary-foreground transition-all duration-300">
+                    View Portfolio
+                </button>
+            </div>
+        </div>
+
+        <!-- Scroll indicator -->
+        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+            <i class="fas fa-chevron-down text-primary text-2xl"></i>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: HeroSection -->
+
+    <!-- Portfolio Preview -->
+    <!-- @COMPONENT: PortfolioPreview [dynamic grid, animated reveals] -->
+    <section id="portfolio" class="py-20 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16 fade-in-up">
+                <h2 class="font-futuristic text-4xl md:text-6xl font-bold mb-4 neon-text">Portfolio</h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Immerse yourself in our futuristic approach to capturing Jamaica's most beautiful moments
+                </p>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+                <!-- Caribbean sunset beach wedding -->
+                <div class="booking-card rounded-lg overflow-hidden group cursor-pointer" onclick="openLightbox(0)">
+                    <img src="https://images.unsplash.com/photo-1519741497674-611481863552?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600" 
+                         alt="Caribbean beach wedding at sunset" 
+                         class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                        <span class="text-primary font-semibold">Beach Wedding</span>
+                    </div>
+                </div>
+
+                <!-- Jamaica Blue Mountain landscape -->
+                <div class="booking-card rounded-lg overflow-hidden group cursor-pointer" onclick="openLightbox(1)">
+                    <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600" 
+                         alt="Jamaica Blue Mountain misty landscape" 
+                         class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                        <span class="text-primary font-semibold">Landscape</span>
+                    </div>
+                </div>
+
+                <!-- Tropical fashion photoshoot -->
+                <div class="booking-card rounded-lg overflow-hidden group cursor-pointer" onclick="openLightbox(2)">
+                    <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600" 
+                         alt="Tropical fashion photoshoot with palm trees" 
+                         class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                        <span class="text-primary font-semibold">Fashion</span>
+                    </div>
+                </div>
+
+                <!-- Jamaica waterfall couple shoot -->
+                <div class="booking-card rounded-lg overflow-hidden group cursor-pointer" onclick="openLightbox(3)">
+                    <img src="https://pixabay.com/get/gc8d55ffb9dbf2ce40e0245277c9eb1b73bc86302aab46417c57c8dbb586f0f965139df302ef9c7dcd9cda594454c164cd1e261cadb90b79ec9590e0ab420b7e2_1280.jpg" 
+                         alt="Couple photoshoot at tropical waterfall" 
+                         class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                        <span class="text-primary font-semibold">Couples</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: PortfolioPreview -->
+
+    <!-- Packages Section -->
+    <!-- @COMPONENT: PackagesSection [animated pricing cards, interactive selection] -->
+    <section id="packages" class="py-20 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16 fade-in-up">
+                <h2 class="font-futuristic text-4xl md:text-6xl font-bold mb-4 neon-text">Photoshoot Packages</h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Choose from our futuristic photography packages designed to capture your perfect moments
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <!-- Bronze Package -->
+                <div class="booking-card rounded-lg p-6 text-center slide-in-left">
+                    <div class="w-16 h-16 bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse-glow">
+                        <i class="fas fa-medal text-primary-foreground text-xl"></i>
+                    </div>
+                    <h3 class="font-futuristic text-2xl font-bold mb-2 text-accent">Bronze</h3>
+                    <div class="text-4xl font-bold mb-4">
+                        <span class="text-primary">$150</span>
+                    </div>
+                    <ul class="space-y-2 text-muted-foreground mb-6">
+                        <li><i class="fas fa-clock text-primary mr-2"></i>45 minutes</li>
+                        <li><i class="fas fa-images text-primary mr-2"></i>6 retouched images</li>
+                        <li><i class="fas fa-map-marker-alt text-primary mr-2"></i>1 location</li>
+                    </ul>
+                    <button onclick="selectPackage('bronze')" class="w-full py-3 bg-gradient-to-r from-yellow-600 to-yellow-400 text-primary-foreground rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
+                        Select Bronze
+                    </button>
+                </div>
+
+                <!-- Silver Package -->
+                <div class="booking-card rounded-lg p-6 text-center slide-in-left" style="animation-delay: 0.2s;">
+                    <div class="w-16 h-16 bg-gradient-to-r from-gray-400 to-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse-glow">
+                        <i class="fas fa-star text-gray-800 text-xl"></i>
+                    </div>
+                    <h3 class="font-futuristic text-2xl font-bold mb-2 text-gray-300">Silver</h3>
+                    <div class="text-4xl font-bold mb-4">
+                        <span class="text-primary">$200</span>
+                    </div>
+                    <ul class="space-y-2 text-muted-foreground mb-6">
+                        <li><i class="fas fa-clock text-primary mr-2"></i>60 minutes</li>
+                        <li><i class="fas fa-images text-primary mr-2"></i>10 retouched images</li>
+                        <li><i class="fas fa-map-marker-alt text-primary mr-2"></i>1 location</li>
+                    </ul>
+                    <button onclick="selectPackage('silver')" class="w-full py-3 bg-gradient-to-r from-gray-400 to-gray-200 text-gray-800 rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
+                        Select Silver
+                    </button>
+                </div>
+
+                <!-- Gold Package -->
+                <div class="booking-card rounded-lg p-6 text-center border-2 border-primary slide-in-right">
+                    <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-semibold">
+                        Popular
+                    </div>
+                    <div class="w-16 h-16 bg-gradient-to-r from-yellow-400 to-yellow-200 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse-glow">
+                        <i class="fas fa-crown text-yellow-800 text-xl"></i>
+                    </div>
+                    <h3 class="font-futuristic text-2xl font-bold mb-2 text-yellow-400">Gold</h3>
+                    <div class="text-4xl font-bold mb-4">
+                        <span class="text-primary">$300</span>
+                    </div>
+                    <ul class="space-y-2 text-muted-foreground mb-6">
+                        <li><i class="fas fa-clock text-primary mr-2"></i>120 minutes</li>
+                        <li><i class="fas fa-images text-primary mr-2"></i>15 retouched images</li>
+                        <li><i class="fas fa-map-marker-alt text-primary mr-2"></i>1 location</li>
+                    </ul>
+                    <button onclick="selectPackage('gold')" class="w-full py-3 bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-lg font-semibold hover:shadow-lg transition-all duration-300 animate-pulse-glow">
+                        Select Gold
+                    </button>
+                </div>
+
+                <!-- Platinum Package -->
+                <div class="booking-card rounded-lg p-6 text-center slide-in-right" style="animation-delay: 0.2s;">
+                    <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse-glow">
+                        <i class="fas fa-gem text-white text-xl"></i>
+                    </div>
+                    <h3 class="font-futuristic text-2xl font-bold mb-2 text-purple-400">Platinum</h3>
+                    <div class="text-4xl font-bold mb-4">
+                        <span class="text-primary">$500</span>
+                    </div>
+                    <ul class="space-y-2 text-muted-foreground mb-6">
+                        <li><i class="fas fa-clock text-primary mr-2"></i>150 minutes</li>
+                        <li><i class="fas fa-images text-primary mr-2"></i>25 retouched images</li>
+                        <li><i class="fas fa-map-marker-alt text-primary mr-2"></i>2 locations</li>
+                    </ul>
+                    <button onclick="selectPackage('platinum')" class="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
+                        Select Platinum
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: PackagesSection -->
+
+    <!-- Interactive Booking System -->
+    <!-- @COMPONENT: BookingSystem [multi-step form, animated transitions, real-time calculations] -->
+    <section id="booking" class="py-20 relative">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16 fade-in-up">
+                <h2 class="font-futuristic text-4xl md:text-6xl font-bold mb-4 neon-text">Book Your Session</h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Experience our futuristic booking system with real-time calculations and interactive elements
+                </p>
+            </div>
+
+            <div class="booking-card rounded-lg p-8">
+                <form id="booking-form" class="space-y-8">
+                    <!-- Service Type Selection -->
+                    <div class="fade-in-up">
+                        <label class="block text-lg font-semibold mb-4">Service Type</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectServiceType('photoshoot')">
+                                <div class="text-center">
+                                    <i class="fas fa-camera text-primary text-3xl mb-2"></i>
+                                    <h3 class="font-semibold">Photoshoot</h3>
+                                    <p class="text-sm text-muted-foreground">Portrait & lifestyle</p>
+                                </div>
+                            </div>
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectServiceType('wedding')">
+                                <div class="text-center">
+                                    <i class="fas fa-heart text-secondary text-3xl mb-2"></i>
+                                    <h3 class="font-semibold">Wedding</h3>
+                                    <p class="text-sm text-muted-foreground">Special moments</p>
+                                </div>
+                            </div>
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectServiceType('event')">
+                                <div class="text-center">
+                                    <i class="fas fa-calendar text-accent text-3xl mb-2"></i>
+                                    <h3 class="font-semibold">Event</h3>
+                                    <p class="text-sm text-muted-foreground">Corporate & parties</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Package Selection (for photoshoot) -->
+                    <div id="package-selection" class="hidden fade-in-up">
+                        <label class="block text-lg font-semibold mb-4">Select Package</label>
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectPackagePrice('bronze', 150)">
+                                <div class="text-center">
+                                    <span class="font-futuristic text-xl font-bold text-accent">Bronze</span>
+                                    <div class="text-2xl font-bold text-primary">$150</div>
+                                </div>
+                            </div>
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectPackagePrice('silver', 200)">
+                                <div class="text-center">
+                                    <span class="font-futuristic text-xl font-bold text-gray-300">Silver</span>
+                                    <div class="text-2xl font-bold text-primary">$200</div>
+                                </div>
+                            </div>
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary border-primary" onclick="selectPackagePrice('gold', 300)">
+                                <div class="text-center">
+                                    <span class="font-futuristic text-xl font-bold text-yellow-400">Gold</span>
+                                    <div class="text-2xl font-bold text-primary">$300</div>
+                                </div>
+                            </div>
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectPackagePrice('platinum', 500)">
+                                <div class="text-center">
+                                    <span class="font-futuristic text-xl font-bold text-purple-400">Platinum</span>
+                                    <div class="text-2xl font-bold text-primary">$500</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Client Information -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 fade-in-up">
+                        <div>
+                            <label class="block text-sm font-medium mb-2" for="client-name">Client Name *</label>
+                            <input type="text" id="client-name" name="client-name" required 
+                                   class="w-full px-4 py-3 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
+                                   placeholder="Your full name" data-bind="clientName">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2" for="email">Email Address *</label>
+                            <input type="email" id="email" name="email" required 
+                                   class="w-full px-4 py-3 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
+                                   placeholder="your@email.com" data-bind="email">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2" for="phone">Contact Number *</label>
+                            <input type="tel" id="phone" name="phone" required 
+                                   class="w-full px-4 py-3 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
+                                   placeholder="876-xxx-xxxx" data-bind="phone">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2" for="people-count">Number of People *</label>
+                            <div class="flex items-center space-x-4">
+                                <button type="button" onclick="updatePeopleCount(-1)" class="w-10 h-10 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <span id="people-display" class="text-2xl font-bold text-primary min-w-[3rem] text-center">1</span>
+                                <button type="button" onclick="updatePeopleCount(1)" class="w-10 h-10 bg-primary text-primary-foreground rounded-lg hover:bg-primary/80 transition-colors">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date and Time -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 fade-in-up">
+                        <div>
+                            <label class="block text-sm font-medium mb-2" for="shoot-date">Date of Shoot *</label>
+                            <input type="date" id="shoot-date" name="shoot-date" required 
+                                   class="w-full px-4 py-3 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
+                                   data-bind="shootDate">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2" for="shoot-time">Start Time *</label>
+                            <input type="time" id="shoot-time" name="shoot-time" required 
+                                   class="w-full px-4 py-3 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
+                                   data-bind="shootTime">
+                        </div>
+                    </div>
+
+                    <!-- Location -->
+                    <div class="fade-in-up">
+                        <label class="block text-sm font-medium mb-2" for="location">Primary Location *</label>
+                        <textarea id="location" name="location" required rows="3"
+                                  class="w-full px-4 py-3 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
+                                  placeholder="Describe your preferred location(s) for the shoot..."
+                                  data-bind="location"></textarea>
+                    </div>
+
+                    <!-- Parish Selection with Travel Fee -->
+                    <div class="fade-in-up">
+                        <label class="block text-sm font-medium mb-2">Parish & Travel Fee</label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectParish('manchester', 35)">
+                                <div class="text-center">
+                                    <h4 class="font-semibold">Manchester</h4>
+                                    <p class="text-primary">+$35</p>
+                                </div>
+                            </div>
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectParish('elizabeth', 35)">
+                                <div class="text-center">
+                                    <h4 class="font-semibold">St. Elizabeth</h4>
+                                    <p class="text-primary">+$35</p>
+                                </div>
+                            </div>
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectParish('montego', 50)">
+                                <div class="text-center">
+                                    <h4 class="font-semibold">Montego Bay</h4>
+                                    <p class="text-primary">+$50</p>
+                                </div>
+                            </div>
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectParish('negril', 50)">
+                                <div class="text-center">
+                                    <h4 class="font-semibold">Negril</h4>
+                                    <p class="text-primary">+$50</p>
+                                </div>
+                            </div>
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectParish('ocho', 50)">
+                                <div class="text-center">
+                                    <h4 class="font-semibold">Ocho Rios</h4>
+                                    <p class="text-primary">+$50</p>
+                                </div>
+                            </div>
+                            <div class="booking-card rounded-lg p-4 cursor-pointer hover:border-primary" onclick="selectParish('other', 65)">
+                                <div class="text-center">
+                                    <h4 class="font-semibold">Other Parish</h4>
+                                    <p class="text-primary">+$65</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real-time Total Calculator -->
+                    <div class="booking-card rounded-lg p-6 bg-gradient-to-r from-primary/10 to-secondary/10 border-primary">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xl font-semibold">Total Cost:</span>
+                            <span id="total-cost" class="text-3xl font-bold text-primary animate-pulse-glow">$300</span>
+                        </div>
+                        <div class="mt-4 space-y-2 text-sm text-muted-foreground">
+                            <div class="flex justify-between">
+                                <span>Package:</span>
+                                <span id="package-cost">$300</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Additional People:</span>
+                                <span id="people-cost">$0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Travel Fee:</span>
+                                <span id="travel-cost">$0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contract Agreement -->
+                    <div class="fade-in-up">
+                        <div class="flex items-start space-x-3">
+                            <input type="checkbox" id="contract-agreement" name="contract-agreement" required 
+                                   class="mt-1 w-5 h-5 text-primary border-border rounded focus:ring-primary">
+                            <label for="contract-agreement" class="text-sm text-muted-foreground">
+                                I acknowledge that I have read, understand and agree to the terms and conditions outlined in The Connector's contract. *
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" data-event="click:handleBookingSubmit" 
+                            class="w-full py-4 bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-lg font-semibold text-lg morphing-shape hover:shadow-2xl transition-all duration-300 animate-pulse-glow">
+                        <i class="fas fa-rocket mr-2"></i>
+                        Book Your Futuristic Session
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: BookingSystem -->
+
+    <!-- Client Gallery Access -->
+    <!-- @COMPONENT: ClientGallery [authenticated access, image selection interface] -->
+    <section id="gallery" class="py-20 relative">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16 fade-in-up">
+                <h2 class="font-futuristic text-4xl md:text-6xl font-bold mb-4 neon-text">Client Gallery</h2>
+                <p class="text-xl text-muted-foreground max-w-2xl mx-auto">
+                    Access your photos and select images for retouching
+                </p>
+            </div>
+
+            <div class="booking-card rounded-lg p-8">
+                <!-- Gallery Login -->
+                <div id="gallery-login" class="space-y-6">
+                    <div class="text-center mb-8">
+                        <i class="fas fa-lock text-primary text-4xl mb-4"></i>
+                        <h3 class="text-2xl font-bold mb-2">Access Your Gallery</h3>
+                        <p class="text-muted-foreground">Enter your session details to view your photos</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Email Address</label>
+                            <input type="email" id="gallery-email" 
+                                   class="w-full px-4 py-3 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
+                                   placeholder="your@email.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Session Date</label>
+                            <input type="date" id="gallery-date" 
+                                   class="w-full px-4 py-3 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300">
+                        </div>
+                    </div>
+                    
+                    <button onclick="accessGallery()" class="w-full py-3 bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
+                        <i class="fas fa-unlock mr-2"></i>
+                        Access Gallery
+                    </button>
+                </div>
+
+                <!-- Gallery Interface (Hidden by default) -->
+                <div id="gallery-interface" class="hidden space-y-8">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-2xl font-bold">Your Session Photos</h3>
+                        <button onclick="downloadSelected()" class="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/80 transition-colors">
+                            Download Selected
+                        </button>
+                    </div>
+                    
+                    <!-- Photo Selection Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-mock="true">
+                        <!-- Sample photos for demonstration -->
+                        <!-- Beautiful Jamaican beach portrait -->
+                        <div class="booking-card rounded-lg overflow-hidden cursor-pointer" onclick="togglePhotoSelection(this, 1)">
+                            <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400" 
+                                 alt="Beach portrait session" 
+                                 class="w-full h-32 object-cover">
+                            <div class="p-2 text-center">
+                                <div class="w-6 h-6 border-2 border-primary rounded mx-auto"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tropical couple session -->
+                        <div class="booking-card rounded-lg overflow-hidden cursor-pointer" onclick="togglePhotoSelection(this, 2)">
+                            <img src="https://pixabay.com/get/gb60418e91b3378232ec960d583f0ad2a27036ac704f29924d038cae1a004546a9d8987ab934e6de4cb673e38d4c4d2592a5edc71fc26bc46ae1ac956af451db6_1280.jpg" 
+                                 alt="Couple at waterfall" 
+                                 class="w-full h-32 object-cover">
+                            <div class="p-2 text-center">
+                                <div class="w-6 h-6 border-2 border-primary rounded mx-auto"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Fashion shoot in paradise -->
+                        <div class="booking-card rounded-lg overflow-hidden cursor-pointer" onclick="togglePhotoSelection(this, 3)">
+                            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400" 
+                                 alt="Mountain landscape portrait" 
+                                 class="w-full h-32 object-cover">
+                            <div class="p-2 text-center">
+                                <div class="w-6 h-6 border-2 border-primary rounded mx-auto"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sunset beach session -->
+                        <div class="booking-card rounded-lg overflow-hidden cursor-pointer" onclick="togglePhotoSelection(this, 4)">
+                            <img src="https://images.unsplash.com/photo-1519741497674-611481863552?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400" 
+                                 alt="Beach wedding ceremony" 
+                                 class="w-full h-32 object-cover">
+                            <div class="p-2 text-center">
+                                <div class="w-6 h-6 border-2 border-primary rounded mx-auto"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button onclick="submitSelection()" class="px-8 py-3 bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
+                            Submit Selection for Retouching
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: ClientGallery -->
+
+    <!-- Contact Section -->
+    <section class="py-20 relative">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div class="fade-in-up">
+                <h2 class="font-futuristic text-4xl md:text-6xl font-bold mb-8 neon-text">Get Connected</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="booking-card rounded-lg p-6">
+                        <i class="fas fa-phone text-primary text-3xl mb-4"></i>
+                        <h3 class="text-xl font-bold mb-2">Call Us</h3>
+                        <p class="text-primary text-lg">18763881801</p>
+                    </div>
+                    <div class="booking-card rounded-lg p-6">
+                        <i class="fas fa-envelope text-primary text-3xl mb-4"></i>
+                        <h3 class="text-xl font-bold mb-2">Email Us</h3>
+                        <p class="text-primary text-lg">theconnectorphotography@gmail.com</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 border-t border-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div class="flex items-center justify-center space-x-2 mb-4">
+                <div class="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg flex items-center justify-center">
+                    <i class="fas fa-camera text-primary-foreground"></i>
+                </div>
+                <span class="font-futuristic text-xl font-bold">The Connector</span>
+            </div>
+            <p class="text-muted-foreground">&copy; 2025 The Connector Photography. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="fixed inset-0 bg-background/95 backdrop-blur-md z-50 hidden flex items-center justify-center">
+        <div class="relative max-w-4xl max-h-[90vh] p-4">
+            <button onclick="closeLightbox()" class="absolute top-4 right-4 w-10 h-10 bg-card rounded-full flex items-center justify-center text-foreground hover:bg-primary hover:text-primary-foreground transition-colors z-10">
+                <i class="fas fa-times"></i>
+            </button>
+            <img id="lightbox-image" src="" alt="" class="max-w-full max-h-full object-contain rounded-lg">
+        </div>
+    </div>
+
+    <script>
+        // Global variables for booking calculations
+        let currentPackagePrice = 300; // Default to Gold
+        let currentPeopleCount = 1;
+        let currentTravelFee = 0;
+        let selectedPhotos = new Set();
+
+        // Initialize particles
+        (function() {
+            const container = document.getElementById('particles-container');
+            const particleCount = 50;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 8 + 's';
+                particle.style.animationDuration = (Math.random() * 4 + 4) + 's';
+                container.appendChild(particle);
+            }
+        })();
+
+        // Scroll animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.fade-in-up, .slide-in-left, .slide-in-right').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Navigation functions
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        function scrollToBooking() {
+            document.getElementById('booking').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function scrollToPortfolio() {
+            document.getElementById('portfolio').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Booking system functions
+        function selectServiceType(type) {
+            // Remove previous selections
+            document.querySelectorAll('#booking .booking-card').forEach(card => {
+                card.classList.remove('border-primary');
+            });
+            
+            // Highlight selected service
+            event.target.closest('.booking-card').classList.add('border-primary');
+            
+            // Show/hide package selection based on service type
+            const packageSelection = document.getElementById('package-selection');
+            if (type === 'photoshoot') {
+                packageSelection.classList.remove('hidden');
+            } else {
+                packageSelection.classList.add('hidden');
+                // Set different pricing for weddings/events
+                if (type === 'wedding') {
+                    currentPackagePrice = 500; // Base wedding price
+                } else if (type === 'event') {
+                    currentPackagePrice = 150; // Hourly event rate
+                }
+                updateTotalCost();
+            }
+        }
+
+        function selectPackage(packageType) {
+            const prices = {
+                bronze: 150,
+                silver: 200,
+                gold: 300,
+                platinum: 500
+            };
+            
+            selectPackagePrice(packageType, prices[packageType]);
+        }
+
+        function selectPackagePrice(packageType, price) {
+            // Remove previous selections
+            document.querySelectorAll('#package-selection .booking-card').forEach(card => {
+                card.classList.remove('border-primary');
+            });
+            
+            // Highlight selected package
+            event.target.closest('.booking-card').classList.add('border-primary');
+            
+            currentPackagePrice = price;
+            updateTotalCost();
+        }
+
+        function updatePeopleCount(change) {
+            currentPeopleCount = Math.max(1, currentPeopleCount + change);
+            document.getElementById('people-display').textContent = currentPeopleCount;
+            updateTotalCost();
+        }
+
+        function selectParish(parish, fee) {
+            // Remove previous selections
+            document.querySelectorAll('[onclick^="selectParish"]').forEach(card => {
+                card.classList.remove('border-primary');
+            });
+            
+            // Highlight selected parish
+            event.target.closest('.booking-card').classList.add('border-primary');
+            
+            currentTravelFee = fee;
+            updateTotalCost();
+        }
+
+        function updateTotalCost() {
+            const additionalPeopleCost = Math.max(0, currentPeopleCount - 1) * 50;
+            const total = currentPackagePrice + additionalPeopleCost + currentTravelFee;
+            
+            // Animate the cost changes
+            const totalElement = document.getElementById('total-cost');
+            const packageCostElement = document.getElementById('package-cost');
+            const peopleCostElement = document.getElementById('people-cost');
+            const travelCostElement = document.getElementById('travel-cost');
+            
+            totalElement.textContent = '$' + total;
+            packageCostElement.textContent = '$' + currentPackagePrice;
+            peopleCostElement.textContent = '$' + additionalPeopleCost;
+            travelCostElement.textContent = '$' + currentTravelFee;
+            
+            // Add animation class
+            totalElement.classList.add('animate-pulse-glow');
+            setTimeout(() => {
+                totalElement.classList.remove('animate-pulse-glow');
+            }, 1000);
+        }
+
+        // Gallery functions
+        function accessGallery() {
+            const email = document.getElementById('gallery-email').value;
+            const date = document.getElementById('gallery-date').value;
+            
+            if (email && date) {
+                // TODO: Implement authentication logic
+                document.getElementById('gallery-login').classList.add('hidden');
+                document.getElementById('gallery-interface').classList.remove('hidden');
+            } else {
+                alert('Please enter both email and session date.');
+            }
+        }
+
+        function togglePhotoSelection(element, photoId) {
+            const checkbox = element.querySelector('div div');
+            
+            if (selectedPhotos.has(photoId)) {
+                selectedPhotos.delete(photoId);
+                checkbox.style.backgroundColor = 'transparent';
+                checkbox.innerHTML = '';
+            } else {
+                selectedPhotos.add(photoId);
+                checkbox.style.backgroundColor = 'var(--primary)';
+                checkbox.innerHTML = '<i class="fas fa-check text-white text-xs"></i>';
+            }
+        }
+
+        function submitSelection() {
+            if (selectedPhotos.size === 0) {
+                alert('Please select at least one photo for retouching.');
+                return;
+            }
+            
+            // TODO: Implement photo selection submission
+            alert(`${selectedPhotos.size} photos selected for retouching. You will be notified when they are ready!`);
+        }
+
+        function downloadSelected() {
+            // TODO: Implement download functionality
+            alert('Download functionality will be implemented in the final version.');
+        }
+
+        // Lightbox functions
+        const lightboxImages = [
+            "https://images.unsplash.com/photo-1519741497674-611481863552?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=800",
+            "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=800",
+            "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=800",
+            "https://images.unsplash.com/photo-1573160813959-df05c1b75cce?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=800"
+        ];
+
+        function openLightbox(imageIndex) {
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImage = document.getElementById('lightbox-image');
+            
+            lightboxImage.src = lightboxImages[imageIndex];
+            lightbox.classList.remove('hidden');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.add('hidden');
+        }
+
+        // Form submission
+        document.getElementById('booking-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // TODO: Implement form submission logic
+            // Collect form data
+            const formData = new FormData(this);
+            const bookingData = {
+                clientName: formData.get('client-name'),
+                email: formData.get('email'),
+                phone: formData.get('phone'),
+                peopleCount: currentPeopleCount,
+                shootDate: formData.get('shoot-date'),
+                shootTime: formData.get('shoot-time'),
+                location: formData.get('location'),
+                packagePrice: currentPackagePrice,
+                travelFee: currentTravelFee,
+                totalCost: currentPackagePrice + Math.max(0, currentPeopleCount - 1) * 50 + currentTravelFee,
+                contractAgreed: formData.get('contract-agreement') === 'on'
+            };
+            
+            console.log('Booking Data:', bookingData);
+            
+            // Show success message
+            alert('Booking submitted successfully! We will contact you shortly to confirm your session.');
+            
+            // Reset form
+            this.reset();
+            currentPeopleCount = 1;
+            currentTravelFee = 0;
+            updateTotalCost();
+        });
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTotalCost();
+        });
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

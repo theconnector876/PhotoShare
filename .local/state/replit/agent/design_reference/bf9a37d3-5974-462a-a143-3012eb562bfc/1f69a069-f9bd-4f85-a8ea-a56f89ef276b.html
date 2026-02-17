@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Connector Photography - Premium Photo Shoots in Jamaica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                }
+            }
+        }
+    };
+    </script>
+    <style>
+        :root {
+            --background: hsl(33 100% 97%);
+            --foreground: hsl(215 25% 15%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(215 25% 15%);
+            --popover: hsl(0 0% 100%);
+            --popover-foreground: hsl(215 25% 15%);
+            --primary: hsl(43 74% 49%);
+            --primary-foreground: hsl(0 0% 100%);
+            --secondary: hsl(213 82% 57%);
+            --secondary-foreground: hsl(0 0% 100%);
+            --muted: hsl(33 50% 95%);
+            --muted-foreground: hsl(215 25% 45%);
+            --accent: hsl(4 86% 69%);
+            --accent-foreground: hsl(0 0% 100%);
+            --destructive: hsl(0 84% 60%);
+            --destructive-foreground: hsl(0 0% 100%);
+            --border: hsl(33 30% 85%);
+            --input: hsl(33 30% 90%);
+            --ring: hsl(43 74% 49%);
+            --radius: 12px;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+        
+        .font-display { font-family: 'Playfair Display', serif; }
+        .font-body { font-family: 'Inter', sans-serif; }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, hsl(43 74% 49% / 0.9), hsl(213 82% 57% / 0.8)), url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="1000" height="1000" fill="url(%23grain)"/></svg>');
+        }
+        
+        .package-bronze { background: linear-gradient(135deg, hsl(30 100% 60%), hsl(25 95% 50%)); }
+        .package-silver { background: linear-gradient(135deg, hsl(220 15% 75%), hsl(220 15% 65%)); }
+        .package-gold { background: linear-gradient(135deg, hsl(43 74% 49%), hsl(38 100% 45%)); }
+        .package-platinum { background: linear-gradient(135deg, hsl(320 60% 70%), hsl(310 65% 60%)); }
+        
+        .gallery-masonry {
+            column-count: 3;
+            column-gap: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .gallery-masonry {
+                column-count: 2;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .gallery-masonry {
+                column-count: 1;
+            }
+        }
+        
+        .modal-overlay {
+            backdrop-filter: blur(8px);
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-background text-foreground font-body antialiased">
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full bg-background/95 backdrop-blur-sm border-b border-border z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-camera text-primary text-2xl"></i>
+                    <span class="font-display text-xl font-semibold text-foreground">The Connector</span>
+                </div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="#home" class="text-foreground hover:text-primary transition-colors font-medium">Home</a>
+                    <a href="#portfolio" class="text-foreground hover:text-primary transition-colors font-medium">Portfolio</a>
+                    <a href="#packages" class="text-foreground hover:text-primary transition-colors font-medium">Packages</a>
+                    <a href="#about" class="text-foreground hover:text-primary transition-colors font-medium">About</a>
+                    <a href="#contact" class="text-foreground hover:text-primary transition-colors font-medium">Contact</a>
+                </div>
+                <div class="hidden md:flex space-x-4">
+                    <button onclick="showClientGallery()" class="text-muted-foreground hover:text-foreground transition-colors">
+                        <i class="fas fa-images mr-2"></i>Client Gallery
+                    </button>
+                    <button onclick="showBookingModal()" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors font-medium">
+                        Book Now
+                    </button>
+                </div>
+                <button class="md:hidden text-foreground">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero-gradient h-screen flex items-center justify-center text-center relative overflow-hidden">
+        <!-- Caribbean sunset beach scene with photographer silhouette -->
+        <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&h=1080');"></div>
+        <div class="absolute inset-0 bg-gradient-to-br from-primary/60 via-secondary/50 to-accent/40"></div>
+        <div class="relative z-10 max-w-4xl mx-auto px-4">
+            <h1 class="font-display text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+                Capture Your
+                <span class="text-yellow-300">Perfect Moment</span>
+            </h1>
+            <p class="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto leading-relaxed">
+                Professional photography services in the heart of Jamaica. From intimate portraits to destination shoots, we bring your vision to life.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button onclick="showBookingModal()" class="bg-primary text-primary-foreground px-8 py-4 rounded-lg text-lg font-semibold hover:bg-primary/90 transition-all transform hover:scale-105 shadow-lg">
+                    <i class="fas fa-calendar-alt mr-2"></i>Book Your Shoot
+                </button>
+                <button onclick="document.getElementById('portfolio').scrollIntoView({behavior: 'smooth'})" class="bg-white/20 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-white/30 transition-all border border-white/30 backdrop-blur-sm">
+                    <i class="fas fa-images mr-2"></i>View Portfolio
+                </button>
+            </div>
+        </div>
+        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white/70">
+            <i class="fas fa-chevron-down text-2xl animate-bounce"></i>
+        </div>
+    </section>
+
+    <!-- Features Overview -->
+    <section class="py-20 bg-muted">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">Why Choose The Connector</h2>
+                <p class="text-muted-foreground text-lg max-w-2xl mx-auto">Experience premium photography services with a local touch and international standards</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="text-center p-6">
+                    <div class="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-map-marker-alt text-primary text-2xl"></i>
+                    </div>
+                    <h3 class="font-display text-xl font-semibold mb-2">Local Expertise</h3>
+                    <p class="text-muted-foreground">Born and raised in Jamaica, I know the most stunning locations for your perfect shot</p>
+                </div>
+                <div class="text-center p-6">
+                    <div class="bg-secondary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-plane text-secondary text-2xl"></i>
+                    </div>
+                    <h3 class="font-display text-xl font-semibold mb-2">Travel Ready</h3>
+                    <p class="text-muted-foreground">Available for destination shoots across the Caribbean and beyond</p>
+                </div>
+                <div class="text-center p-6">
+                    <div class="bg-accent/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-heart text-accent text-2xl"></i>
+                    </div>
+                    <h3 class="font-display text-xl font-semibold mb-2">Personal Touch</h3>
+                    <p class="text-muted-foreground">Every shoot is tailored to capture your unique personality and story</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Portfolio Section -->
+    <section id="portfolio" class="py-20 bg-background">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">Portfolio</h2>
+                <p class="text-muted-foreground text-lg max-w-2xl mx-auto">Discover the magic we create together - from intimate portraits to vibrant lifestyle shoots</p>
+            </div>
+            
+            <div class="gallery-masonry">
+                <!-- Professional portrait of woman in golden dress by pool -->
+                <div class="break-inside-avoid mb-4 cursor-pointer group" onclick="openLightbox(0)">
+                    <img src="https://pixabay.com/get/gec5bfbaadc479e6c76034377f3fd0533b616cb24439e4a06eee6f0fdb15fbf049ac0932ebbb4d733612d9261eccb9e096bf063939d5c0f279db79c046fd0cfb5_1280.jpg" alt="Elegant pool portrait" class="w-full rounded-lg shadow-lg group-hover:scale-105 transition-transform duration-300" />
+                </div>
+                
+                <!-- Beach sunset portrait session -->
+                <div class="break-inside-avoid mb-4 cursor-pointer group" onclick="openLightbox(1)">
+                    <img src="https://images.unsplash.com/photo-1519904981063-b0cf448d479e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600" alt="Beach sunset portrait" class="w-full rounded-lg shadow-lg group-hover:scale-105 transition-transform duration-300" />
+                </div>
+                
+                <!-- Tropical garden portrait -->
+                <div class="break-inside-avoid mb-4 cursor-pointer group" onclick="openLightbox(2)">
+                    <img src="https://images.unsplash.com/photo-1616683693504-3ea7e9ad6fec?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=1200" alt="Tropical garden portrait" class="w-full rounded-lg shadow-lg group-hover:scale-105 transition-transform duration-300" />
+                </div>
+                
+                <!-- Caribbean beach lifestyle -->
+                <div class="break-inside-avoid mb-4 cursor-pointer group" onclick="openLightbox(3)">
+                    <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=800" alt="Caribbean beach lifestyle" class="w-full rounded-lg shadow-lg group-hover:scale-105 transition-transform duration-300" />
+                </div>
+                
+                <!-- Professional headshot session -->
+                <div class="break-inside-avoid mb-4 cursor-pointer group" onclick="openLightbox(4)">
+                    <img src="https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=1000" alt="Professional headshot" class="w-full rounded-lg shadow-lg group-hover:scale-105 transition-transform duration-300" />
+                </div>
+                
+                <!-- Couple's beach session -->
+                <div class="break-inside-avoid mb-4 cursor-pointer group" onclick="openLightbox(5)">
+                    <img src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600" alt="Couple's beach session" class="w-full rounded-lg shadow-lg group-hover:scale-105 transition-transform duration-300" />
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Packages Section -->
+    <section id="packages" class="py-20 bg-muted">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">Photography Packages</h2>
+                <p class="text-muted-foreground text-lg max-w-2xl mx-auto">Choose the perfect package for your needs - all sessions include professional editing and digital delivery</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <!-- @COMPONENT: PackageCard [Bronze] -->
+                <div class="package-bronze text-white rounded-xl p-6 relative overflow-hidden shadow-xl hover:shadow-2xl transition-all transform hover:scale-105">
+                    <div class="absolute top-0 right-0 bg-white/20 px-3 py-1 m-4 rounded-full">
+                        <span class="text-sm font-semibold">BRONZE</span>
+                    </div>
+                    <div class="mb-6 mt-8">
+                        <div class="text-4xl font-bold mb-2">$150</div>
+                        <div class="text-white/90">Perfect for individuals</div>
+                    </div>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center">
+                            <i class="fas fa-clock mr-3"></i>
+                            <span>45 minutes session</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-images mr-3"></i>
+                            <span>6 retouched images</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-map-marker-alt mr-3"></i>
+                            <span>1 location</span>
+                        </li>
+                    </ul>
+                    <button onclick="selectPackage('bronze')" class="w-full bg-white text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                        Choose Bronze
+                    </button>
+                </div>
+                <!-- @END_COMPONENT: PackageCard -->
+
+                <!-- @COMPONENT: PackageCard [Silver] -->
+                <div class="package-silver text-white rounded-xl p-6 relative overflow-hidden shadow-xl hover:shadow-2xl transition-all transform hover:scale-105">
+                    <div class="absolute top-0 right-0 bg-white/20 px-3 py-1 m-4 rounded-full">
+                        <span class="text-sm font-semibold">SILVER</span>
+                    </div>
+                    <div class="mb-6 mt-8">
+                        <div class="text-4xl font-bold mb-2">$200</div>
+                        <div class="text-white/90">Great for couples</div>
+                    </div>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center">
+                            <i class="fas fa-clock mr-3"></i>
+                            <span>60 minutes session</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-images mr-3"></i>
+                            <span>10 retouched images</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-map-marker-alt mr-3"></i>
+                            <span>1 location</span>
+                        </li>
+                    </ul>
+                    <button onclick="selectPackage('silver')" class="w-full bg-white text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                        Choose Silver
+                    </button>
+                </div>
+                <!-- @END_COMPONENT: PackageCard -->
+
+                <!-- @COMPONENT: PackageCard [Gold] -->
+                <div class="package-gold text-white rounded-xl p-6 relative overflow-hidden shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 border-4 border-yellow-300">
+                    <div class="absolute top-0 right-0 bg-yellow-300 text-yellow-900 px-3 py-1 m-4 rounded-full">
+                        <span class="text-sm font-semibold">MOST POPULAR</span>
+                    </div>
+                    <div class="mb-6 mt-8">
+                        <div class="text-4xl font-bold mb-2">$300</div>
+                        <div class="text-white/90">Perfect for families</div>
+                    </div>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center">
+                            <i class="fas fa-clock mr-3"></i>
+                            <span>120 minutes session</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-images mr-3"></i>
+                            <span>15 retouched images</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-map-marker-alt mr-3"></i>
+                            <span>1 location</span>
+                        </li>
+                    </ul>
+                    <button onclick="selectPackage('gold')" class="w-full bg-yellow-300 text-yellow-900 py-3 rounded-lg font-semibold hover:bg-yellow-200 transition-colors">
+                        Choose Gold
+                    </button>
+                </div>
+                <!-- @END_COMPONENT: PackageCard -->
+
+                <!-- @COMPONENT: PackageCard [Platinum] -->
+                <div class="package-platinum text-white rounded-xl p-6 relative overflow-hidden shadow-xl hover:shadow-2xl transition-all transform hover:scale-105">
+                    <div class="absolute top-0 right-0 bg-white/20 px-3 py-1 m-4 rounded-full">
+                        <span class="text-sm font-semibold">PLATINUM</span>
+                    </div>
+                    <div class="mb-6 mt-8">
+                        <div class="text-4xl font-bold mb-2">$500</div>
+                        <div class="text-white/90">Ultimate experience</div>
+                    </div>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center">
+                            <i class="fas fa-clock mr-3"></i>
+                            <span>150 minutes session</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-images mr-3"></i>
+                            <span>25 retouched images</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-map-marker-alt mr-3"></i>
+                            <span>2 locations</span>
+                        </li>
+                    </ul>
+                    <button onclick="selectPackage('platinum')" class="w-full bg-white text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                        Choose Platinum
+                    </button>
+                </div>
+                <!-- @END_COMPONENT: PackageCard -->
+            </div>
+            
+            <!-- Additional Information -->
+            <div class="mt-12 bg-card rounded-xl p-6 shadow-lg">
+                <h3 class="font-display text-xl font-semibold mb-4 text-center">Additional Services</h3>
+                <div class="grid md:grid-cols-3 gap-6 text-center">
+                    <div>
+                        <i class="fas fa-users text-primary text-2xl mb-2"></i>
+                        <div class="font-semibold">Additional Person</div>
+                        <div class="text-muted-foreground">+$50 per person</div>
+                    </div>
+                    <div>
+                        <i class="fas fa-car text-secondary text-2xl mb-2"></i>
+                        <div class="font-semibold">Transportation</div>
+                        <div class="text-muted-foreground">Calculated by location</div>
+                    </div>
+                    <div>
+                        <i class="fas fa-file-contract text-accent text-2xl mb-2"></i>
+                        <div class="font-semibold">Terms Apply</div>
+                        <div class="text-muted-foreground">Conditions apply to all packages</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-20 bg-background">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <!-- Professional photographer at work in Jamaica -->
+                    <img src="https://images.unsplash.com/photo-1502920917128-1aa500764cbd?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=1000" alt="Professional photographer working" class="rounded-xl shadow-lg w-full" />
+                </div>
+                <div>
+                    <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground mb-6">Meet Your Photographer</h2>
+                    <p class="text-muted-foreground text-lg mb-6 leading-relaxed">
+                        Born and raised in the beautiful island of Jamaica, I've spent years capturing the natural beauty and vibrant culture of the Caribbean. My passion for photography began as a way to share the stunning landscapes and warm spirit of my homeland with the world.
+                    </p>
+                    <p class="text-muted-foreground text-lg mb-6 leading-relaxed">
+                        Today, I specialize in portrait, lifestyle, and destination photography, bringing a unique blend of local knowledge and international technique to every shoot. Whether you're visiting Jamaica or I'm traveling to you, my goal is to create images that tell your story with authenticity and beauty.
+                    </p>
+                    <div class="flex flex-wrap gap-4">
+                        <div class="flex items-center bg-primary/10 px-4 py-2 rounded-lg">
+                            <i class="fas fa-certificate text-primary mr-2"></i>
+                            <span class="text-foreground font-medium">5+ Years Experience</span>
+                        </div>
+                        <div class="flex items-center bg-secondary/10 px-4 py-2 rounded-lg">
+                            <i class="fas fa-heart text-secondary mr-2"></i>
+                            <span class="text-foreground font-medium">500+ Happy Clients</span>
+                        </div>
+                        <div class="flex items-center bg-accent/10 px-4 py-2 rounded-lg">
+                            <i class="fas fa-globe text-accent mr-2"></i>
+                            <span class="text-foreground font-medium">Caribbean Specialist</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-20 bg-muted">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">Get In Touch</h2>
+                <p class="text-muted-foreground text-lg">Ready to create something beautiful together? Let's discuss your vision</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-12">
+                <div>
+                    <h3 class="font-display text-xl font-semibold mb-6">Contact Information</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-envelope text-primary mr-4"></i>
+                            <span data-mock="true">hello@theconnector.photography</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-phone text-primary mr-4"></i>
+                            <span data-mock="true">+1 (876) 555-0123</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-map-marker-alt text-primary mr-4"></i>
+                            <span data-mock="true">Kingston, Jamaica</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8">
+                        <h4 class="font-semibold mb-4">Follow My Work</h4>
+                        <div class="flex space-x-4">
+                            <a href="#" class="text-muted-foreground hover:text-primary transition-colors">
+                                <i class="fab fa-instagram text-2xl"></i>
+                            </a>
+                            <a href="#" class="text-muted-foreground hover:text-primary transition-colors">
+                                <i class="fab fa-facebook text-2xl"></i>
+                            </a>
+                            <a href="#" class="text-muted-foreground hover:text-primary transition-colors">
+                                <i class="fab fa-twitter text-2xl"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <form class="space-y-6" data-implementation="Should handle form submission and validation">
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-2">Name *</label>
+                            <input type="text" required class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Your full name" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-2">Email *</label>
+                            <input type="email" required class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="your@email.com" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-2">Subject</label>
+                            <input type="text" class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="What's this about?" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-2">Message *</label>
+                            <textarea required rows="5" class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Tell me about your vision..."></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-primary text-primary-foreground py-3 px-6 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                            <i class="fas fa-paper-plane mr-2"></i>Send Message
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-foreground text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <i class="fas fa-camera text-primary text-2xl"></i>
+                        <span class="font-display text-xl font-semibold">The Connector</span>
+                    </div>
+                    <p class="text-gray-300">Capturing life's beautiful moments across the Caribbean and beyond.</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Services</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><a href="#packages" class="hover:text-white transition-colors">Portrait Photography</a></li>
+                        <li><a href="#packages" class="hover:text-white transition-colors">Lifestyle Shoots</a></li>
+                        <li><a href="#packages" class="hover:text-white transition-colors">Destination Photography</a></li>
+                        <li><a href="#packages" class="hover:text-white transition-colors">Event Coverage</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Quick Links</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><a href="#home" class="hover:text-white transition-colors">Home</a></li>
+                        <li><a href="#portfolio" class="hover:text-white transition-colors">Portfolio</a></li>
+                        <li><a href="#about" class="hover:text-white transition-colors">About</a></li>
+                        <li><a href="#contact" class="hover:text-white transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Client Area</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><button onclick="showClientGallery()" class="hover:text-white transition-colors text-left">View Your Photos</button></li>
+                        <li><button onclick="showBookingModal()" class="hover:text-white transition-colors text-left">Book New Session</button></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Download Images</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Terms & Conditions</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">
+                <p>&copy; 2024 The Connector Photography. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="fixed inset-0 bg-black/50 modal-overlay hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-card rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-display text-2xl font-bold text-foreground">Book Your Session</h3>
+                <button onclick="closeBookingModal()" class="text-muted-foreground hover:text-foreground">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="bookingForm" class="space-y-6" data-implementation="Should validate and submit booking request">
+                <!-- @STATE: selectedPackage:string = '' -->
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-2">Selected Package</label>
+                    <select id="packageSelect" class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary">
+                        <option value="">Choose a package</option>
+                        <option value="bronze">Bronze - $150 (45 mins, 6 images, 1 location)</option>
+                        <option value="silver">Silver - $200 (60 mins, 10 images, 1 location)</option>
+                        <option value="gold">Gold - $300 (120 mins, 15 images, 1 location)</option>
+                        <option value="platinum">Platinum - $500 (150 mins, 25 images, 2 locations)</option>
+                    </select>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-2">Name *</label>
+                        <input type="text" required class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary" placeholder="Your full name" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-2">Email *</label>
+                        <input type="email" required class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary" placeholder="your@email.com" />
+                    </div>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-2">Preferred Date *</label>
+                        <input type="date" required class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-2">Preferred Time *</label>
+                        <select required class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary">
+                            <option value="">Select time</option>
+                            <option value="morning">Morning (8am - 12pm)</option>
+                            <option value="afternoon">Afternoon (12pm - 4pm)</option>
+                            <option value="evening">Evening (4pm - 8pm)</option>
+                            <option value="golden-hour">Golden Hour (6pm - 7:30pm)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-2">Number of People *</label>
+                    <select required class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary" onchange="calculateTotal()">
+                        <option value="">Select number</option>
+                        <option value="1">1 person</option>
+                        <option value="2">2 people (+$50)</option>
+                        <option value="3">3 people (+$100)</option>
+                        <option value="4">4 people (+$150)</option>
+                        <option value="5">5+ people (+$200)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-2">Location Preferences</label>
+                    <textarea rows="3" class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary" placeholder="Describe your preferred location(s) or let us suggest the perfect spot..."></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-foreground mb-2">Special Requests / Notes</label>
+                    <textarea rows="3" class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary" placeholder="Tell us about your vision, any special requirements, or questions you have..."></textarea>
+                </div>
+                
+                <div id="totalCalculation" class="bg-muted p-4 rounded-lg hidden">
+                    <div class="flex justify-between items-center">
+                        <span class="font-medium">Estimated Total:</span>
+                        <span id="totalAmount" class="font-bold text-lg text-primary">$0</span>
+                    </div>
+                    <p class="text-sm text-muted-foreground mt-2">Final price includes transportation fee based on location</p>
+                </div>
+                
+                <div class="flex gap-4">
+                    <button type="button" onclick="closeBookingModal()" class="flex-1 bg-muted text-muted-foreground py-3 px-6 rounded-lg font-semibold hover:bg-muted/80 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 bg-primary text-primary-foreground py-3 px-6 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                        <i class="fas fa-calendar-check mr-2"></i>Submit Booking Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Client Gallery Modal -->
+    <div id="clientGalleryModal" class="fixed inset-0 bg-black/50 modal-overlay hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-card rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-display text-2xl font-bold text-foreground">Client Gallery Access</h3>
+                <button onclick="closeClientGallery()" class="text-muted-foreground hover:text-foreground">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- @STATE: galleryView:'login'|'gallery' = 'login' -->
+            <div id="galleryLogin">
+                <p class="text-muted-foreground mb-6">Enter your email to access your private photo gallery and select images for editing.</p>
+                <form class="space-y-4" data-implementation="Should authenticate client access">
+                    <div>
+                        <label class="block text-sm font-medium text-foreground mb-2">Email Address</label>
+                        <input type="email" required class="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary" placeholder="Enter your email" />
+                    </div>
+                    <button type="submit" onclick="showGalleryImages()" class="w-full bg-primary text-primary-foreground py-3 px-6 rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                        <i class="fas fa-images mr-2"></i>Access My Gallery
+                    </button>
+                </form>
+            </div>
+            
+            <div id="galleryImages" class="hidden flex-1 overflow-hidden">
+                <div class="flex flex-col h-full">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h4 class="font-semibold text-foreground">Your Photo Gallery</h4>
+                            <p class="text-sm text-muted-foreground">Click to select images you'd like edited (limit applies based on your package)</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm text-muted-foreground">Selected: <span id="selectedCount">0</span> / <span id="maxSelections">10</span></div>
+                            <button onclick="submitSelections()" class="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm mt-2">
+                                Submit Selections
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 md:grid-cols-4 gap-3 overflow-y-auto flex-1" id="clientPhotos">
+                        <!-- @MAP: clientPhotos.map(photo => ( -->
+                        <!-- This would be populated with actual client photos -->
+                        <div class="relative cursor-pointer group" onclick="toggleSelection(this)">
+                            <img src="https://pixabay.com/get/gaf3c88c728c9b6d1b4cdbb01c1ea98f3dce1ff23fc9992106ab4fa1b0df0eea2f13e5dcee92c3035217dec5cb52f1f86bdb2525f1a7917464d282bcfe32d771b_1280.jpg" alt="Client photo" class="w-full h-24 object-cover rounded-lg" data-mock="true" />
+                            <div class="absolute inset-0 bg-primary/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="absolute top-2 right-2 hidden bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+                        <!-- @END_MAP )) -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div id="lightboxModal" class="fixed inset-0 bg-black/90 modal-overlay hidden z-50 flex items-center justify-center p-4">
+        <div class="relative max-w-4xl max-h-full">
+            <button onclick="closeLightbox()" class="absolute top-4 right-4 text-white hover:text-gray-300 z-10">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+            <img id="lightboxImage" src="" alt="" class="max-w-full max-h-[90vh] object-contain rounded-lg" />
+        </div>
+    </div>
+
+    <script>
+        // Navigation scroll effect
+        window.addEventListener('scroll', function() {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 100) {
+                nav.classList.add('bg-background/98');
+            } else {
+                nav.classList.remove('bg-background/98');
+            }
+        });
+
+        // Package selection
+        function selectPackage(packageType) {
+            document.getElementById('packageSelect').value = packageType;
+            showBookingModal();
+        }
+
+        // Booking modal functions
+        function showBookingModal() {
+            document.getElementById('bookingModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeBookingModal() {
+            document.getElementById('bookingModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Client gallery functions
+        function showClientGallery() {
+            document.getElementById('clientGalleryModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeClientGallery() {
+            document.getElementById('clientGalleryModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        function showGalleryImages() {
+            // TODO: Implement authentication and photo loading
+            document.getElementById('galleryLogin').style.display = 'none';
+            document.getElementById('galleryImages').classList.remove('hidden');
+        }
+
+        // Image selection functionality
+        let selectedImages = 0;
+        const maxSelections = 10; // This would be dynamic based on package
+
+        function toggleSelection(element) {
+            const checkbox = element.querySelector('div:last-child');
+            const isSelected = !checkbox.classList.contains('hidden');
+            
+            if (isSelected) {
+                checkbox.classList.add('hidden');
+                selectedImages--;
+            } else if (selectedImages < maxSelections) {
+                checkbox.classList.remove('hidden');
+                selectedImages++;
+            }
+            
+            document.getElementById('selectedCount').textContent = selectedImages;
+        }
+
+        function submitSelections() {
+            // TODO: Implement selection submission
+            alert(`Submitted ${selectedImages} image selections for editing.`);
+            closeClientGallery();
+        }
+
+        // Lightbox functionality
+        const portfolioImages = [
+            'https://images.unsplash.com/photo-1594736797933-d0d9e7f02206?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&h=2000',
+            'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&h=1200',
+            'https://images.unsplash.com/photo-1616683693504-3ea7e9ad6fec?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&h=2400',
+            'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&h=1600',
+            'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&h=2000',
+            'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&h=1200'
+        ];
+
+        function openLightbox(index) {
+            document.getElementById('lightboxImage').src = portfolioImages[index];
+            document.getElementById('lightboxModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightboxModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Price calculation
+        function calculateTotal() {
+            const packageSelect = document.getElementById('packageSelect');
+            const peopleSelect = document.querySelector('select[onchange="calculateTotal()"]');
+            
+            if (!packageSelect.value || !peopleSelect.value) return;
+            
+            const packagePrices = {
+                bronze: 150,
+                silver: 200,
+                gold: 300,
+                platinum: 500
+            };
+            
+            const basePrice = packagePrices[packageSelect.value] || 0;
+            const additionalPeople = Math.max(0, parseInt(peopleSelect.value) - 1);
+            const additionalCost = additionalPeople * 50;
+            const total = basePrice + additionalCost;
+            
+            document.getElementById('totalAmount').textContent = `$${total}`;
+            document.getElementById('totalCalculation').classList.remove('hidden');
+        }
+
+        // Form submission handlers
+        document.getElementById('bookingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            // TODO: Implement booking form submission
+            alert('Booking request submitted! We\'ll contact you within 24 hours to confirm details.');
+            closeBookingModal();
+        });
+
+        // Close modals on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeBookingModal();
+                closeClientGallery();
+                closeLightbox();
+            }
+        });
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

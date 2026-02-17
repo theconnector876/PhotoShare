@@ -1,0 +1,306 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(210, 40%, 98%);
+  --foreground: hsl(222, 84%, 5%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(222, 84%, 5%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(222, 84%, 5%);
+  --primary: hsl(120, 100%, 20%);
+  --primary-foreground: hsl(210, 40%, 98%);
+  --secondary: hsl(51, 100%, 50%);
+  --secondary-foreground: hsl(222, 47%, 11%);
+  --muted: hsl(210, 40%, 96%);
+  --muted-foreground: hsl(215, 16%, 47%);
+  --accent: hsl(42, 100%, 62%);
+  --accent-foreground: hsl(222, 47%, 11%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --border: hsl(214, 32%, 91%);
+  --input: hsl(214, 32%, 91%);
+  --ring: hsl(120, 100%, 20%);
+  --chart-1: hsl(120, 100%, 20%);
+  --chart-2: hsl(159, 100%, 36%);
+  --chart-3: hsl(42, 93%, 56%);
+  --chart-4: hsl(147, 79%, 42%);
+  --chart-5: hsl(341, 75%, 51%);
+  --sidebar: hsl(180, 7%, 97%);
+  --sidebar-foreground: hsl(222, 84%, 5%);
+  --sidebar-primary: hsl(120, 100%, 20%);
+  --sidebar-primary-foreground: hsl(210, 40%, 98%);
+  --sidebar-accent: hsl(212, 51%, 93%);
+  --sidebar-accent-foreground: hsl(120, 100%, 20%);
+  --sidebar-border: hsl(205, 25%, 91%);
+  --sidebar-ring: hsl(120, 100%, 20%);
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: Menlo, monospace;
+  --radius: 0.75rem;
+  --shadow-2xs: 0px 2px 0px 0px hsl(120, 100%, 20% / 0.00);
+  --shadow-xs: 0px 2px 0px 0px hsl(120, 100%, 20% / 0.00);
+  --shadow-sm: 0px 2px 0px 0px hsl(120, 100%, 20% / 0.00), 0px 1px 2px -1px hsl(120, 100%, 20% / 0.00);
+  --shadow: 0px 2px 0px 0px hsl(120, 100%, 20% / 0.00), 0px 1px 2px -1px hsl(120, 100%, 20% / 0.00);
+  --shadow-md: 0px 2px 0px 0px hsl(120, 100%, 20% / 0.00), 0px 2px 4px -1px hsl(120, 100%, 20% / 0.00);
+  --shadow-lg: 0px 2px 0px 0px hsl(120, 100%, 20% / 0.00), 0px 4px 6px -1px hsl(120, 100%, 20% / 0.00);
+  --shadow-xl: 0px 2px 0px 0px hsl(120, 100%, 20% / 0.00), 0px 8px 10px -1px hsl(120, 100%, 20% / 0.00);
+  --shadow-2xl: 0px 2px 0px 0px hsl(120, 100%, 20% / 0.00);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+  --jamaica-green: hsl(120, 100%, 20%);
+  --jamaica-yellow: hsl(51, 100%, 50%);
+  --jamaica-gold: hsl(42, 100%, 62%);
+}
+
+.dark {
+  --background: hsl(222, 84%, 5%);
+  --foreground: hsl(200, 7%, 91%);
+  --card: hsl(228, 10%, 10%);
+  --card-foreground: hsl(0, 0%, 85%);
+  --popover: hsl(222, 84%, 5%);
+  --popover-foreground: hsl(200, 7%, 91%);
+  --primary: hsl(120, 100%, 25%);
+  --primary-foreground: hsl(210, 40%, 98%);
+  --secondary: hsl(51, 100%, 45%);
+  --secondary-foreground: hsl(210, 40%, 98%);
+  --muted: hsl(0, 0%, 9%);
+  --muted-foreground: hsl(210, 3%, 46%);
+  --accent: hsl(42, 100%, 55%);
+  --accent-foreground: hsl(222, 84%, 5%);
+  --destructive: hsl(0, 63%, 31%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --border: hsl(210, 5%, 15%);
+  --input: hsl(208, 28%, 18%);
+  --ring: hsl(120, 100%, 25%);
+  --chart-1: hsl(120, 100%, 25%);
+  --chart-2: hsl(159, 100%, 36%);
+  --chart-3: hsl(42, 93%, 56%);
+  --chart-4: hsl(147, 79%, 42%);
+  --chart-5: hsl(341, 75%, 51%);
+  --sidebar: hsl(228, 10%, 10%);
+  --sidebar-foreground: hsl(0, 0%, 85%);
+  --sidebar-primary: hsl(120, 100%, 25%);
+  --sidebar-primary-foreground: hsl(210, 40%, 98%);
+  --sidebar-accent: hsl(206, 70%, 8%);
+  --sidebar-accent-foreground: hsl(120, 100%, 25%);
+  --sidebar-border: hsl(206, 16%, 26%);
+  --sidebar-ring: hsl(120, 100%, 25%);
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: Menlo, monospace;
+  --radius: 0.75rem;
+  --shadow-2xs: 0px 2px 0px 0px hsl(120, 100%, 25% / 0.00);
+  --shadow-xs: 0px 2px 0px 0px hsl(120, 100%, 25% / 0.00);
+  --shadow-sm: 0px 2px 0px 0px hsl(120, 100%, 25% / 0.00), 0px 1px 2px -1px hsl(120, 100%, 25% / 0.00);
+  --shadow: 0px 2px 0px 0px hsl(120, 100%, 25% / 0.00), 0px 1px 2px -1px hsl(120, 100%, 25% / 0.00);
+  --shadow-md: 0px 2px 0px 0px hsl(120, 100%, 25% / 0.00), 0px 2px 4px -1px hsl(120, 100%, 25% / 0.00);
+  --shadow-lg: 0px 2px 0px 0px hsl(120, 100%, 25% / 0.00), 0px 4px 6px -1px hsl(120, 100%, 25% / 0.00);
+  --shadow-xl: 0px 2px 0px 0px hsl(120, 100%, 25% / 0.00), 0px 8px 10px -1px hsl(120, 100%, 25% / 0.00);
+  --shadow-2xl: 0px 2px 0px 0px hsl(120, 100%, 25% / 0.00);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground overflow-x-hidden;
+  }
+
+  .constellation-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: linear-gradient(45deg, var(--jamaica-green), var(--jamaica-yellow));
+    border-radius: 50%;
+    animation: float 6s infinite linear;
+    opacity: 0.7;
+  }
+
+  .floating-shapes {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 1;
+  }
+
+  .shape {
+    position: absolute;
+    opacity: 0.1;
+    animation: floatShapes 20s infinite linear;
+  }
+
+  @keyframes float {
+    0% { 
+      transform: translateY(100vh) rotate(0deg); 
+      opacity: 0; 
+    }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { 
+      transform: translateY(-10vh) rotate(360deg); 
+      opacity: 0; 
+    }
+  }
+
+  @keyframes floatShapes {
+    0% { transform: translateY(100vh) rotate(0deg); }
+    100% { transform: translateY(-100vh) rotate(360deg); }
+  }
+
+  .animate-glow {
+    animation: glow 2s infinite alternate;
+  }
+
+  @keyframes glow {
+    from { box-shadow: 0 0 20px hsl(var(--primary) / 0.3); }
+    to { box-shadow: 0 0 30px hsl(var(--secondary) / 0.6), 0 0 40px hsl(var(--primary) / 0.3); }
+  }
+
+  .hover-3d {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .hover-3d:hover {
+    transform: translateY(-5px) rotateX(5deg);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  .magnetic-btn {
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .magnetic-btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+  }
+
+  .counter-animation {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @keyframes slideInUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .slide-in-up {
+    animation: slideInUp 0.6s ease-out forwards;
+  }
+
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+
+  .gradient-text {
+    background: linear-gradient(135deg, var(--jamaica-green), var(--jamaica-yellow));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .package-card {
+    background: linear-gradient(135deg, var(--card) 0%, var(--muted) 100%);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .package-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, var(--jamaica-green), var(--jamaica-yellow));
+    border-radius: inherit;
+    padding: 2px;
+    margin: -2px;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .package-card:hover::before {
+    opacity: 1;
+  }
+
+  .typewriter {
+    overflow: hidden;
+    border-right: 3px solid var(--jamaica-green);
+    white-space: nowrap;
+    margin: 0 auto;
+    animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+  }
+
+  @keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+
+  @keyframes blink-caret {
+    from, to { border-color: transparent; }
+    50% { border-color: var(--jamaica-green); }
+  }
+
+  .hero-overlay {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.3) 100%);
+  }
+
+  .pricing-pulse {
+    animation: pricePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pricePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  .form-focus {
+    transition: all 0.3s ease;
+  }
+
+  .form-focus:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  }
+
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--jamaica-green), var(--jamaica-yellow));
+    transition: width 0.3s ease;
+  }
+
+  .nav-link:hover::after {
+    width: 100%;
+  }
+}
