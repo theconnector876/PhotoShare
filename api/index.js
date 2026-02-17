@@ -1,2 +1,2 @@
-import handler from './index.cjs';
+import handler from './server.cjs';
 export default handler;
