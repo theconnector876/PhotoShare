@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupPasswordAuth, hashPassword } from "./auth";
-import { getSession } from "./replitAuth"; // Keep session setup
+import { getSession } from "./session";
 import passport from "passport";
 import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema, insertUserSchema } from "@shared/schema";
 import { defaultPricingConfig } from "@shared/pricing";
