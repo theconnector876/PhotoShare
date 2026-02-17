@@ -213,7 +213,8 @@ export function setupPasswordAuth(app: Express) {
         });
       }
       console.error('Registration error:', error);
-      res.status(500).json({ error: "Registration failed" });
+      const errMsg = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: "Registration failed", details: errMsg });
     }
   });
 
