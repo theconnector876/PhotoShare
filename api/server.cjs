@@ -52380,7 +52380,7 @@ function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1e3;
   const pgStore = (0, import_connect_pg_simple.default)(import_express_session.default);
   const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
+    conString: process.env.DATABASE_URL?.trim(),
     createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions"
