@@ -4,6 +4,9 @@ import { registerRoutes } from "./routes";
 
 const app = express();
 
+// Trust Vercel's proxy so secure cookies work behind HTTPS termination
+app.set("trust proxy", 1);
+
 // Lemon Squeezy webhook needs raw body for signature verification
 app.use("/api/lemonsqueezy/webhook", express.raw({ type: "application/json" }));
 

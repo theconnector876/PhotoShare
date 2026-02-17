@@ -53842,6 +53842,7 @@ async function registerRoutes(app2) {
 
 // server/vercel.ts
 var app = (0, import_express.default)();
+app.set("trust proxy", 1);
 app.use("/api/lemonsqueezy/webhook", import_express.default.raw({ type: "application/json" }));
 app.use(import_express.default.json());
 app.use(import_express.default.urlencoded({ extended: false }));
