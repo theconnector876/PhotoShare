@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 
 const bookingFormSchema = z.object({
   clientName: z.string().min(1, "Client name is required"),
@@ -49,6 +50,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const { user } = useAuth();
 
   const form = useForm<BookingFormData>({
     resolver: zodResolver(bookingFormSchema),
@@ -68,6 +70,23 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
       contractAccepted: false,
     },
   });
+
+  // Autofill form with logged-in user's info
+  useEffect(() => {
+    if (user) {
+      const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ");
+      if (fullName && !form.getValues("clientName")) {
+        form.setValue("clientName", fullName);
+      }
+      if (user.email && !form.getValues("email")) {
+        form.setValue("email", user.email);
+      }
+      const initials = [user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join("").toUpperCase();
+      if (initials && !form.getValues("clientInitials")) {
+        form.setValue("clientInitials", initials);
+      }
+    }
+  }, [user, form]);
 
   const createBookingMutation = useMutation({
     mutationFn: async (data: BookingFormData) => {
