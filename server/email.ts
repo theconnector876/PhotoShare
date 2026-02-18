@@ -4,6 +4,8 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
+console.log(`[Email] Resend configured: ${!!resend}, API key present: ${!!process.env.RESEND_API_KEY}`);
+
 const BASE_DOMAIN = "connectagrapher.com";
 const FROM_BOOKINGS = `ConnectAGrapher Bookings <bookings@${BASE_DOMAIN}>`;
 const FROM_SUPPORT = `ConnectAGrapher Support <support@${BASE_DOMAIN}>`;
