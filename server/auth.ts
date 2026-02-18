@@ -285,8 +285,10 @@ export function setupPasswordAuth(app: Express) {
       // Store reset token with user (we'll need to add this to storage interface)
       await storage.createPasswordResetToken(user.id, resetToken, expiresAt);
 
+      console.log('[forgot-password] Sending reset email to:', user.email);
       if (user.email) {
-        await sendPasswordReset(user.email, resetToken);
+        const result = await sendPasswordReset(user.email, resetToken);
+        console.log('[forgot-password] sendPasswordReset result:', JSON.stringify(result));
       }
 
       res.json({ message: "If an account with that email exists, a password reset link has been sent." });

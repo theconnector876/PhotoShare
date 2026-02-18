@@ -65694,8 +65694,10 @@ function setupPasswordAuth(app2) {
       const resetToken = crypto.randomUUID();
       const expiresAt = new Date(Date.now() + 36e5);
       await storage.createPasswordResetToken(user.id, resetToken, expiresAt);
+      console.log("[forgot-password] Sending reset email to:", user.email);
       if (user.email) {
-        await sendPasswordReset(user.email, resetToken);
+        const result = await sendPasswordReset(user.email, resetToken);
+        console.log("[forgot-password] sendPasswordReset result:", JSON.stringify(result));
       }
       res.json({ message: "If an account with that email exists, a password reset link has been sent." });
     } catch (error) {
