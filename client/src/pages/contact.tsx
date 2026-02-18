@@ -87,7 +87,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h4 className="font-semibold">Email</h4>
-                  <p className="text-muted-foreground">theconnectorphotography@gmail.com</p>
+                  <p className="text-muted-foreground">support@connectagrapher.com</p>
                 </div>
               </div>
             </Card>

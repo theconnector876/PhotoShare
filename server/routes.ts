@@ -9,6 +9,7 @@ import { defaultPricingConfig } from "@shared/pricing";
 import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
 import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
+import { sendBookingConfirmation, sendPaymentConfirmation, sendPasswordReset, sendPhotographerApproved, sendPhotographerRejected, sendAdminEmail } from "./email";
 
 const lemonSqueezyEnabled = Boolean(
   process.env.LEMONSQUEEZY_API_KEY &&
@@ -382,8 +383,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalImages: [],
       });
 
-      res.json({ 
-        booking, 
+      // Send booking confirmation email (non-blocking)
+      sendBookingConfirmation({
+        clientName: booking.clientName,
+        email: booking.email,
+        serviceType: booking.serviceType,
+        shootDate: booking.shootDate,
+        shootTime: booking.shootTime ?? undefined,
+        location: booking.location ?? undefined,
+        totalPrice: booking.totalPrice,
+        depositAmount: booking.depositAmount ?? Math.round(booking.totalPrice * 0.5),
+        balanceDue: booking.balanceDue ?? booking.totalPrice - Math.round(booking.totalPrice * 0.5),
+        id: booking.id,
+      }, accessCode).catch(err => console.error('Failed to send booking confirmation email:', err));
+
+      res.json({
+        booking,
         accessCode,
         userCreated: !user || user.id === user.id, // Indicate if new user was created
         message: user ? "Booking created with existing account" : "Booking created with new account"
@@ -961,6 +976,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Update payment status
             await storage.updateBookingPaymentStatus(booking_id, payment_type as 'deposit' | 'balance');
             console.log(`Payment ${payment_type} successful for booking ${booking_id}`);
+
+            // Send payment confirmation email
+            const paidBooking = await storage.getBooking(booking_id);
+            if (paidBooking) {
+              const amount = payment_type === 'deposit'
+                ? Math.round(paidBooking.totalPrice * 0.5)
+                : paidBooking.totalPrice - Math.round(paidBooking.totalPrice * 0.5);
+              sendPaymentConfirmation({
+                clientName: paidBooking.clientName,
+                email: paidBooking.email,
+                serviceType: paidBooking.serviceType,
+                id: paidBooking.id,
+              }, payment_type as 'deposit' | 'balance', amount).catch(err => console.error('Failed to send payment confirmation email:', err));
+            }
           }
           break;
         }
@@ -1277,16 +1306,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const emailData = emailSchema.parse(req.body);
-      
-      // TODO: Implement actual email sending via SendGrid or similar service
-      // For now, just log the email attempt
-      console.log('Email would be sent to:', emailData.email);
-      console.log('Subject:', emailData.subject);
-      console.log('Message:', emailData.message);
-      
-      // Simulate successful email sending
-      res.json({ 
-        success: true, 
+
+      await sendAdminEmail(emailData.email, emailData.clientName, emailData.subject, emailData.message);
+
+      res.json({
+        success: true,
         message: 'Email sent successfully',
         emailId: `email_${Date.now()}`
       });
@@ -1387,6 +1411,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updated) {
         return res.status(404).json({ error: 'User not found' });
       }
+      if (updated.email) {
+        sendPhotographerApproved(updated.email, updated.firstName || 'Photographer')
+          .catch(err => console.error('Failed to send photographer approved email:', err));
+      }
       res.json(updated);
     } catch (error) {
       console.error('Error approving photographer:', error);
@@ -1399,6 +1427,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.updatePhotographerStatus(req.params.userId, 'rejected');
       if (!updated) {
         return res.status(404).json({ error: 'User not found' });
+      }
+      if (updated.email) {
+        sendPhotographerRejected(updated.email, updated.firstName || 'Photographer')
+          .catch(err => console.error('Failed to send photographer rejected email:', err));
       }
       res.json(updated);
     } catch (error) {

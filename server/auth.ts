@@ -8,6 +8,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { users } from "@shared/schema";
 import { z } from "zod";
+import { sendPasswordReset } from "./email";
 
 declare global {
   namespace Express {
@@ -284,10 +285,9 @@ export function setupPasswordAuth(app: Express) {
       // Store reset token with user (we'll need to add this to storage interface)
       await storage.createPasswordResetToken(user.id, resetToken, expiresAt);
 
-      // In a real app, you'd send an email here
-      // For now, we'll just log it
-      console.log(`Password reset token for ${user.email}: ${resetToken}`);
-      console.log(`Reset link: http://localhost:5000/auth?reset=${resetToken}`);
+      if (user.email) {
+        await sendPasswordReset(user.email, resetToken);
+      }
 
       res.json({ message: "If an account with that email exists, a password reset link has been sent." });
     } catch (error) {

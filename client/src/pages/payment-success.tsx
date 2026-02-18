@@ -290,8 +290,8 @@ export function PaymentSuccess() {
           <CardContent className="p-4 text-center text-sm text-gray-600">
             <p>
               Questions about your booking? Contact us at{" "}
-              <a href="mailto:theconnectorphotography@gmail.com" className="text-green-600 hover:underline">
-                theconnectorphotography@gmail.com
+              <a href="mailto:support@connectagrapher.com" className="text-green-600 hover:underline">
+                support@connectagrapher.com
               </a>{" "}
               or{" "}
               <a href="tel:18763881801" className="text-green-600 hover:underline">

@@ -299,8 +299,8 @@ export default function Payment() {
             <div className="text-center text-sm text-muted-foreground">
               <p>
                 Having trouble? Contact us at{' '}
-                <a href="mailto:theconnectorphotography@gmail.com" className="text-primary hover:underline">
-                  theconnectorphotography@gmail.com
+                <a href="mailto:support@connectagrapher.com" className="text-primary hover:underline">
+                  support@connectagrapher.com
                 </a>{' '}
                 or{' '}
                 <a href="tel:18763881801" className="text-primary hover:underline">
