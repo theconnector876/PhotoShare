@@ -9,11 +9,10 @@ import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Key, Eye, Heart, Download, Check } from "lucide-react";
+import { Key, Eye, Heart, Download, Check, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useParams } from "wouter";
-import { defaultGalleryImages } from "@/data/photo-catalogues";
 
 const galleryAccessSchema = z.object({
   email: z.string().email("Valid email is required"),
@@ -31,6 +30,7 @@ interface Gallery {
   selectedImages: string[];
   finalImages: string[];
   status: string;
+  downloadEnabled: boolean;
   createdAt: Date;
 }
 
@@ -121,10 +121,8 @@ export default function Gallery() {
     updateSelectionMutation.mutate(selectedImages);
   };
 
-  const sampleGalleryImages = defaultGalleryImages;
-
-  const currentImages = viewMode === 'gallery' 
-    ? (gallery?.galleryImages.length ? gallery.galleryImages : sampleGalleryImages)
+  const currentImages = viewMode === 'gallery'
+    ? (gallery?.galleryImages || [])
     : viewMode === 'selected'
     ? selectedImages
     : gallery?.finalImages || [];
@@ -233,7 +231,7 @@ export default function Gallery() {
               data-testid="button-view-gallery"
             >
               <Eye className="mr-2 h-4 w-4" />
-              All Photos ({gallery.galleryImages.length || sampleGalleryImages.length})
+              All Photos ({gallery.galleryImages?.length || 0})
             </Button>
             <Button
               variant={viewMode === 'selected' ? 'default' : 'ghost'}
@@ -251,7 +249,7 @@ export default function Gallery() {
                 onClick={() => setViewMode('final')}
                 data-testid="button-view-final"
               >
-                <Download className="mr-2 h-4 w-4" />
+                {gallery.downloadEnabled ? <Download className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}
                 Final ({gallery.finalImages.length})
               </Button>
             )}
@@ -301,6 +299,20 @@ export default function Gallery() {
                     )}
                   </div>
                 </div>
+              )}
+
+              {/* Download button for final images */}
+              {viewMode === 'final' && gallery.downloadEnabled && (
+                <a
+                  href={imageUrl}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  className="absolute top-2 left-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </a>
               )}
 
               {/* Image number indicator */}

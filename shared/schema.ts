@@ -103,6 +103,7 @@ export const galleries = pgTable("galleries", {
   selectedImages: text("selected_images").array().default([]),
   finalImages: text("final_images").array().default([]),
   status: text("status").notNull().default("pending"), // pending, selection, editing, completed
+  downloadEnabled: boolean("download_enabled").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -14,7 +14,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, StarIcon, ArrowUp, ArrowDown } from "lucide-react";
+import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, StarIcon, ArrowUp, ArrowDown, X } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 interface Catalogue {
@@ -61,6 +61,8 @@ export function AdminCatalogues() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [catalogueToDelete, setCatalogueToDelete] = useState<Catalogue | null>(null);
+  const [viewCatalogue, setViewCatalogue] = useState<Catalogue | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -144,7 +146,7 @@ export function AdminCatalogues() {
   const createCatalogueMutation = useMutation({
     mutationFn: async (data: CatalogueFormData) => {
       const imagesArray = data.images.split('\n').map(url => url.trim()).filter(url => url);
-      await apiRequest("/api/admin/catalogues", "POST", {
+      await apiRequest("POST", "/api/admin/catalogues", {
         ...data,
         images: imagesArray,
         bookingId: data.bookingId || null,
@@ -182,7 +184,7 @@ export function AdminCatalogues() {
   const updateCatalogueMutation = useMutation({
     mutationFn: async (data: CatalogueFormData & { id: string }) => {
       const imagesArray = data.images.split('\n').map(url => url.trim()).filter(url => url);
-      await apiRequest(`/api/admin/catalogues/${data.id}`, "PUT", {
+      await apiRequest("PUT", `/api/admin/catalogues/${data.id}`, {
         title: data.title,
         description: data.description,
         serviceType: data.serviceType,
@@ -222,7 +224,7 @@ export function AdminCatalogues() {
 
   const reorderCataloguesMutation = useMutation({
     mutationFn: async (orderedIds: string[]) => {
-      await apiRequest("/api/admin/catalogues/reorder", "PATCH", { orderedIds });
+      await apiRequest("PATCH", "/api/admin/catalogues/reorder", { orderedIds });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogues"] });
@@ -644,7 +646,7 @@ export function AdminCatalogues() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open(`/catalogue/${catalogue.id}`, '_blank')}
+                            onClick={() => setViewCatalogue(catalogue)}
                             data-testid={`button-view-catalogue-${catalogue.id}`}
                           >
                             <EyeIcon className="w-4 h-4 mr-2" />
@@ -689,6 +691,58 @@ export function AdminCatalogues() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Catalogue Preview Dialog */}
+      <Dialog open={!!viewCatalogue} onOpenChange={open => !open && setViewCatalogue(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {viewCatalogue?.title}
+              <Badge variant={viewCatalogue?.isPublished ? "default" : "secondary"} className="ml-2">
+                {viewCatalogue?.isPublished ? "Published" : "Draft"}
+              </Badge>
+            </DialogTitle>
+            <DialogDescription>{viewCatalogue?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-4 text-sm text-gray-500">
+              <span>Service: <strong className="capitalize">{viewCatalogue?.serviceType}</strong></span>
+              <span>Images: <strong>{viewCatalogue?.images?.length || 0}</strong></span>
+              {viewCatalogue?.createdAt && <span>Created: <strong>{formatDate(viewCatalogue.createdAt)}</strong></span>}
+            </div>
+            {viewCatalogue?.coverImage && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Cover Image</p>
+                <img
+                  src={viewCatalogue.coverImage}
+                  alt="Cover"
+                  className="w-full max-h-64 object-cover rounded-lg border cursor-pointer"
+                  onClick={() => setPreviewImage(viewCatalogue.coverImage)}
+                />
+              </div>
+            )}
+            {viewCatalogue?.images && viewCatalogue.images.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Gallery Images ({viewCatalogue.images.length})</p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {viewCatalogue.images.map((url, i) => (
+                    <div key={i} className="aspect-square rounded overflow-hidden border bg-gray-100 cursor-pointer" onClick={() => setPreviewImage(url)}>
+                      <img src={url} alt="" className="w-full h-full object-cover hover:opacity-80 transition-opacity" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Full Image Preview */}
+      <Dialog open={!!previewImage} onOpenChange={open => !open && setPreviewImage(null)}>
+        <DialogContent className="max-w-4xl p-2">
+          <img src={previewImage || ""} alt="Preview" className="w-full h-auto max-h-[80vh] object-contain rounded" />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

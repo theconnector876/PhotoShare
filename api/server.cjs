@@ -66018,6 +66018,14 @@ function Ot(t, e, o = {}) {
   return r({ path: "/v1/checkouts", method: "POST", body: { data: { type: "checkouts", attributes: c(f), relationships: b } } });
 }
 
+// server/upload.ts
+function getCloudinaryConfig() {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET || process.env.preset;
+  if (!cloudName || !uploadPreset) return null;
+  return { cloudName, uploadPreset };
+}
+
 // server/routes.ts
 var lemonSqueezyEnabled = Boolean(
   process.env.LEMONSQUEEZY_API_KEY && process.env.LEMONSQUEEZY_STORE_ID && process.env.LEMONSQUEEZY_VARIANT_ID && process.env.LEMONSQUEEZY_WEBHOOK_SECRET
@@ -66365,6 +66373,26 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to access gallery" });
     }
   });
+  app2.patch("/api/gallery/:id/images", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { images, type } = req.body;
+      if (!["gallery", "selected", "final"].includes(type)) {
+        return res.status(400).json({ error: "Invalid type" });
+      }
+      if (type !== "selected") {
+        return res.status(403).json({ error: "Clients can only update selected images" });
+      }
+      const gallery = await storage.getGalleryById(id);
+      if (!gallery) {
+        return res.status(404).json({ error: "Gallery not found" });
+      }
+      const updated = await storage.updateGalleryImages(id, images, type);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update gallery" });
+    }
+  });
   app2.post("/api/contact", async (req, res) => {
     try {
       const messageData = insertContactMessageSchema.parse(req.body);
@@ -66487,6 +66515,15 @@ async function registerRoutes(app2) {
       console.error("Error generating upload URL:", error);
       res.status(500).json({ error: "Failed to generate upload URL" });
     }
+  });
+  app2.get("/api/admin/upload-config", isAdmin, (req, res) => {
+    const config = getCloudinaryConfig();
+    if (!config) {
+      return res.status(503).json({
+        error: "Image upload not configured. Add CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET to your Vercel environment variables."
+      });
+    }
+    res.json(config);
   });
   app2.put("/api/admin/gallery-images", isAdmin, async (req, res) => {
     try {

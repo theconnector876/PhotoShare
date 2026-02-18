@@ -389,54 +389,55 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
           </DialogHeader>
           {manageCatalogue && (
             <div className="space-y-4">
-              <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Drag thumbnails to reorder. First image is the cover.
+              </p>
+              {/* Visual thumbnail grid with drag-drop */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 {editImages.map((url, index) => (
                   <div
                     key={`${url}-${index}`}
-                    className="flex items-center gap-3 border rounded-lg p-3 bg-background"
                     draggable
                     onDragStart={() => handleDragStart(index)}
-                    onDragOver={(event) => event.preventDefault()}
+                    onDragOver={(e) => { e.preventDefault(); }}
                     onDrop={() => handleDrop(index)}
+                    className={`relative group aspect-square rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing transition-all shadow-sm ${
+                      dragIndex === index ? "opacity-40 scale-95 border-primary" : "border-border hover:border-primary/50"
+                    }`}
                   >
-                    <GripVertical className="w-4 h-4 text-muted-foreground" />
-                    <div className="flex-1">
-                      <Input
-                        value={url}
-                        onChange={(event) => {
-                          const next = [...editImages];
-                          next[index] = event.target.value;
-                          setEditImages(next);
-                        }}
-                      />
-                      {index === 0 && (
-                        <div className="text-xs text-muted-foreground mt-1">Cover image</div>
-                      )}
-                    </div>
-                    {index !== 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const next = [...editImages];
-                          const [moved] = next.splice(index, 1);
-                          next.unshift(moved);
-                          setEditImages(next);
-                        }}
-                      >
-                        Set Cover
-                      </Button>
+                    <img src={url} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.2"; }} />
+                    {/* Cover badge */}
+                    {index === 0 && (
+                      <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        COVER
+                      </div>
                     )}
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        const next = editImages.filter((_, idx) => idx !== index);
-                        setEditImages(next);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {/* Drag handle */}
+                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <GripVertical className="w-4 h-4 text-white drop-shadow" />
+                    </div>
+                    {/* Action buttons */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 flex items-end justify-center gap-1 pb-2 opacity-0 group-hover:opacity-100 transition-all">
+                      {index !== 0 && (
+                        <button
+                          className="text-[9px] bg-white/90 text-gray-800 px-1.5 py-0.5 rounded font-medium shadow"
+                          onClick={() => {
+                            const next = [...editImages];
+                            const [moved] = next.splice(index, 1);
+                            next.unshift(moved);
+                            setEditImages(next);
+                          }}
+                        >
+                          Set Cover
+                        </button>
+                      )}
+                      <button
+                        className="p-1 bg-red-500/90 rounded-full shadow"
+                        onClick={() => setEditImages(editImages.filter((_, idx) => idx !== index))}
+                      >
+                        <Trash2 className="w-3 h-3 text-white" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -460,16 +461,8 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setManageCatalogue(null)}
-                >
-                  Close
-                </Button>
-                <Button
-                  onClick={handleSaveImages}
-                  disabled={updateCatalogueMutation.isPending}
-                >
+                <Button variant="outline" onClick={() => setManageCatalogue(null)}>Close</Button>
+                <Button onClick={handleSaveImages} disabled={updateCatalogueMutation.isPending}>
                   {updateCatalogueMutation.isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </div>

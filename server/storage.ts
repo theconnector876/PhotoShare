@@ -72,6 +72,7 @@ export interface IStorage {
   getGalleryByAccess(email: string, accessCode: string): Promise<Gallery | undefined>;
   getGalleryByBookingId(bookingId: string): Promise<Gallery | undefined>;
   updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined>;
+  updateGallerySettings(id: string, settings: { downloadEnabled?: boolean; status?: string }): Promise<Gallery | undefined>;
   
   // Contact operations
   createContactMessage(message: InsertContactMessage): Promise<ContactMessage>;
@@ -358,6 +359,15 @@ export class DatabaseStorage implements IStorage {
     const [gallery] = await db
       .update(galleries)
       .set(updateData)
+      .where(eq(galleries.id, id))
+      .returning();
+    return gallery;
+  }
+
+  async updateGallerySettings(id: string, settings: { downloadEnabled?: boolean; status?: string }): Promise<Gallery | undefined> {
+    const [gallery] = await db
+      .update(galleries)
+      .set(settings)
       .where(eq(galleries.id, id))
       .returning();
     return gallery;

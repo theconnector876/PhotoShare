@@ -219,74 +219,52 @@ export function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs value={tabValue} onValueChange={setTabValue} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9">
-            <TabsTrigger value="bookings" data-testid="tab-bookings">
-              <CalendarIcon className="w-4 h-4 mr-2" />
-              Bookings
-              {pendingBookings > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {pendingBookings}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="galleries" data-testid="tab-galleries">
-              <ImageIcon className="w-4 h-4 mr-2" />
-              Galleries
-              {pendingGalleries > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {pendingGalleries}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="contacts" data-testid="tab-contacts">
-              <MessageSquareIcon className="w-4 h-4 mr-2" />
-              Messages
-              {unreadContacts > 0 && (
-                <Badge variant="outline" className="ml-2">
-                  {unreadContacts}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="catalogues" data-testid="tab-catalogues">
-              <FolderIcon className="w-4 h-4 mr-2" />
-              Catalogues
-              {draftCatalogues > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {draftCatalogues}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="reviews" data-testid="tab-reviews">
-              <Star className="w-4 h-4 mr-2" />
-              Reviews
-              {pendingReviews > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {pendingReviews}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="users" data-testid="tab-users">
-              <Shield className="w-4 h-4 mr-2" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="photographers" data-testid="tab-photographers">
-              <Camera className="w-4 h-4 mr-2" />
-              Photographers
-              {pendingPhotographerCount > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {pendingPhotographerCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="pricing" data-testid="tab-pricing">
-              <DollarSignIcon className="w-4 h-4 mr-2" />
-              Pricing
-            </TabsTrigger>
-            <TabsTrigger value="site" data-testid="tab-site">
-              <Settings className="w-4 h-4 mr-2" />
-              Site
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-1 -mx-1 px-1">
+            <TabsList className="inline-flex w-max min-w-full h-auto flex-wrap sm:flex-nowrap gap-1 p-1">
+              <TabsTrigger value="bookings" data-testid="tab-bookings" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <CalendarIcon className="w-4 h-4 shrink-0" />
+                <span>Bookings</span>
+                {pendingBookings > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">{pendingBookings}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="galleries" data-testid="tab-galleries" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <ImageIcon className="w-4 h-4 shrink-0" />
+                <span>Galleries</span>
+                {pendingGalleries > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{pendingGalleries}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="contacts" data-testid="tab-contacts" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <MessageSquareIcon className="w-4 h-4 shrink-0" />
+                <span>Messages</span>
+                {unreadContacts > 0 && <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0">{unreadContacts}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="catalogues" data-testid="tab-catalogues" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <FolderIcon className="w-4 h-4 shrink-0" />
+                <span>Catalogues</span>
+                {draftCatalogues > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{draftCatalogues}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="reviews" data-testid="tab-reviews" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <Star className="w-4 h-4 shrink-0" />
+                <span>Reviews</span>
+                {pendingReviews > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">{pendingReviews}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="users" data-testid="tab-users" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <Shield className="w-4 h-4 shrink-0" />
+                <span>Users</span>
+              </TabsTrigger>
+              <TabsTrigger value="photographers" data-testid="tab-photographers" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <Camera className="w-4 h-4 shrink-0" />
+                <span>Photographers</span>
+                {pendingPhotographerCount > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">{pendingPhotographerCount}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="pricing" data-testid="tab-pricing" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <DollarSignIcon className="w-4 h-4 shrink-0" />
+                <span>Pricing</span>
+              </TabsTrigger>
+              <TabsTrigger value="site" data-testid="tab-site" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <Settings className="w-4 h-4 shrink-0" />
+                <span>Site</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="bookings">
             <AdminBookings />

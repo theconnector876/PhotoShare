@@ -10,6 +10,7 @@ import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
 import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
 import { sendBookingConfirmation, sendPaymentConfirmation, sendPasswordReset, sendPhotographerApproved, sendPhotographerRejected, sendAdminEmail } from "./email";
+import { getCloudinarySignedConfig, generateSignature } from "./upload";
 
 const lemonSqueezyEnabled = Boolean(
   process.env.LEMONSQUEEZY_API_KEY &&
@@ -433,7 +434,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Removed public gallery update route - moved to admin-only for security
+  // Client gallery selection update (public, authenticated by gallery ownership via email+code)
+  app.patch("/api/gallery/:id/images", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { images, type } = req.body;
+      if (!["gallery", "selected", "final"].includes(type)) {
+        return res.status(400).json({ error: "Invalid type" });
+      }
+      // Only allow clients to update their selected images
+      if (type !== "selected") {
+        return res.status(403).json({ error: "Clients can only update selected images" });
+      }
+      const gallery = await storage.getGalleryById(id);
+      if (!gallery) {
+        return res.status(404).json({ error: "Gallery not found" });
+      }
+      const updated = await storage.updateGalleryImages(id, images, type);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update gallery" });
+    }
+  });
 
   // Contact routes
   app.post("/api/contact", async (req, res) => {
@@ -566,6 +588,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error generating upload URL:', error);
       res.status(500).json({ error: 'Failed to generate upload URL' });
+    }
+  });
+
+  // Generates a signed Cloudinary upload signature for browser-direct uploads.
+  // Requires CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET.
+  // No upload preset needed — signed uploads bypass that requirement entirely.
+  app.post('/api/admin/upload-signature', isAdmin, (req, res) => {
+    const config = getCloudinarySignedConfig();
+    if (!config) {
+      return res.status(503).json({
+        error: "Image upload not configured. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your Vercel environment variables."
+      });
+    }
+    const timestamp = Math.round(Date.now() / 1000);
+    const params = { timestamp };
+    const signature = generateSignature(params, config.apiSecret);
+    res.json({
+      cloudName: config.cloudName,
+      apiKey: config.apiKey,
+      timestamp,
+      signature,
+    });
+  });
+
+  // Update gallery settings (download toggle, status)
+  app.patch('/api/admin/gallery/:id/settings', isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        downloadEnabled: z.boolean().optional(),
+        status: z.enum(['pending', 'active', 'selection', 'editing', 'completed']).optional(),
+      });
+      const settings = schema.parse(req.body);
+      const gallery = await storage.updateGallerySettings(req.params.id, settings);
+      if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
+      res.json(gallery);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid settings' });
     }
   });
 
