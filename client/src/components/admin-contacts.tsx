@@ -1,11 +1,16 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { MessageSquareIcon, MailIcon, UserIcon } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ContactMessage {
   id: string;
@@ -17,10 +22,27 @@ interface ContactMessage {
 }
 
 export function AdminContacts() {
-  // Search and filter states
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [replyContact, setReplyContact] = useState<ContactMessage | null>(null);
+  const [replySubject, setReplySubject] = useState("");
+  const [replyMessage, setReplyMessage] = useState("");
+
+  const sendReply = useMutation({
+    mutationFn: (data: { email: string; clientName: string; subject: string; message: string }) =>
+      apiRequest("POST", "/api/admin/send-email", data),
+    onSuccess: () => {
+      toast({ title: "Reply sent successfully" });
+      setReplyContact(null);
+      setReplySubject("");
+      setReplyMessage("");
+    },
+    onError: () => {
+      toast({ title: "Failed to send reply", variant: "destructive" });
+    },
+  });
 
   const { data: contacts, isLoading } = useQuery<ContactMessage[]>({
     queryKey: ["/api/admin/contacts"],
@@ -204,7 +226,11 @@ export function AdminContacts() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.open(`mailto:${contact.email}`, '_blank')}
+                          onClick={() => {
+                            setReplyContact(contact);
+                            setReplySubject(`Re: Message from ${contact.name}`);
+                            setReplyMessage("");
+                          }}
                           data-testid={`button-reply-${contact.id}`}
                         >
                           <MailIcon className="w-4 h-4 mr-2" />
@@ -219,6 +245,55 @@ export function AdminContacts() {
           </div>
         </CardContent>
       </Card>
+      <Dialog open={!!replyContact} onOpenChange={(open) => !open && setReplyContact(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Reply to {replyContact?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>To</Label>
+              <p className="text-sm text-muted-foreground mt-1">{replyContact?.email}</p>
+            </div>
+            <div>
+              <Label htmlFor="reply-subject">Subject</Label>
+              <Input
+                id="reply-subject"
+                value={replySubject}
+                onChange={(e) => setReplySubject(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="reply-message">Message</Label>
+              <Textarea
+                id="reply-message"
+                value={replyMessage}
+                onChange={(e) => setReplyMessage(e.target.value)}
+                rows={6}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReplyContact(null)}>Cancel</Button>
+            <Button
+              disabled={!replySubject || !replyMessage || sendReply.isPending}
+              onClick={() => {
+                if (!replyContact) return;
+                sendReply.mutate({
+                  email: replyContact.email,
+                  clientName: replyContact.name,
+                  subject: replySubject,
+                  message: replyMessage,
+                });
+              }}
+            >
+              {sendReply.isPending ? "Sending..." : "Send Reply"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
