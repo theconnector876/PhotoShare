@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import {
   ImageIcon, UploadIcon, Eye, X,
@@ -203,6 +203,8 @@ function UploadPanel({ items, onClose, canClose }: { items: FileItem[]; onClose:
 }
 
 // ── Image section (extracted outside AdminGalleries to avoid remount issues) ──
+// Uses a native <label htmlFor> to trigger the file input — no programmatic
+// .click() needed, which avoids browser user-gesture restrictions.
 
 interface ImageSectionProps {
   gallery: Gallery;
@@ -217,15 +219,17 @@ interface ImageSectionProps {
   onDragEnd: () => void;
   onRemove: (gallery: Gallery, type: ImageType, url: string) => void;
   onDedup: (gallery: Gallery, type: ImageType) => void;
-  onUpload: (gallery: Gallery, type: ImageType) => void;
+  onFilesSelected: (files: File[], gallery: Gallery, type: ImageType) => void;
   onPreview: (url: string) => void;
 }
 
 function ImageSection({
   gallery, type, sortOrder, onSortChange,
   dragSrc, dragOver, onDragStart, onDragOver, onDrop, onDragEnd,
-  onRemove, onDedup, onUpload, onPreview,
+  onRemove, onDedup, onFilesSelected, onPreview,
 }: ImageSectionProps) {
+  const fileInputId = `fu-${gallery.id}-${type}`;
+
   const rawImages =
     type === "gallery" ? gallery.galleryImages || []
     : type === "selected" ? gallery.selectedImages || []
@@ -237,6 +241,21 @@ function ImageSection({
 
   return (
     <div>
+      {/* Hidden file input — triggered via <label htmlFor> below (no programmatic .click()) */}
+      <input
+        id={fileInputId}
+        type="file"
+        accept="image/*"
+        multiple
+        className="sr-only"
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            onFilesSelected(Array.from(e.target.files), gallery, type);
+            e.target.value = "";
+          }
+        }}
+      />
+
       {/* Section toolbar */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <h4 className="text-sm font-semibold capitalize text-green-800 mr-auto">
@@ -260,23 +279,24 @@ function ImageSection({
           onClick={() => onDedup(gallery, type)}>
           Remove Dupes
         </Button>
-        {/* Upload */}
-        <Button size="sm" variant="outline"
-          className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 px-2"
-          onClick={() => onUpload(gallery, type)}>
-          <UploadIcon className="w-3 h-3 mr-1" /> Upload
+        {/* Upload — label triggers file input natively */}
+        <Button size="sm" variant="outline" asChild
+          className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 px-2 cursor-pointer">
+          <label htmlFor={fileInputId}>
+            <UploadIcon className="w-3 h-3 mr-1" /> Upload
+          </label>
         </Button>
       </div>
 
       {/* Image grid or empty drop zone */}
       {images.length === 0 ? (
-        <button
-          className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-green-200 py-8 text-sm text-green-600 hover:border-green-400 hover:bg-green-50 transition-colors"
-          onClick={() => onUpload(gallery, type)}
+        <label
+          htmlFor={fileInputId}
+          className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-green-200 py-8 text-sm text-green-600 hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer"
         >
           <UploadIcon className="w-6 h-6 opacity-60" />
           Tap to upload photos from your device
-        </button>
+        </label>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
           {images.map((url, i) => {
@@ -322,14 +342,14 @@ function ImageSection({
               </div>
             );
           })}
-          {/* Add-more tile */}
-          <button
-            className="aspect-square rounded-lg border-2 border-dashed border-green-200 flex flex-col items-center justify-center text-green-500 hover:border-green-400 hover:bg-green-50 transition-colors"
-            onClick={() => onUpload(gallery, type)}
+          {/* Add-more tile — label triggers file input natively */}
+          <label
+            htmlFor={fileInputId}
+            className="aspect-square rounded-lg border-2 border-dashed border-green-200 flex flex-col items-center justify-center text-green-500 hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer"
           >
             <UploadIcon className="w-4 h-4 mb-0.5" />
             <span className="text-[10px]">Add more</span>
-          </button>
+          </label>
         </div>
       )}
     </div>
@@ -341,15 +361,10 @@ function ImageSection({
 export function AdminGalleries() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [searchTerm, setSearchTerm]     = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [expandedId, setExpandedId]     = useState<string | null>(null);
-  // Use a ref (not state) so openFilePicker sets it synchronously before the
-  // OS file picker opens. State updates are async and would still be null
-  // when handleFileChange reads it after the user picks files.
-  const uploadTargetRef = useRef<{ gallery: Gallery; type: ImageType } | null>(null);
   const [fileItems, setFileItems]       = useState<FileItem[]>([]);
   const [showUploadPanel, setShowUploadPanel] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -393,7 +408,7 @@ export function AdminGalleries() {
     onError: () => toast({ title: "Failed to update settings", variant: "destructive" }),
   });
 
-  // ── Handlers passed down to ImageSection ──────────────────────────────────
+  // ── Drag handlers ────────────────────────────────────────────────────────────
 
   const handleDragStart = useCallback((galleryId: string, type: ImageType, index: number) => {
     setDragSrc({ galleryId, type, index });
@@ -442,25 +457,12 @@ export function AdminGalleries() {
 
   // ── File upload ───────────────────────────────────────────────────────────
 
-  // Synchronous — ref is updated immediately so handleFileChange always sees the right target
-  const openFilePicker = (gallery: Gallery, type: ImageType) => {
-    uploadTargetRef.current = { gallery, type };
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-      fileInputRef.current.click();
-    }
-  };
-
   const updateItem = useCallback((id: string, patch: Partial<FileItem>) => {
     setFileItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const target = uploadTargetRef.current;
-    if (!target || !e.target.files || e.target.files.length === 0) return;
-    const files = Array.from(e.target.files);
-    const { gallery, type } = target;
-
+  // Called by ImageSection when the user picks files via the <label> → <input>
+  const handleFilesSelected = useCallback(async (files: File[], gallery: Gallery, type: ImageType) => {
     const existingNames = new Set(
       [...(gallery.galleryImages || []), ...(gallery.selectedImages || []), ...(gallery.finalImages || [])]
         .map((url) => url.split("/").pop()?.split("?")[0]?.toLowerCase() ?? "")
@@ -481,8 +483,9 @@ export function AdminGalleries() {
       const res = await fetch("/api/admin/upload-signature", { method: "POST", credentials: "include" });
       if (!res.ok) { const err = await res.json().catch(() => ({})) as { error?: string }; throw new Error(err.error || `Error ${res.status}`); }
       config = await res.json() as SignedConfig;
-    } catch (err: any) {
-      items.forEach((item) => updateItem(item.id, { status: "error", error: err.message }));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      items.forEach((item) => updateItem(item.id, { status: "error", error: msg }));
       return;
     }
 
@@ -497,19 +500,19 @@ export function AdminGalleries() {
         updateItem(item.id, { status: "done", progress: 100, cloudUrl: url });
         await addImageMutation.mutateAsync({ galleryId: gallery.id, imageURL: url, type });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
-      } catch (err: any) {
-        updateItem(item.id, { status: "error", error: err.message || "Upload failed" });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        updateItem(item.id, { status: "error", error: msg });
       }
       return processNext();
     }
     await Promise.all(Array.from({ length: 3 }, processNext));
-  };
+  }, [addImageMutation, queryClient, updateItem]);
 
   const closeUploadPanel = () => {
     fileItems.forEach((i) => URL.revokeObjectURL(i.preview));
     setFileItems([]);
     setShowUploadPanel(false);
-    uploadTargetRef.current = null;
   };
 
   const allFinished = fileItems.length > 0 && fileItems.every((i) => i.status === "done" || i.status === "error" || i.status === "duplicate");
@@ -527,9 +530,6 @@ export function AdminGalleries() {
 
   return (
     <div className="space-y-6">
-      {/* Hidden file input — clicked programmatically from openFilePicker() */}
-      <input ref={fileInputRef} type="file" accept="image/*" multiple className="sr-only" onChange={handleFileChange} />
-
       <Card className="border-green-100">
         <CardHeader className="bg-gradient-to-r from-green-50 to-yellow-50 rounded-t-xl border-b border-green-100">
           <CardTitle className="flex items-center gap-2 text-green-800">
@@ -651,7 +651,7 @@ export function AdminGalleries() {
                               onDragEnd={handleDragEnd}
                               onRemove={handleRemoveImage}
                               onDedup={handleDedup}
-                              onUpload={openFilePicker}
+                              onFilesSelected={handleFilesSelected}
                               onPreview={setPreviewImage}
                             />
                           ))}
