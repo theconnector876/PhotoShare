@@ -14,11 +14,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { 
-  CalendarIcon, 
-  MapPinIcon, 
-  UsersIcon, 
-  DollarSignIcon, 
+import {
+  CalendarIcon,
+  MapPinIcon,
+  UsersIcon,
+  DollarSignIcon,
   ClockIcon,
   Edit,
   Check,
@@ -30,7 +30,8 @@ import {
   FolderPlus,
   CreditCard,
   MessageSquare,
-  Camera
+  Camera,
+  GripVertical,
 } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { SimpleUploader } from "@/components/SimpleUploader";
@@ -120,6 +121,8 @@ export function AdminBookings() {
   const [activeTab, setActiveTab] = useState<'details' | 'edit' | 'email' | 'gallery' | 'upload' | 'catalogue'>('details');
   const [uploadType, setUploadType] = useState<'gallery' | 'selected' | 'final'>('gallery');
   const [selectedGallery, setSelectedGallery] = useState<Gallery | null>(null);
+  const [bDragSrc, setBDragSrc] = useState<{ type: 'gallery' | 'selected' | 'final'; index: number } | null>(null);
+  const [bDragOver, setBDragOver] = useState<{ type: 'gallery' | 'selected' | 'final'; index: number } | null>(null);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -287,6 +290,21 @@ export function AdminBookings() {
         description: "Failed to upload image to gallery.",
         variant: "destructive",
       });
+    },
+  });
+
+  // Reorder / remove images in gallery
+  const updateGalleryImagesMutation = useMutation({
+    mutationFn: async ({ galleryId, images, type }: { galleryId: string; images: string[]; type: string }) => {
+      const res = await apiRequest("PATCH", `/api/admin/gallery/${galleryId}/images`, { images, type });
+      return res.json() as Promise<Gallery>;
+    },
+    onSuccess: (gallery) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
+      setSelectedGallery(gallery);
+    },
+    onError: () => {
+      toast({ title: "Failed to update gallery", variant: "destructive" });
     },
   });
 
@@ -1039,85 +1057,89 @@ export function AdminBookings() {
                 <div className="space-y-4">
                   {selectedGallery ? (
                     <>
+                      {/* Stats */}
                       <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div className="text-center p-4 bg-blue-50 rounded">
-                          <div className="text-2xl font-bold text-blue-600">{selectedGallery.galleryImages.length}</div>
-                          <div>Gallery Images</div>
+                        <div className="text-center p-3 bg-blue-50 rounded">
+                          <div className="text-xl font-bold text-blue-600">{selectedGallery.galleryImages.length}</div>
+                          <div>Gallery</div>
                         </div>
-                        <div className="text-center p-4 bg-orange-50 rounded">
-                          <div className="text-2xl font-bold text-orange-600">{selectedGallery.selectedImages.length}</div>
-                          <div>Selected Images</div>
+                        <div className="text-center p-3 bg-orange-50 rounded">
+                          <div className="text-xl font-bold text-orange-600">{selectedGallery.selectedImages.length}</div>
+                          <div>Selected</div>
                         </div>
-                        <div className="text-center p-4 bg-green-50 rounded">
-                          <div className="text-2xl font-bold text-green-600">{selectedGallery.finalImages.length}</div>
-                          <div>Final Images</div>
+                        <div className="text-center p-3 bg-green-50 rounded">
+                          <div className="text-xl font-bold text-green-600">{selectedGallery.finalImages.length}</div>
+                          <div>Final</div>
                         </div>
                       </div>
-                      
-                      {selectedGallery.galleryImages.length > 0 && (
-                        <div>
-                          <h4 className="font-semibold mb-2">Gallery Images:</h4>
-                          <div className="grid grid-cols-4 gap-2 max-h-96 overflow-y-auto">
-                            {selectedGallery.galleryImages.map((image, index) => (
-                              <div key={index} className="relative group">
-                                <img
-                                  src={image}
-                                  alt={`Gallery ${index + 1}`}
-                                  className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => window.open(image, '_blank')}
-                                />
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded flex items-center justify-center">
-                                  <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {selectedGallery.selectedImages.length > 0 && (
-                        <div>
-                          <h4 className="font-semibold mb-2">Client's Selected Images:</h4>
-                          <div className="grid grid-cols-4 gap-2 max-h-96 overflow-y-auto">
-                            {selectedGallery.selectedImages.map((image, index) => (
-                              <div key={index} className="relative group">
-                                <img
-                                  src={image}
-                                  alt={`Selected ${index + 1}`}
-                                  className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => window.open(image, '_blank')}
-                                />
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded flex items-center justify-center">
-                                  <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
 
-                      {selectedGallery.finalImages.length > 0 && (
-                        <div>
-                          <h4 className="font-semibold mb-2">Final Edited Images:</h4>
-                          <div className="grid grid-cols-4 gap-2 max-h-96 overflow-y-auto">
-                            {selectedGallery.finalImages.map((image, index) => (
-                              <div key={index} className="relative group">
-                                <img
-                                  src={image}
-                                  alt={`Final ${index + 1}`}
-                                  className="w-full h-24 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => window.open(image, '_blank')}
-                                />
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded flex items-center justify-center">
-                                  <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* Draggable image sections */}
+                      {([
+                        { key: 'gallery' as const, label: 'Gallery Images', images: selectedGallery.galleryImages },
+                        { key: 'selected' as const, label: "Client's Selected", images: selectedGallery.selectedImages },
+                        { key: 'final' as const, label: 'Final Edited Images', images: selectedGallery.finalImages },
+                      ]).map(({ key, label, images }) => images.length > 0 && (
+                        <div key={key}>
+                          <h4 className="font-semibold mb-2 text-sm">{label} ({images.length})</h4>
+                          <div className="grid grid-cols-4 gap-2 max-h-80 overflow-y-auto">
+                            {images.map((url, i) => {
+                              const dragging = bDragSrc?.type === key && bDragSrc?.index === i;
+                              const over     = bDragOver?.type === key && bDragOver?.index === i;
+                              return (
+                                <div
+                                  key={`${url}-${i}`}
+                                  draggable
+                                  onDragStart={() => setBDragSrc({ type: key, index: i })}
+                                  onDragOver={(e) => { e.preventDefault(); setBDragOver({ type: key, index: i }); }}
+                                  onDrop={() => {
+                                    if (!bDragSrc || bDragSrc.type !== key || !selectedGallery) return;
+                                    const next = [...images];
+                                    const [moved] = next.splice(bDragSrc.index, 1);
+                                    next.splice(i, 0, moved);
+                                    updateGalleryImagesMutation.mutate({ galleryId: selectedGallery.id, images: next, type: key });
+                                    setBDragSrc(null); setBDragOver(null);
+                                  }}
+                                  onDragEnd={() => { setBDragSrc(null); setBDragOver(null); }}
+                                  className={`relative group rounded overflow-hidden border-2 cursor-grab active:cursor-grabbing transition-all ${
+                                    dragging ? "opacity-40 scale-95 border-green-400"
+                                    : over    ? "border-green-500 shadow-md"
+                                    : "border-gray-200"
+                                  }`}
+                                >
+                                  <img
+                                    src={url}
+                                    alt=""
+                                    className="w-full h-24 object-cover"
+                                  />
+                                  <div className="absolute top-0.5 left-0.5 opacity-0 group-hover:opacity-100 pointer-events-none">
+                                    <GripVertical className="w-3 h-3 text-white drop-shadow" />
+                                  </div>
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); window.open(url, '_blank'); }}
+                                      className="p-1 bg-white/90 rounded-full shadow"
+                                    >
+                                      <Eye className="w-3 h-3 text-gray-700" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!selectedGallery) return;
+                                        updateGalleryImagesMutation.mutate({ galleryId: selectedGallery.id, images: images.filter((u) => u !== url), type: key });
+                                      }}
+                                      className="p-1 bg-white/90 rounded-full shadow"
+                                    >
+                                      <X className="w-3 h-3 text-red-500" />
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
-                      )}
-                      
-                      <div className="flex justify-between items-center p-4 bg-gray-50 rounded">
+                      ))}
+
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
                         <div className="text-sm text-gray-500">
                           Access Code: <strong className="text-gray-700">{selectedGallery.accessCode}</strong>
                         </div>
@@ -1137,14 +1159,9 @@ export function AdminBookings() {
                     </>
                   ) : (
                     <div className="text-center py-8">
-                      <div className="text-gray-400 mb-4">
-                        <Camera className="w-12 h-12 mx-auto" />
-                      </div>
+                      <Camera className="w-12 h-12 mx-auto text-gray-400 mb-3" />
                       <h4 className="text-lg font-medium text-gray-600 mb-2">No Gallery Found</h4>
-                      <p className="text-sm text-gray-500 mb-4">
-                        This booking doesn't have an associated gallery yet.
-                      </p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-sm text-gray-500">
                         Gallery will be created automatically when you upload the first images.
                       </p>
                     </div>

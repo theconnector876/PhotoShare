@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Redirect, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,8 +13,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SimpleUploader } from "@/components/SimpleUploader";
-import { Camera, Calendar, Image, User, Clock, CheckCircle, Upload, Phone, Mail, MapPin, DollarSign, Users } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { Camera, Calendar, Image, User, Clock, CheckCircle, Upload, Phone, Mail, MapPin, DollarSign, Users, GripVertical, X, Eye, Loader2, CheckCircle2, AlertCircle, Copy } from "lucide-react";
 
 interface UserBooking {
   id: string;
@@ -46,6 +47,78 @@ interface UserGallery {
   selectedImages: string[];
   finalImages: string[];
   createdAt: string;
+}
+
+type GalleryImageType = 'gallery' | 'selected' | 'final';
+
+interface SignedConfig {
+  cloudName: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+}
+
+type UploadFileStatus = "queued" | "uploading" | "done" | "error" | "duplicate";
+interface UploadFileItem {
+  id: string;
+  file: File;
+  preview: string;
+  status: UploadFileStatus;
+  progress: number;
+  error?: string;
+}
+
+function compressPhotoImage(file: File, maxDimension = 4096, quality = 0.88): Promise<File> {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width: w, height: h } = img;
+      if (w > maxDimension || h > maxDimension) {
+        if (w >= h) { h = Math.round((h / w) * maxDimension); w = maxDimension; }
+        else        { w = Math.round((w / h) * maxDimension); h = maxDimension; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+        },
+        "image/jpeg", quality
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
+  });
+}
+
+function uploadPhotoWithProgress(file: File, config: SignedConfig, onProgress: (pct: number) => void): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status === 200) {
+        try { resolve((JSON.parse(xhr.responseText) as { secure_url: string }).secure_url); }
+        catch { reject(new Error("Bad response")); }
+      } else {
+        try { const e = JSON.parse(xhr.responseText) as { error?: { message?: string } }; reject(new Error(e?.error?.message || `Error ${xhr.status}`)); }
+        catch { reject(new Error(`Upload failed (${xhr.status})`)); }
+      }
+    });
+    xhr.addEventListener("error", () => reject(new Error("Network error")));
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("api_key", config.apiKey);
+    fd.append("timestamp", String(config.timestamp));
+    fd.append("signature", config.signature);
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`);
+    xhr.send(fd);
+  });
 }
 
 type PhotographerProfile = {
@@ -93,7 +166,16 @@ export default function PhotographerDashboard() {
   });
   const [pricingRaw, setPricingRaw] = useState(JSON.stringify(defaultPricingConfig, null, 2));
   const [bookingStatusDraft, setBookingStatusDraft] = useState<Record<string, string>>({});
-  const [uploadType, setUploadType] = useState<'gallery' | 'selected' | 'final'>('gallery');
+  const [uploadType, setUploadType] = useState<GalleryImageType>('gallery');
+
+  // Gallery drag-and-drop state
+  const [galDragSrc, setGalDragSrc] = useState<{ galleryId: string; type: GalleryImageType; index: number } | null>(null);
+  const [galDragOver, setGalDragOver] = useState<{ galleryId: string; type: GalleryImageType; index: number } | null>(null);
+  const [galPreview, setGalPreview] = useState<string | null>(null);
+
+  // Upload panel state
+  const [galUploadItems, setGalUploadItems] = useState<UploadFileItem[]>([]);
+  const [showGalUploadPanel, setShowGalUploadPanel] = useState(false);
 
   const { data: profileData } = useQuery<{ profile?: PhotographerProfile; status?: string | null }>({
     queryKey: ["/api/photographer/profile"],
@@ -212,27 +294,115 @@ export default function PhotographerDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photographer/galleries"] });
-      toast({ title: "Image uploaded" });
     },
     onError: (error: Error) => {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     },
   });
 
-  const handleGetUploadParameters = async () => {
-    const response = await apiRequest("POST", "/api/photographer/objects/upload", {});
-    return response.json() as Promise<{ method: "PUT"; url: string }>;
-  };
+  const updateGalleryImagesMutation = useMutation({
+    mutationFn: async ({ galleryId, images, type }: { galleryId: string; images: string[]; type: GalleryImageType }) => {
+      await apiRequest("PATCH", `/api/photographer/gallery/${galleryId}/images`, { images, type });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photographer/galleries"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update gallery", variant: "destructive" });
+    },
+  });
 
-  const handleUploadComplete = (galleryId: string) => (result: { successful: { uploadURL: string }[] }) => {
-    if (result.successful && result.successful.length > 0) {
-      const uploadedFile = result.successful[0];
-      addImageMutation.mutate({
-        galleryId,
-        imageURL: uploadedFile.uploadURL,
-        type: uploadType,
-      });
+  // ── Gallery drag handlers ────────────────────────────────────────────────────
+
+  const handleGalDragStart = useCallback((galleryId: string, type: GalleryImageType, index: number) => {
+    setGalDragSrc({ galleryId, type, index });
+  }, []);
+
+  const handleGalDragOver = useCallback((e: React.DragEvent, galleryId: string, type: GalleryImageType, index: number) => {
+    e.preventDefault();
+    setGalDragOver({ galleryId, type, index });
+  }, []);
+
+  const handleGalDrop = useCallback((gallery: UserGallery, type: GalleryImageType, dropIndex: number) => {
+    setGalDragSrc((src) => {
+      if (!src || src.galleryId !== gallery.id || src.type !== type) return null;
+      const images = type === "gallery" ? gallery.galleryImages || []
+        : type === "selected" ? gallery.selectedImages || []
+        : gallery.finalImages || [];
+      const next = [...images];
+      const [moved] = next.splice(src.index, 1);
+      next.splice(dropIndex, 0, moved);
+      updateGalleryImagesMutation.mutate({ galleryId: gallery.id, images: next, type });
+      return null;
+    });
+    setGalDragOver(null);
+  }, [updateGalleryImagesMutation]);
+
+  const handleGalDragEnd = useCallback(() => { setGalDragSrc(null); setGalDragOver(null); }, []);
+
+  const handleGalRemove = useCallback((gallery: UserGallery, type: GalleryImageType, url: string) => {
+    const images = type === "gallery" ? gallery.galleryImages || []
+      : type === "selected" ? gallery.selectedImages || []
+      : gallery.finalImages || [];
+    updateGalleryImagesMutation.mutate({ galleryId: gallery.id, images: images.filter((u) => u !== url), type });
+  }, [updateGalleryImagesMutation]);
+
+  // ── Gallery upload ────────────────────────────────────────────────────────────
+
+  const updateGalItem = useCallback((id: string, patch: Partial<UploadFileItem>) => {
+    setGalUploadItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }, []);
+
+  const handleGalFilesSelected = useCallback(async (files: File[], gallery: UserGallery, type: GalleryImageType) => {
+    const existingNames = new Set(
+      [...(gallery.galleryImages || []), ...(gallery.selectedImages || []), ...(gallery.finalImages || [])]
+        .map((url) => url.split("/").pop()?.split("?")[0]?.toLowerCase() ?? "")
+    );
+    const seenInBatch = new Set<string>();
+    const items: UploadFileItem[] = files.map((file, i) => {
+      const fp = `${file.name.toLowerCase()}::${file.size}`;
+      const isDuplicate = existingNames.has(file.name.toLowerCase()) || seenInBatch.has(fp);
+      seenInBatch.add(fp);
+      return { id: `${Date.now()}-${i}`, file, preview: URL.createObjectURL(file), status: isDuplicate ? "duplicate" : "queued", progress: 0 };
+    });
+    setGalUploadItems(items);
+    setShowGalUploadPanel(true);
+
+    let config: SignedConfig;
+    try {
+      const res = await fetch("/api/photographer/upload-signature", { method: "POST", credentials: "include" });
+      if (!res.ok) { const err = await res.json().catch(() => ({})) as { error?: string }; throw new Error(err.error || `Error ${res.status}`); }
+      config = await res.json() as SignedConfig;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      items.forEach((item) => updateGalItem(item.id, { status: "error", error: msg }));
+      return;
     }
+
+    const queue = items.filter((i) => i.status !== "duplicate");
+    async function processNext(): Promise<void> {
+      const item = queue.shift();
+      if (!item) return;
+      updateGalItem(item.id, { status: "uploading", progress: 0 });
+      try {
+        const compressed = await compressPhotoImage(item.file);
+        const url = await uploadPhotoWithProgress(compressed, config, (pct) => updateGalItem(item.id, { progress: pct }));
+        updateGalItem(item.id, { status: "done", progress: 100 });
+        await addImageMutation.mutateAsync({ galleryId: gallery.id, imageURL: url, type });
+        queryClient.invalidateQueries({ queryKey: ["/api/photographer/galleries"] });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        updateGalItem(item.id, { status: "error", error: msg });
+      }
+      return processNext();
+    }
+    await Promise.all(Array.from({ length: 3 }, processNext));
+  }, [addImageMutation, updateGalItem]);
+
+  const closeGalUploadPanel = () => {
+    galUploadItems.forEach((i) => URL.revokeObjectURL(i.preview));
+    setGalUploadItems([]);
+    setShowGalUploadPanel(false);
   };
 
   if (isLoading) {
@@ -656,56 +826,183 @@ export default function PhotographerDashboard() {
           </TabsContent>
 
           <TabsContent value="galleries">
-            <Card>
-              <CardHeader>
-                <CardTitle>Galleries</CardTitle>
-                <CardDescription>Upload and manage client galleries.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {!userGalleries?.length ? (
-                  <div className="text-muted-foreground">No galleries yet.</div>
-                ) : (
-                  userGalleries.map((gallery) => (
-                    <Card key={gallery.id}>
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-center mb-3">
-                          <div>Gallery #{gallery.id.slice(-8)}</div>
-                          <Badge className="bg-gray-100 text-gray-800">
-                            {gallery.status}
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4 text-sm mb-4">
-                          <div>Gallery: {gallery.galleryImages?.length || 0}</div>
-                          <div>Selected: {gallery.selectedImages?.length || 0}</div>
-                          <div>Final: {gallery.finalImages?.length || 0}</div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-center">
-                          <Select value={uploadType} onValueChange={(value: any) => setUploadType(value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Upload type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="gallery">Gallery Images</SelectItem>
-                              <SelectItem value="selected">Selected Images</SelectItem>
-                              <SelectItem value="final">Final Images</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <SimpleUploader
-                            maxNumberOfFiles={10}
-                            onGetUploadParameters={handleGetUploadParameters}
-                            onComplete={handleUploadComplete(gallery.id)}
-                            buttonClassName="w-full"
-                          >
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload Images
-                          </SimpleUploader>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              {!userGalleries?.length ? (
+                <Card>
+                  <CardContent className="py-12 text-center text-muted-foreground">
+                    <Camera className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                    <p>No galleries assigned yet.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                userGalleries.map((gallery) => (
+                  <Card key={gallery.id} className="border-green-100">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="font-semibold text-green-900">
+                          Gallery #{gallery.id.slice(-8)}
+                        </span>
+                        <Badge className="bg-green-100 text-green-800 text-[10px]">
+                          {gallery.status}
+                        </Badge>
+                      </div>
+
+                      {/* Three image sections */}
+                      {(["gallery", "selected", "final"] as GalleryImageType[]).map((type) => {
+                        const images = type === "gallery" ? gallery.galleryImages || []
+                          : type === "selected" ? gallery.selectedImages || []
+                          : gallery.finalImages || [];
+                        const fileInputId = `ph-${gallery.id}-${type}`;
+                        return (
+                          <div key={type} className="mb-5">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="text-sm font-medium capitalize text-green-800">
+                                {type} ({images.length})
+                              </h5>
+                              <Button size="sm" variant="outline" asChild
+                                className="h-6 text-xs px-2 border-green-200 text-green-700 hover:bg-green-50 cursor-pointer">
+                                <label htmlFor={fileInputId}>
+                                  <Upload className="w-3 h-3 mr-1" /> Upload
+                                </label>
+                              </Button>
+                            </div>
+
+                            <input
+                              id={fileInputId}
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="sr-only"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  handleGalFilesSelected(Array.from(e.target.files), gallery, type);
+                                  e.target.value = "";
+                                }
+                              }}
+                            />
+
+                            {images.length === 0 ? (
+                              <label
+                                htmlFor={fileInputId}
+                                className="flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-green-200 py-6 text-sm text-green-500 hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer"
+                              >
+                                <Upload className="w-5 h-5 opacity-60" />
+                                Tap to upload
+                              </label>
+                            ) : (
+                              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                                {images.map((url, i) => {
+                                  const dragging = galDragSrc?.galleryId === gallery.id && galDragSrc?.type === type && galDragSrc?.index === i;
+                                  const over     = galDragOver?.galleryId === gallery.id && galDragOver?.type === type && galDragOver?.index === i;
+                                  return (
+                                    <div
+                                      key={`${url}-${i}`}
+                                      draggable
+                                      onDragStart={() => handleGalDragStart(gallery.id, type, i)}
+                                      onDragOver={(e) => handleGalDragOver(e, gallery.id, type, i)}
+                                      onDrop={() => handleGalDrop(gallery, type, i)}
+                                      onDragEnd={handleGalDragEnd}
+                                      className={`relative group aspect-square rounded overflow-hidden border-2 cursor-grab active:cursor-grabbing transition-all ${
+                                        dragging ? "opacity-40 scale-95 border-green-400"
+                                        : over    ? "border-green-500 scale-[1.03] shadow-md"
+                                        : "bg-green-100 border-green-200"
+                                      }`}
+                                    >
+                                      <img src={url} alt="" className="w-full h-full object-cover" />
+                                      <div className="absolute top-0.5 left-0.5 opacity-0 group-hover:opacity-100 pointer-events-none">
+                                        <GripVertical className="w-3 h-3 text-white drop-shadow" />
+                                      </div>
+                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+                                        <button onClick={() => setGalPreview(url)}
+                                          className="p-1 bg-white/90 rounded-full shadow">
+                                          <Eye className="w-2.5 h-2.5 text-gray-700" />
+                                        </button>
+                                        <button onClick={() => handleGalRemove(gallery, type, url)}
+                                          className="p-1 bg-white/90 rounded-full shadow">
+                                          <X className="w-2.5 h-2.5 text-red-500" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {/* Add-more */}
+                                <label
+                                  htmlFor={fileInputId}
+                                  className="aspect-square rounded border-2 border-dashed border-green-200 flex flex-col items-center justify-center text-green-400 hover:border-green-400 hover:bg-green-50 cursor-pointer transition-colors"
+                                >
+                                  <Upload className="w-3.5 h-3.5 mb-0.5" />
+                                  <span className="text-[9px]">Add</span>
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+
+            {/* Upload progress panel */}
+            {showGalUploadPanel && galUploadItems.length > 0 && (() => {
+              const done       = galUploadItems.filter((i) => i.status === "done").length;
+              const errors     = galUploadItems.filter((i) => i.status === "error").length;
+              const duplicates = galUploadItems.filter((i) => i.status === "duplicate").length;
+              const uploadable = galUploadItems.filter((i) => i.status !== "duplicate");
+              const total      = uploadable.length;
+              const pct        = total === 0 ? 100 : Math.round(uploadable.reduce((s, i) => s + (i.status === "done" ? 100 : i.progress), 0) / total);
+              const canClose   = galUploadItems.every((i) => ["done","error","duplicate"].includes(i.status));
+              return (
+                <Dialog open onOpenChange={(open) => { if (!open && canClose) closeGalUploadPanel(); }}>
+                  <DialogContent className="max-w-md w-[95vw] p-0 overflow-hidden rounded-2xl gap-0"
+                    onInteractOutside={(e) => { if (!canClose) e.preventDefault(); }}>
+                    <div className="bg-gradient-to-r from-green-800 to-green-700 px-5 py-4 text-white">
+                      <p className="text-sm font-semibold mb-1.5">
+                        {canClose ? `Done — ${done} saved${duplicates > 0 ? `, ${duplicates} skipped` : ""}${errors > 0 ? `, ${errors} failed` : ""}` : `Saving ${done} / ${total} photos…`}
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <Progress value={pct} className="flex-1 h-1.5 bg-white/20 [&>div]:bg-yellow-400" />
+                        <span className="text-xs text-white/70 w-8 text-right">{pct}%</span>
+                      </div>
+                    </div>
+                    <div className="max-h-[50vh] overflow-y-auto p-3 bg-green-50">
+                      <div className="grid grid-cols-3 gap-2">
+                        {galUploadItems.map((item) => (
+                          <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-green-100 ring-1 ring-green-200">
+                            <img src={item.preview} alt="" className="w-full h-full object-cover" />
+                            <div className={`absolute inset-0 flex flex-col items-center justify-center ${
+                              item.status === "uploading" ? "bg-black/20" : item.status === "done" ? "bg-green-700/60" : item.status === "duplicate" ? "bg-amber-500/75" : item.status === "error" ? "bg-red-500/70" : "bg-black/25"
+                            }`}>
+                              {item.status === "uploading" && <Loader2 className="w-5 h-5 text-white animate-spin" />}
+                              {item.status === "done"      && <CheckCircle2 className="w-7 h-7 text-white" />}
+                              {item.status === "duplicate" && <Copy className="w-5 h-5 text-white" />}
+                              {item.status === "error"     && <AlertCircle className="w-5 h-5 text-white" />}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="px-4 py-3 border-t border-green-100 bg-white flex justify-between items-center gap-3">
+                      <p className="text-xs text-green-700">
+                        {canClose ? "All photos saved to Connectagrapher" : "Saving photos to Connectagrapher…"}
+                      </p>
+                      <Button size="sm" onClick={closeGalUploadPanel} disabled={!canClose}
+                        className={canClose ? "bg-green-700 hover:bg-green-800 text-white" : ""}>
+                        {canClose ? "Done" : <><Loader2 className="w-3 h-3 animate-spin mr-1" />Uploading</>}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              );
+            })()}
+
+            {/* Preview dialog */}
+            <Dialog open={!!galPreview} onOpenChange={(open) => !open && setGalPreview(null)}>
+              <DialogContent className="max-w-4xl p-2 bg-black/95 border-0">
+                <img src={galPreview || ""} alt="" className="w-full h-auto max-h-[85vh] object-contain rounded" />
+              </DialogContent>
+            </Dialog>
           </TabsContent>
           
           <TabsContent value="pricing">

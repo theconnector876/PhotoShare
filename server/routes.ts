@@ -832,6 +832,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cloudinary signed upload for photographers
+  app.post('/api/photographer/upload-signature', isPhotographerApproved, (req, res) => {
+    const config = getCloudinarySignedConfig();
+    if (!config) return res.status(503).json({ error: 'Upload service unavailable' });
+    const timestamp = Math.round(Date.now() / 1000);
+    const params = { timestamp };
+    const signature = generateSignature(params, config.apiSecret);
+    res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp, signature });
+  });
+
+  // Reorder / bulk-update images in a photographer's gallery
+  app.patch('/api/photographer/gallery/:id/images', isPhotographerApproved, async (req, res) => {
+    try {
+      const schema = z.object({
+        images: z.array(z.string()),
+        type: z.enum(['gallery', 'selected', 'final']),
+      });
+      const { images, type } = schema.parse(req.body);
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
+      if (!gallery.bookingId) return res.status(400).json({ error: 'Gallery not linked to a booking' });
+      const booking = await storage.getBooking(gallery.bookingId);
+      const userId = (req as any).user?.id;
+      if (!booking || booking.photographerId !== userId) {
+        return res.status(403).json({ error: 'Not assigned to this gallery' });
+      }
+      const updated = await storage.updateGalleryImages(req.params.id, images, type);
+      if (!updated) return res.status(404).json({ error: 'Gallery not found' });
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid request data' });
+      res.status(500).json({ error: 'Failed to update gallery images' });
+    }
+  });
+
   // Lemon Squeezy payment routes
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
