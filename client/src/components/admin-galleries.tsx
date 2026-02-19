@@ -346,7 +346,10 @@ export function AdminGalleries() {
   const [searchTerm, setSearchTerm]     = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [expandedId, setExpandedId]     = useState<string | null>(null);
-  const [uploadTarget, setUploadTarget] = useState<{ gallery: Gallery; type: ImageType } | null>(null);
+  // Use a ref (not state) so openFilePicker sets it synchronously before the
+  // OS file picker opens. State updates are async and would still be null
+  // when handleFileChange reads it after the user picks files.
+  const uploadTargetRef = useRef<{ gallery: Gallery; type: ImageType } | null>(null);
   const [fileItems, setFileItems]       = useState<FileItem[]>([]);
   const [showUploadPanel, setShowUploadPanel] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -439,9 +442,9 @@ export function AdminGalleries() {
 
   // ── File upload ───────────────────────────────────────────────────────────
 
-  // This is called synchronously from a button click — keeps iOS file picker working
+  // Synchronous — ref is updated immediately so handleFileChange always sees the right target
   const openFilePicker = (gallery: Gallery, type: ImageType) => {
-    setUploadTarget({ gallery, type });
+    uploadTargetRef.current = { gallery, type };
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
       fileInputRef.current.click();
@@ -453,9 +456,10 @@ export function AdminGalleries() {
   }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!uploadTarget || !e.target.files || e.target.files.length === 0) return;
+    const target = uploadTargetRef.current;
+    if (!target || !e.target.files || e.target.files.length === 0) return;
     const files = Array.from(e.target.files);
-    const { gallery, type } = uploadTarget;
+    const { gallery, type } = target;
 
     const existingNames = new Set(
       [...(gallery.galleryImages || []), ...(gallery.selectedImages || []), ...(gallery.finalImages || [])]
@@ -505,7 +509,7 @@ export function AdminGalleries() {
     fileItems.forEach((i) => URL.revokeObjectURL(i.preview));
     setFileItems([]);
     setShowUploadPanel(false);
-    setUploadTarget(null);
+    uploadTargetRef.current = null;
   };
 
   const allFinished = fileItems.length > 0 && fileItems.every((i) => i.status === "done" || i.status === "error" || i.status === "duplicate");
