@@ -279,13 +279,11 @@ function ImageSection({
           onClick={() => onDedup(gallery, type)}>
           Remove Dupes
         </Button>
-        {/* Upload — label triggers file input natively */}
-        <Button size="sm" variant="outline" asChild
-          className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 px-2 cursor-pointer">
-          <label htmlFor={fileInputId}>
-            <UploadIcon className="w-3 h-3 mr-1" /> Upload
-          </label>
-        </Button>
+        {/* Upload — plain label so click always reaches the file input */}
+        <label htmlFor={fileInputId}
+          className="inline-flex items-center h-7 text-xs px-2 rounded-md border border-green-200 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none">
+          <UploadIcon className="w-3 h-3 mr-1" /> Upload
+        </label>
       </div>
 
       {/* Image grid or empty drop zone */}

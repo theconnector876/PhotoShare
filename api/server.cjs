@@ -31072,7 +31072,7 @@ var require_websocket = __commonJS({
     var http = require("http");
     var net = require("net");
     var tls = require("tls");
-    var { randomBytes: randomBytes2, createHash } = require("crypto");
+    var { randomBytes: randomBytes2, createHash: createHash2 } = require("crypto");
     var { Duplex, Readable } = require("stream");
     var { URL: URL3 } = require("url");
     var PerMessageDeflate = require_permessage_deflate();
@@ -31729,7 +31729,7 @@ var require_websocket = __commonJS({
           abortHandshake(websocket, socket, "Invalid Upgrade header");
           return;
         }
-        const digest = createHash("sha1").update(key + GUID).digest("base64");
+        const digest = createHash2("sha1").update(key + GUID).digest("base64");
         if (res.headers["sec-websocket-accept"] !== digest) {
           abortHandshake(websocket, socket, "Invalid Sec-WebSocket-Accept header");
           return;
@@ -31998,7 +31998,7 @@ var require_websocket_server = __commonJS({
     var EventEmitter = require("events");
     var http = require("http");
     var { Duplex } = require("stream");
-    var { createHash } = require("crypto");
+    var { createHash: createHash2 } = require("crypto");
     var extension = require_extension();
     var PerMessageDeflate = require_permessage_deflate();
     var subprotocol = require_subprotocol();
@@ -32293,7 +32293,7 @@ var require_websocket_server = __commonJS({
           );
         }
         if (this._state > RUNNING) return abortHandshake(socket, 503);
-        const digest = createHash("sha1").update(key + GUID).digest("base64");
+        const digest = createHash2("sha1").update(key + GUID).digest("base64");
         const headers = [
           "HTTP/1.1 101 Switching Protocols",
           "Upgrade: websocket",
@@ -54254,6 +54254,7 @@ var galleries = pgTable("galleries", {
   finalImages: text("final_images").array().default([]),
   status: text("status").notNull().default("pending"),
   // pending, selection, editing, completed
+  downloadEnabled: boolean("download_enabled").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow()
 });
 var contactMessages = pgTable("contact_messages", {
@@ -60413,12 +60414,24 @@ var DatabaseStorage = class {
     const [gallery] = await db.update(galleries).set(updateData).where(eq(galleries.id, id)).returning();
     return gallery;
   }
+  async updateGallerySettings(id, settings) {
+    const [gallery] = await db.update(galleries).set(settings).where(eq(galleries.id, id)).returning();
+    return gallery;
+  }
   async createContactMessage(insertMessage) {
     const [message] = await db.insert(contactMessages).values(insertMessage).returning();
     return message;
   }
   async getAllContactMessages() {
     return await db.select().from(contactMessages).orderBy(contactMessages.createdAt);
+  }
+  async updateContactStatus(id, status) {
+    const [msg] = await db.update(contactMessages).set({ status }).where(eq(contactMessages.id, id)).returning();
+    return msg;
+  }
+  async deleteContact(id) {
+    const result = await db.delete(contactMessages).where(eq(contactMessages.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
   async getAllGalleries() {
     return await db.select().from(galleries).orderBy(galleries.createdAt);
@@ -60512,6 +60525,10 @@ var DatabaseStorage = class {
   async updateCatalogueSortOrder(id, sortOrder) {
     const [catalogue] = await db.update(catalogues).set({ sortOrder }).where(eq(catalogues.id, id)).returning();
     return catalogue;
+  }
+  async deleteCatalogue(id) {
+    const result = await db.delete(catalogues).where(eq(catalogues.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
   // Review operations
   async createReview(insertReview) {
@@ -66019,11 +66036,17 @@ function Ot(t, e, o = {}) {
 }
 
 // server/upload.ts
-function getCloudinaryConfig() {
+var import_crypto2 = require("crypto");
+function getCloudinarySignedConfig() {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET || process.env.preset;
-  if (!cloudName || !uploadPreset) return null;
-  return { cloudName, uploadPreset };
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) return null;
+  return { cloudName, apiKey, apiSecret };
+}
+function generateSignature(params, apiSecret) {
+  const paramString = Object.keys(params).sort().map((k2) => `${k2}=${params[k2]}`).join("&");
+  return (0, import_crypto2.createHash)("sha1").update(paramString + apiSecret).digest("hex");
 }
 
 // server/routes.ts
@@ -66491,6 +66514,26 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to fetch contact messages" });
     }
   });
+  app2.patch("/api/admin/contacts/:id/status", isAdmin, async (req, res) => {
+    try {
+      const { status } = z.object({ status: z.enum(["unread", "read", "responded"]) }).parse(req.body);
+      const msg = await storage.updateContactStatus(req.params.id, status);
+      if (!msg) return res.status(404).json({ error: "Message not found" });
+      res.json(msg);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid status" });
+      res.status(500).json({ error: "Failed to update message status" });
+    }
+  });
+  app2.delete("/api/admin/contacts/:id", isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteContact(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Message not found" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete message" });
+    }
+  });
   app2.post("/api/admin/make-admin/:userId", isAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
@@ -66516,14 +66559,36 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to generate upload URL" });
     }
   });
-  app2.get("/api/admin/upload-config", isAdmin, (req, res) => {
-    const config = getCloudinaryConfig();
+  app2.post("/api/admin/upload-signature", isAdmin, (req, res) => {
+    const config = getCloudinarySignedConfig();
     if (!config) {
       return res.status(503).json({
-        error: "Image upload not configured. Add CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET to your Vercel environment variables."
+        error: "Image upload not configured. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your Vercel environment variables."
       });
     }
-    res.json(config);
+    const timestamp2 = Math.round(Date.now() / 1e3);
+    const params = { timestamp: timestamp2 };
+    const signature = generateSignature(params, config.apiSecret);
+    res.json({
+      cloudName: config.cloudName,
+      apiKey: config.apiKey,
+      timestamp: timestamp2,
+      signature
+    });
+  });
+  app2.patch("/api/admin/gallery/:id/settings", isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        downloadEnabled: z.boolean().optional(),
+        status: z.enum(["pending", "active", "selection", "editing", "completed"]).optional()
+      });
+      const settings = schema.parse(req.body);
+      const gallery = await storage.updateGallerySettings(req.params.id, settings);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      res.json(gallery);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid settings" });
+    }
   });
   app2.put("/api/admin/gallery-images", isAdmin, async (req, res) => {
     try {
@@ -66699,6 +66764,37 @@ async function registerRoutes(app2) {
       }
       console.error("Error adding gallery image:", error);
       res.status(500).json({ error: "Failed to add gallery image" });
+    }
+  });
+  app2.post("/api/photographer/upload-signature", isPhotographerApproved, (req, res) => {
+    const config = getCloudinarySignedConfig();
+    if (!config) return res.status(503).json({ error: "Upload service unavailable" });
+    const timestamp2 = Math.round(Date.now() / 1e3);
+    const params = { timestamp: timestamp2 };
+    const signature = generateSignature(params, config.apiSecret);
+    res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp: timestamp2, signature });
+  });
+  app2.patch("/api/photographer/gallery/:id/images", isPhotographerApproved, async (req, res) => {
+    try {
+      const schema = z.object({
+        images: z.array(z.string()),
+        type: z.enum(["gallery", "selected", "final"])
+      });
+      const { images, type } = schema.parse(req.body);
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      if (!gallery.bookingId) return res.status(400).json({ error: "Gallery not linked to a booking" });
+      const booking = await storage.getBooking(gallery.bookingId);
+      const userId = req.user?.id;
+      if (!booking || booking.photographerId !== userId) {
+        return res.status(403).json({ error: "Not assigned to this gallery" });
+      }
+      const updated = await storage.updateGalleryImages(req.params.id, images, type);
+      if (!updated) return res.status(404).json({ error: "Gallery not found" });
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid request data" });
+      res.status(500).json({ error: "Failed to update gallery images" });
     }
   });
   app2.post("/api/create-payment-intent", async (req, res) => {
@@ -67008,6 +67104,15 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("Error unpublishing catalogue:", error);
       res.status(500).json({ error: "Failed to unpublish catalogue" });
+    }
+  });
+  app2.delete("/api/admin/catalogues/:id", isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteCatalogue(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Catalogue not found" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete catalogue" });
     }
   });
   app2.get("/api/reviews/general", async (req, res) => {

@@ -561,6 +561,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/admin/contacts/:id/status', isAdmin, async (req, res) => {
+    try {
+      const { status } = z.object({ status: z.enum(['unread', 'read', 'responded']) }).parse(req.body);
+      const msg = await storage.updateContactStatus(req.params.id, status);
+      if (!msg) return res.status(404).json({ error: 'Message not found' });
+      res.json(msg);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid status' });
+      res.status(500).json({ error: 'Failed to update message status' });
+    }
+  });
+
+  app.delete('/api/admin/contacts/:id', isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteContact(req.params.id);
+      if (!ok) return res.status(404).json({ error: 'Message not found' });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete message' });
+    }
+  });
+
   app.post('/api/admin/make-admin/:userId', isAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
@@ -1248,6 +1270,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error unpublishing catalogue:', error);
       res.status(500).json({ error: 'Failed to unpublish catalogue' });
+    }
+  });
+
+  app.delete('/api/admin/catalogues/:id', isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteCatalogue(req.params.id);
+      if (!ok) return res.status(404).json({ error: 'Catalogue not found' });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete catalogue' });
     }
   });
 

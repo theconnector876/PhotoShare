@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +14,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, StarIcon, ArrowUp, ArrowDown, X } from "lucide-react";
+import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, StarIcon, ArrowUp, ArrowDown, X, Trash2, Globe, EyeOff } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 interface Catalogue {
@@ -220,6 +220,41 @@ export function AdminCatalogues() {
         variant: "destructive",
       });
     },
+  });
+
+  const deleteCatalogueMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/admin/catalogues/${id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogues"] });
+      toast({ title: "Catalogue Deleted", description: "Catalogue has been permanently deleted." });
+      setCatalogueToDelete(null);
+      setIsDeleteDialogOpen(false);
+    },
+    onError: () => toast({ title: "Error", description: "Failed to delete catalogue.", variant: "destructive" }),
+  });
+
+  const publishCatalogueMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/admin/catalogues/${id}/publish`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogues"] });
+      toast({ title: "Published", description: "Catalogue is now live on the portfolio." });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to publish catalogue.", variant: "destructive" }),
+  });
+
+  const unpublishCatalogueMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/admin/catalogues/${id}/unpublish`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogues"] });
+      toast({ title: "Unpublished", description: "Catalogue moved back to drafts." });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to unpublish catalogue.", variant: "destructive" }),
   });
 
   const reorderCataloguesMutation = useMutation({
@@ -642,44 +677,46 @@ export function AdminCatalogues() {
                       </div>
 
                       <div className="flex flex-wrap justify-between items-center pt-4 border-t gap-2">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" size="sm"
                             onClick={() => setViewCatalogue(catalogue)}
-                            data-testid={`button-view-catalogue-${catalogue.id}`}
-                          >
-                            <EyeIcon className="w-4 h-4 mr-2" />
-                            View
+                            data-testid={`button-view-catalogue-${catalogue.id}`}>
+                            <EyeIcon className="w-4 h-4 mr-1" /> View
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
+                          <Button variant="outline" size="sm"
                             onClick={() => openEditDialog(catalogue)}
-                            data-testid={`button-edit-catalogue-${catalogue.id}`}
-                          >
-                            <EditIcon className="w-4 h-4 mr-2" />
-                            Edit
+                            data-testid={`button-edit-catalogue-${catalogue.id}`}>
+                            <EditIcon className="w-4 h-4 mr-1" /> Edit
+                          </Button>
+                          {catalogue.isPublished ? (
+                            <Button variant="outline" size="sm"
+                              onClick={() => unpublishCatalogueMutation.mutate(catalogue.id)}
+                              disabled={unpublishCatalogueMutation.isPending}>
+                              <EyeOff className="w-4 h-4 mr-1" /> Unpublish
+                            </Button>
+                          ) : (
+                            <Button variant="outline" size="sm"
+                              onClick={() => publishCatalogueMutation.mutate(catalogue.id)}
+                              disabled={publishCatalogueMutation.isPending}>
+                              <Globe className="w-4 h-4 mr-1" /> Publish
+                            </Button>
+                          )}
+                          <Button variant="outline" size="sm"
+                            className="text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={() => { setCatalogueToDelete(catalogue); setIsDeleteDialogOpen(true); }}>
+                            <Trash2 className="w-4 h-4 mr-1" /> Delete
                           </Button>
                         </div>
                         <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
+                          <Button variant="outline" size="sm"
                             onClick={() => moveCatalogue(catalogue.id, "up")}
-                            data-testid={`button-move-up-${catalogue.id}`}
-                          >
-                            <ArrowUp className="w-4 h-4 mr-2" />
-                            Move Up
+                            data-testid={`button-move-up-${catalogue.id}`}>
+                            <ArrowUp className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
+                          <Button variant="outline" size="sm"
                             onClick={() => moveCatalogue(catalogue.id, "down")}
-                            data-testid={`button-move-down-${catalogue.id}`}
-                          >
-                            <ArrowDown className="w-4 h-4 mr-2" />
-                            Move Down
+                            data-testid={`button-move-down-${catalogue.id}`}>
+                            <ArrowDown className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
@@ -741,6 +778,28 @@ export function AdminCatalogues() {
       <Dialog open={!!previewImage} onOpenChange={open => !open && setPreviewImage(null)}>
         <DialogContent className="max-w-4xl p-2">
           <img src={previewImage || ""} alt="Preview" className="w-full h-auto max-h-[80vh] object-contain rounded" />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => { if (!open) { setIsDeleteDialogOpen(false); setCatalogueToDelete(null); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Catalogue</DialogTitle>
+            <DialogDescription>
+              Permanently delete <strong>{catalogueToDelete?.title}</strong>? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setIsDeleteDialogOpen(false); setCatalogueToDelete(null); }}>
+              Cancel
+            </Button>
+            <Button variant="destructive"
+              disabled={deleteCatalogueMutation.isPending}
+              onClick={() => catalogueToDelete && deleteCatalogueMutation.mutate(catalogueToDelete.id)}>
+              {deleteCatalogueMutation.isPending ? "Deleting…" : "Delete"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

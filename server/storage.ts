@@ -77,7 +77,9 @@ export interface IStorage {
   // Contact operations
   createContactMessage(message: InsertContactMessage): Promise<ContactMessage>;
   getAllContactMessages(): Promise<ContactMessage[]>;
-  
+  updateContactStatus(id: string, status: string): Promise<ContactMessage | undefined>;
+  deleteContact(id: string): Promise<boolean>;
+
   // Catalogue operations
   createCatalogue(catalogue: InsertCatalogue): Promise<Catalogue>;
   getCatalogue(id: string): Promise<Catalogue | undefined>;
@@ -88,6 +90,7 @@ export interface IStorage {
   unpublishCatalogue(id: string): Promise<Catalogue | undefined>;
   updateCatalogue(id: string, data: Partial<Catalogue>): Promise<Catalogue | undefined>;
   updateCatalogueSortOrder(id: string, sortOrder: number): Promise<Catalogue | undefined>;
+  deleteCatalogue(id: string): Promise<boolean>;
   
   // Review operations
   createReview(review: InsertReview): Promise<Review>;
@@ -385,6 +388,16 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(contactMessages).orderBy(contactMessages.createdAt);
   }
 
+  async updateContactStatus(id: string, status: string): Promise<ContactMessage | undefined> {
+    const [msg] = await db.update(contactMessages).set({ status }).where(eq(contactMessages.id, id)).returning();
+    return msg;
+  }
+
+  async deleteContact(id: string): Promise<boolean> {
+    const result = await db.delete(contactMessages).where(eq(contactMessages.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async getAllGalleries(): Promise<Gallery[]> {
     return await db.select().from(galleries).orderBy(galleries.createdAt);
   }
@@ -553,6 +566,11 @@ export class DatabaseStorage implements IStorage {
       .where(eq(catalogues.id, id))
       .returning();
     return catalogue;
+  }
+
+  async deleteCatalogue(id: string): Promise<boolean> {
+    const result = await db.delete(catalogues).where(eq(catalogues.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Review operations
