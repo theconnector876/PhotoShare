@@ -613,6 +613,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Ensure a gallery exists for a booking (create one if missing)
+  app.post('/api/admin/bookings/:id/ensure-gallery', isAdmin, async (req, res) => {
+    try {
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) return res.status(404).json({ error: 'Booking not found' });
+      let gallery = await storage.getGalleryByBookingId(req.params.id);
+      if (!gallery) {
+        const accessCode = Math.random().toString(36).substr(2, 8).toUpperCase();
+        gallery = await storage.createGallery({
+          bookingId: req.params.id,
+          clientEmail: booking.email,
+          accessCode,
+          galleryImages: [],
+          selectedImages: [],
+          finalImages: [],
+          downloadEnabled: true,
+        });
+      }
+      res.json(gallery);
+    } catch (error) {
+      console.error('Error ensuring gallery:', error);
+      res.status(500).json({ error: 'Failed to ensure gallery' });
+    }
+  });
+
   // Generates a signed Cloudinary upload signature for browser-direct uploads.
   // Requires CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET.
   // No upload preset needed — signed uploads bypass that requirement entirely.

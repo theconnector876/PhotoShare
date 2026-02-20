@@ -34,7 +34,59 @@ import {
   GripVertical,
 } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { SimpleUploader } from "@/components/SimpleUploader";
+import { useRef, useCallback } from "react";
+
+// ── Cloudinary signed upload helpers ─────────────────────────────────────────
+
+async function compressImage(file: File, maxPx = 4096, quality = 0.88): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => {
+        resolve(blob ? new File([blob], file.name, { type: "image/jpeg" }) : file);
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+async function cloudinaryUpload(
+  file: File,
+  sigUrl: string,
+  onProgress?: (pct: number) => void
+): Promise<string> {
+  const sigRes = await fetch(sigUrl, { method: "POST", credentials: "include" });
+  if (!sigRes.ok) throw new Error("Failed to get upload signature");
+  const { cloudName, apiKey, timestamp, signature } = await sigRes.json();
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("api_key", apiKey);
+  fd.append("timestamp", String(timestamp));
+  fd.append("signature", signature);
+  return new Promise<string>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100)); };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText).secure_url);
+      } else {
+        reject(new Error("Upload failed: " + xhr.responseText));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Upload network error"));
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
+    xhr.send(fd);
+  });
+}
 
 interface Booking {
   id: string;
@@ -105,8 +157,6 @@ const emailMessageSchema = z.object({
 const catalogueSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
-  coverImage: z.string().url("Cover image must be a valid URL"),
-  images: z.string().min(1, "Images are required (one per line)"),
 });
 
 type EditBookingData = z.infer<typeof editBookingSchema>;
@@ -123,7 +173,22 @@ export function AdminBookings() {
   const [selectedGallery, setSelectedGallery] = useState<Gallery | null>(null);
   const [bDragSrc, setBDragSrc] = useState<{ type: 'gallery' | 'selected' | 'final'; index: number } | null>(null);
   const [bDragOver, setBDragOver] = useState<{ type: 'gallery' | 'selected' | 'final'; index: number } | null>(null);
-  
+
+  // Upload tab state
+  const [uploadItems, setUploadItems] = useState<{ id: string; name: string; pct: number; url?: string; error?: string }[]>([]);
+  const [isEnsuring, setIsEnsuring] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const uploadTypeRef = useRef<'gallery' | 'selected' | 'final'>('gallery');
+  const selectedGalleryRef = useRef<Gallery | null>(null);
+
+  // Catalogue tab image upload state
+  const [catCoverUrl, setCatCoverUrl] = useState("");
+  const [catImageUrls, setCatImageUrls] = useState<string[]>([]);
+  const [isUploadingCatCover, setIsUploadingCatCover] = useState(false);
+  const [isUploadingCatImages, setIsUploadingCatImages] = useState(false);
+  const catCoverRef = useRef<HTMLInputElement>(null);
+  const catImagesRef = useRef<HTMLInputElement>(null);
+
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -193,8 +258,6 @@ export function AdminBookings() {
     defaultValues: {
       title: "",
       description: "",
-      coverImage: "",
-      images: "",
     },
   });
 
@@ -310,14 +373,13 @@ export function AdminBookings() {
 
   // Create catalogue from booking
   const createCatalogueMutation = useMutation({
-    mutationFn: async (data: CatalogueData & { bookingId: string; serviceType: string }) => {
-      const imagesArray = data.images.split('\n').map(url => url.trim()).filter(url => url);
+    mutationFn: async (data: CatalogueData & { bookingId: string; serviceType: string; coverImage: string; images: string[] }) => {
       await apiRequest("POST", "/api/admin/catalogues", {
         title: data.title,
         description: data.description,
         serviceType: data.serviceType,
         coverImage: data.coverImage,
-        images: imagesArray,
+        images: data.images,
         bookingId: data.bookingId,
       });
     },
@@ -328,6 +390,8 @@ export function AdminBookings() {
         description: "Portfolio catalogue has been created successfully.",
       });
       catalogueForm.reset();
+      setCatCoverUrl("");
+      setCatImageUrls([]);
     },
     onError: () => {
       toast({
@@ -415,33 +479,52 @@ export function AdminBookings() {
   };
 
 
-  const handleGetUploadParameters = async (): Promise<{ method: "PUT"; url: string }> => {
-    try {
-      const response = await apiRequest('POST', '/api/admin/objects/upload', {});
-      const data = await response.json();
-      return data as { method: "PUT"; url: string };
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to get upload parameters.",
-        variant: "destructive",
-      });
-      throw error;
-    }
+  // Keep ref in sync with state (for stale-closure safety inside callbacks)
+  const syncSelectedGallery = useCallback((g: Gallery | null) => {
+    selectedGalleryRef.current = g;
+    setSelectedGallery(g);
+  }, []);
+
+  // Ensure gallery exists for the current booking, then return it
+  const ensureGallery = async (bookingId: string): Promise<Gallery> => {
+    const res = await apiRequest("POST", `/api/admin/bookings/${bookingId}/ensure-gallery`, {});
+    const gallery = await res.json() as Gallery;
+    syncSelectedGallery(gallery);
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
+    return gallery;
   };
 
-  const handleUploadComplete = (result: any) => {
-    if (result.successful && result.successful.length > 0 && selectedGallery) {
-      const uploadedFile = result.successful[0];
-      const imageURL = uploadedFile.uploadURL;
-      
-      uploadImageMutation.mutate({
-        galleryId: selectedGallery.id,
-        imageURL: imageURL || '',
-        type: uploadType
-      });
+  // Upload files handler (called by the hidden file input)
+  const handleUploadFiles = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const gallery = selectedGalleryRef.current;
+    if (!gallery) return;
+    const type = uploadTypeRef.current;
+
+    // Assign a stable id to each file so we can update it independently
+    const ids = Array.from(files).map(() => Math.random().toString(36).slice(2));
+    setUploadItems(prev => [
+      ...prev,
+      ...Array.from(files).map((f, i) => ({ id: ids[i], name: f.name, pct: 0 })),
+    ]);
+
+    for (let i = 0; i < files.length; i++) {
+      const id = ids[i];
+      const update = (patch: object) =>
+        setUploadItems(prev => prev.map(it => (it as any).id === id ? { ...it, ...patch } : it));
+      try {
+        const compressed = await compressImage(files[i]);
+        const url = await cloudinaryUpload(compressed, "/api/admin/upload-signature",
+          (pct) => update({ pct }));
+        update({ pct: 100, url });
+        await apiRequest("PUT", "/api/admin/gallery-images", { galleryId: gallery.id, imageURL: url, type });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
+      } catch {
+        update({ error: "Failed" });
+        toast({ title: `Failed to upload ${files[i].name}`, variant: "destructive" });
+      }
     }
-  };
+  }, [queryClient, toast]);
 
 
   const openManagementModal = (booking: Booking) => {
@@ -472,15 +555,15 @@ export function AdminBookings() {
     catalogueForm.reset({
       title: `${booking.clientName} - ${booking.serviceType}`,
       description: `Beautiful ${booking.serviceType} session for ${booking.clientName}`,
-      coverImage: "",
-      images: "",
     });
+    setCatCoverUrl("");
+    setCatImageUrls([]);
 
     // Set gallery if exists
     const gallery = getBookingGallery(booking.id);
-    if (gallery) {
-      setSelectedGallery(gallery);
-    }
+    syncSelectedGallery(gallery || null);
+    selectedGalleryRef.current = gallery || null;
+    setUploadItems([]);
   };
 
   if (isLoading) {
@@ -1170,11 +1253,12 @@ export function AdminBookings() {
               )}
 
               {/* Upload Tab */}
-              {activeTab === 'upload' && selectedGallery && (
+              {activeTab === 'upload' && (
                 <div className="space-y-4">
+                  {/* Category selector */}
                   <div>
-                    <Label>Upload Type</Label>
-                    <Select value={uploadType} onValueChange={(value: any) => setUploadType(value)}>
+                    <Label>Upload Category</Label>
+                    <Select value={uploadType} onValueChange={(value: any) => { setUploadType(value); uploadTypeRef.current = value; }}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1185,15 +1269,77 @@ export function AdminBookings() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <SimpleUploader
-                    maxNumberOfFiles={10}
-                    onGetUploadParameters={handleGetUploadParameters}
-                    onComplete={handleUploadComplete}
-                    buttonClassName="w-full"
+
+                  {/* Hidden file input */}
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleUploadFiles(e.target.files)}
+                  />
+
+                  {/* Upload button — auto-creates gallery if missing */}
+                  <label
+                    onClick={async (e) => {
+                      if (!selectedGallery && selectedBooking) {
+                        e.preventDefault();
+                        setIsEnsuring(true);
+                        try {
+                          await ensureGallery(selectedBooking.id);
+                        } catch {
+                          toast({ title: "Could not create gallery", variant: "destructive" });
+                          setIsEnsuring(false);
+                          return;
+                        }
+                        setIsEnsuring(false);
+                      }
+                      // trigger the input after ensuring
+                      setTimeout(() => uploadInputRef.current?.click(), 0);
+                    }}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border-2 border-dashed border-green-300 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none"
                   >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Photos
-                  </SimpleUploader>
+                    <Upload className="w-4 h-4" />
+                    {isEnsuring ? "Setting up gallery…" : "Select Photos to Upload"}
+                  </label>
+
+                  {/* Upload progress list */}
+                  {uploadItems.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Uploads</span>
+                        <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setUploadItems([])}>Clear</Button>
+                      </div>
+                      {uploadItems.map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          {item.url ? (
+                            <img src={item.url} className="w-10 h-10 object-cover rounded shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-100 rounded shrink-0 flex items-center justify-center">
+                              <Upload className="w-4 h-4 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate text-xs text-gray-600">{item.name}</div>
+                            {item.error ? (
+                              <div className="text-xs text-red-500">{item.error}</div>
+                            ) : item.url ? (
+                              <div className="text-xs text-green-600">Done</div>
+                            ) : (
+                              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${item.pct}%` }} />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {!selectedGallery && (
+                    <p className="text-xs text-gray-500 text-center">A gallery will be created automatically when you upload the first photo.</p>
+                  )}
                 </div>
               )}
 
@@ -1201,7 +1347,9 @@ export function AdminBookings() {
               {activeTab === 'catalogue' && (
                 <Form {...catalogueForm}>
                   <form onSubmit={catalogueForm.handleSubmit((data) => {
-                    createCatalogueMutation.mutate({ ...data, bookingId: selectedBooking.id, serviceType: selectedBooking.serviceType });
+                    if (!catCoverUrl) { toast({ title: "Please upload a cover image", variant: "destructive" }); return; }
+                    if (catImageUrls.length === 0) { toast({ title: "Please upload at least one gallery image", variant: "destructive" }); return; }
+                    createCatalogueMutation.mutate({ ...data, bookingId: selectedBooking.id, serviceType: selectedBooking.serviceType, coverImage: catCoverUrl, images: catImageUrls });
                     setManagementModalOpen(false);
                   })} className="space-y-4">
                     <FormField
@@ -1230,34 +1378,75 @@ export function AdminBookings() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={catalogueForm.control}
-                      name="coverImage"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cover Image URL</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="https://..." />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    {/* Cover Image Upload */}
+                    <div className="space-y-2">
+                      <Label>Cover Image</Label>
+                      <input ref={catCoverRef} type="file" accept="image/*" className="hidden"
+                        onChange={async (e) => {
+                          if (!e.target.files?.[0]) return;
+                          setIsUploadingCatCover(true);
+                          try {
+                            const compressed = await compressImage(e.target.files[0]);
+                            const url = await cloudinaryUpload(compressed, "/api/admin/upload-signature");
+                            setCatCoverUrl(url);
+                          } catch { toast({ title: "Cover upload failed", variant: "destructive" }); }
+                          finally { setIsUploadingCatCover(false); }
+                        }} />
+                      {catCoverUrl ? (
+                        <div className="relative w-full h-36 rounded-lg overflow-hidden border">
+                          <img src={catCoverUrl} className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => setCatCoverUrl("")}
+                            className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center w-full h-28 rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => catCoverRef.current?.click()}>
+                          <Upload className="w-5 h-5 text-gray-400 mb-1" />
+                          <span className="text-sm text-gray-500">{isUploadingCatCover ? "Uploading…" : "Upload cover image"}</span>
+                        </label>
                       )}
-                    />
-                    <FormField
-                      control={catalogueForm.control}
-                      name="images"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Images (one URL per line)</FormLabel>
-                          <FormControl>
-                            <Textarea {...field} rows={5} placeholder="https://image1.jpg&#10;https://image2.jpg&#10;https://image3.jpg" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    </div>
+
+                    {/* Gallery Images Upload */}
+                    <div className="space-y-2">
+                      <Label>Gallery Images</Label>
+                      <input ref={catImagesRef} type="file" accept="image/*" multiple className="hidden"
+                        onChange={async (e) => {
+                          if (!e.target.files || e.target.files.length === 0) return;
+                          setIsUploadingCatImages(true);
+                          for (let i = 0; i < e.target.files.length; i++) {
+                            try {
+                              const compressed = await compressImage(e.target.files[i]);
+                              const url = await cloudinaryUpload(compressed, "/api/admin/upload-signature");
+                              setCatImageUrls(prev => [...prev, url]);
+                            } catch { toast({ title: `Failed: ${e.target.files![i].name}`, variant: "destructive" }); }
+                          }
+                          setIsUploadingCatImages(false);
+                        }} />
+                      {catImageUrls.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                          {catImageUrls.map((url, i) => (
+                            <div key={i} className="relative aspect-square rounded overflow-hidden border">
+                              <img src={url} className="w-full h-full object-cover" />
+                              <button type="button" onClick={() => setCatImageUrls(prev => prev.filter((_, j) => j !== i))}
+                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80">
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       )}
-                    />
+                      <label className="flex items-center gap-2 text-sm text-green-700 cursor-pointer hover:text-green-800"
+                        onClick={() => catImagesRef.current?.click()}>
+                        <Upload className="w-4 h-4" />
+                        {isUploadingCatImages ? "Uploading…" : `Add images${catImageUrls.length > 0 ? ` (${catImageUrls.length} added)` : ""}`}
+                      </label>
+                    </div>
+
                     <div className="flex justify-end gap-2 pt-4 border-t">
-                      <Button type="submit" disabled={createCatalogueMutation.isPending}>
+                      <Button type="submit" disabled={createCatalogueMutation.isPending || isUploadingCatCover || isUploadingCatImages}>
                         {createCatalogueMutation.isPending ? "Creating..." : "Create Catalogue"}
                       </Button>
                     </div>

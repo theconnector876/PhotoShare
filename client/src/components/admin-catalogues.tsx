@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -10,12 +10,50 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, StarIcon, ArrowUp, ArrowDown, X, Trash2, Globe, EyeOff } from "lucide-react";
+import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, StarIcon, ArrowUp, ArrowDown, X, Trash2, Globe, EyeOff, Upload } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
+
+// ── Cloudinary signed upload helpers ─────────────────────────────────────────
+
+async function compressCatImg(file: File, maxPx = 4096, quality = 0.88): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => {
+        resolve(blob ? new File([blob], file.name, { type: "image/jpeg" }) : file);
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+async function catCloudinaryUpload(file: File): Promise<string> {
+  const sigRes = await fetch("/api/admin/upload-signature", { method: "POST", credentials: "include" });
+  if (!sigRes.ok) throw new Error("Failed to get upload signature");
+  const { cloudName, apiKey, timestamp, signature } = await sigRes.json();
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("api_key", apiKey);
+  fd.append("timestamp", String(timestamp));
+  fd.append("signature", signature);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: fd });
+  if (!res.ok) throw new Error("Upload failed");
+  const data = await res.json();
+  return data.secure_url as string;
+}
 
 interface Catalogue {
   id: string;
@@ -46,8 +84,6 @@ const catalogueFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   serviceType: z.enum(["photoshoot", "wedding", "event"]),
-  coverImage: z.string().url("Must be a valid URL"),
-  images: z.string().min(1, "At least one image is required"),
   bookingId: z.string().optional(),
 });
 
@@ -63,7 +99,21 @@ export function AdminCatalogues() {
   const [catalogueToDelete, setCatalogueToDelete] = useState<Catalogue | null>(null);
   const [viewCatalogue, setViewCatalogue] = useState<Catalogue | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  
+
+  // Image upload state (outside react-hook-form)
+  const [createCoverUrl, setCreateCoverUrl] = useState("");
+  const [createGalleryUrls, setCreateGalleryUrls] = useState<string[]>([]);
+  const [editCoverUrl, setEditCoverUrl] = useState("");
+  const [editGalleryUrls, setEditGalleryUrls] = useState<string[]>([]);
+  const [isUploadingCreateCover, setIsUploadingCreateCover] = useState(false);
+  const [isUploadingCreateImages, setIsUploadingCreateImages] = useState(false);
+  const [isUploadingEditCover, setIsUploadingEditCover] = useState(false);
+  const [isUploadingEditImages, setIsUploadingEditImages] = useState(false);
+  const createCoverRef = useRef<HTMLInputElement>(null);
+  const createImagesRef = useRef<HTMLInputElement>(null);
+  const editCoverRef = useRef<HTMLInputElement>(null);
+  const editImagesRef = useRef<HTMLInputElement>(null);
+
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -113,8 +163,6 @@ export function AdminCatalogues() {
       title: "",
       description: "",
       serviceType: "photoshoot",
-      coverImage: "",
-      images: "",
       bookingId: "",
     },
   });
@@ -125,8 +173,6 @@ export function AdminCatalogues() {
       title: "",
       description: "",
       serviceType: "photoshoot",
-      coverImage: "",
-      images: "",
       bookingId: "",
     },
   });
@@ -144,11 +190,9 @@ export function AdminCatalogues() {
   };
 
   const createCatalogueMutation = useMutation({
-    mutationFn: async (data: CatalogueFormData) => {
-      const imagesArray = data.images.split('\n').map(url => url.trim()).filter(url => url);
+    mutationFn: async (data: CatalogueFormData & { coverImage: string; images: string[] }) => {
       await apiRequest("POST", "/api/admin/catalogues", {
         ...data,
-        images: imagesArray,
         bookingId: data.bookingId || null,
       });
     },
@@ -160,6 +204,8 @@ export function AdminCatalogues() {
       });
       setIsCreateDialogOpen(false);
       form.reset();
+      setCreateCoverUrl("");
+      setCreateGalleryUrls([]);
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -182,14 +228,13 @@ export function AdminCatalogues() {
   });
 
   const updateCatalogueMutation = useMutation({
-    mutationFn: async (data: CatalogueFormData & { id: string }) => {
-      const imagesArray = data.images.split('\n').map(url => url.trim()).filter(url => url);
+    mutationFn: async (data: CatalogueFormData & { id: string; coverImage: string; images: string[] }) => {
       await apiRequest("PUT", `/api/admin/catalogues/${data.id}`, {
         title: data.title,
         description: data.description,
         serviceType: data.serviceType,
         coverImage: data.coverImage,
-        images: imagesArray,
+        images: data.images,
         bookingId: data.bookingId || null,
       });
     },
@@ -201,6 +246,8 @@ export function AdminCatalogues() {
       });
       setIsEditDialogOpen(false);
       setSelectedCatalogue(null);
+      setEditCoverUrl("");
+      setEditGalleryUrls([]);
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -278,12 +325,16 @@ export function AdminCatalogues() {
   });
 
   const onSubmit = (data: CatalogueFormData) => {
-    createCatalogueMutation.mutate(data);
+    if (!createCoverUrl) { toast({ title: "Please upload a cover image", variant: "destructive" }); return; }
+    if (createGalleryUrls.length === 0) { toast({ title: "Please upload at least one gallery image", variant: "destructive" }); return; }
+    createCatalogueMutation.mutate({ ...data, coverImage: createCoverUrl, images: createGalleryUrls });
   };
 
   const onEditSubmit = (data: CatalogueFormData) => {
     if (!selectedCatalogue) return;
-    updateCatalogueMutation.mutate({ ...data, id: selectedCatalogue.id });
+    if (!editCoverUrl) { toast({ title: "Please upload a cover image", variant: "destructive" }); return; }
+    if (editGalleryUrls.length === 0) { toast({ title: "Please upload at least one gallery image", variant: "destructive" }); return; }
+    updateCatalogueMutation.mutate({ ...data, id: selectedCatalogue.id, coverImage: editCoverUrl, images: editGalleryUrls });
   };
 
   const openEditDialog = (catalogue: Catalogue) => {
@@ -292,11 +343,43 @@ export function AdminCatalogues() {
       title: catalogue.title,
       description: catalogue.description || "",
       serviceType: catalogue.serviceType as "photoshoot" | "wedding" | "event",
-      coverImage: catalogue.coverImage,
-      images: (catalogue.images || []).join("\n"),
       bookingId: catalogue.bookingId || "",
     });
+    setEditCoverUrl(catalogue.coverImage || "");
+    setEditGalleryUrls(catalogue.images || []);
     setIsEditDialogOpen(true);
+  };
+
+  // Upload helpers
+  const handleCoverUpload = async (files: FileList | null, setCoverUrl: (u: string) => void, setLoading: (v: boolean) => void) => {
+    if (!files || files.length === 0) return;
+    setLoading(true);
+    try {
+      const compressed = await compressCatImg(files[0]);
+      const url = await catCloudinaryUpload(compressed);
+      setCoverUrl(url);
+    } catch {
+      toast({ title: "Cover image upload failed", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImagesUpload = async (files: FileList | null, setUrls: React.Dispatch<React.SetStateAction<string[]>>, setLoading: (v: boolean) => void) => {
+    if (!files || files.length === 0) return;
+    setLoading(true);
+    const results: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const compressed = await compressCatImg(files[i]);
+        const url = await catCloudinaryUpload(compressed);
+        results.push(url);
+        setUrls(prev => [...prev, url]);
+      } catch {
+        toast({ title: `Failed to upload ${files[i].name}`, variant: "destructive" });
+      }
+    }
+    setLoading(false);
   };
 
   const moveCatalogue = (catalogueId: string, direction: "up" | "down") => {
@@ -396,52 +479,66 @@ export function AdminCatalogues() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="coverImage"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cover Image URL</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter cover image URL" {...field} data-testid="input-cover-image" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    {/* Cover Image Upload */}
+                    <div className="space-y-2">
+                      <Label>Cover Image</Label>
+                      <input ref={createCoverRef} type="file" accept="image/*" className="hidden"
+                        onChange={(e) => handleCoverUpload(e.target.files, setCreateCoverUrl, setIsUploadingCreateCover)} />
+                      {createCoverUrl ? (
+                        <div className="relative w-full h-40 rounded-lg overflow-hidden border">
+                          <img src={createCoverUrl} className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => setCreateCoverUrl("")}
+                            className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label htmlFor="create-cover-input"
+                          className="flex flex-col items-center justify-center w-full h-32 rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => createCoverRef.current?.click()}>
+                          <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                          <span className="text-sm text-gray-500">{isUploadingCreateCover ? "Uploading…" : "Click to upload cover image"}</span>
+                        </label>
                       )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="images"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Gallery Images</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Enter image URLs (one per line)" 
-                              {...field} 
-                              data-testid="input-images"
-                              rows={5}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Add image URLs, one per line
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
+                    </div>
+
+                    {/* Gallery Images Upload */}
+                    <div className="space-y-2">
+                      <Label>Gallery Images</Label>
+                      <input ref={createImagesRef} type="file" accept="image/*" multiple className="hidden"
+                        onChange={(e) => handleImagesUpload(e.target.files, setCreateGalleryUrls, setIsUploadingCreateImages)} />
+                      {createGalleryUrls.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                          {createGalleryUrls.map((url, i) => (
+                            <div key={i} className="relative aspect-square rounded overflow-hidden border">
+                              <img src={url} className="w-full h-full object-cover" />
+                              <button type="button" onClick={() => setCreateGalleryUrls(prev => prev.filter((_, j) => j !== i))}
+                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80">
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       )}
-                    />
+                      <label className="flex items-center gap-2 text-sm text-green-700 cursor-pointer hover:text-green-800"
+                        onClick={() => createImagesRef.current?.click()}>
+                        <Upload className="w-4 h-4" />
+                        {isUploadingCreateImages ? "Uploading…" : `Add images${createGalleryUrls.length > 0 ? ` (${createGalleryUrls.length} added)` : ""}`}
+                      </label>
+                    </div>
+
                     <div className="flex justify-end gap-2">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
+                      <Button
+                        type="button"
+                        variant="outline"
                         onClick={() => setIsCreateDialogOpen(false)}
                         data-testid="button-cancel-catalogue"
                       >
                         Cancel
                       </Button>
-                      <Button 
-                        type="submit" 
-                        disabled={createCatalogueMutation.isPending}
+                      <Button
+                        type="submit"
+                        disabled={createCatalogueMutation.isPending || isUploadingCreateCover || isUploadingCreateImages}
                         data-testid="button-save-catalogue"
                       >
                         {createCatalogueMutation.isPending ? "Creating..." : "Create Catalogue"}
@@ -509,40 +606,53 @@ export function AdminCatalogues() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={editForm.control}
-                      name="coverImage"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cover Image URL</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter cover image URL" {...field} data-testid="input-edit-cover-image" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    {/* Edit Cover Image Upload */}
+                    <div className="space-y-2">
+                      <Label>Cover Image</Label>
+                      <input ref={editCoverRef} type="file" accept="image/*" className="hidden"
+                        onChange={(e) => handleCoverUpload(e.target.files, setEditCoverUrl, setIsUploadingEditCover)} />
+                      {editCoverUrl ? (
+                        <div className="relative w-full h-40 rounded-lg overflow-hidden border">
+                          <img src={editCoverUrl} className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => setEditCoverUrl("")}
+                            className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center w-full h-32 rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => editCoverRef.current?.click()}>
+                          <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                          <span className="text-sm text-gray-500">{isUploadingEditCover ? "Uploading…" : "Click to upload cover image"}</span>
+                        </label>
                       )}
-                    />
-                    <FormField
-                      control={editForm.control}
-                      name="images"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Gallery Images</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Enter image URLs (one per line)"
-                              {...field}
-                              data-testid="input-edit-images"
-                              rows={5}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Add image URLs, one per line
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
+                    </div>
+
+                    {/* Edit Gallery Images Upload */}
+                    <div className="space-y-2">
+                      <Label>Gallery Images</Label>
+                      <input ref={editImagesRef} type="file" accept="image/*" multiple className="hidden"
+                        onChange={(e) => handleImagesUpload(e.target.files, setEditGalleryUrls, setIsUploadingEditImages)} />
+                      {editGalleryUrls.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                          {editGalleryUrls.map((url, i) => (
+                            <div key={i} className="relative aspect-square rounded overflow-hidden border">
+                              <img src={url} className="w-full h-full object-cover" />
+                              <button type="button" onClick={() => setEditGalleryUrls(prev => prev.filter((_, j) => j !== i))}
+                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80">
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       )}
-                    />
+                      <label className="flex items-center gap-2 text-sm text-green-700 cursor-pointer hover:text-green-800"
+                        onClick={() => editImagesRef.current?.click()}>
+                        <Upload className="w-4 h-4" />
+                        {isUploadingEditImages ? "Uploading…" : `Add images${editGalleryUrls.length > 0 ? ` (${editGalleryUrls.length} added)` : ""}`}
+                      </label>
+                    </div>
+
                     <div className="flex justify-end gap-2">
                       <Button
                         type="button"
@@ -554,7 +664,7 @@ export function AdminCatalogues() {
                       </Button>
                       <Button
                         type="submit"
-                        disabled={updateCatalogueMutation.isPending}
+                        disabled={updateCatalogueMutation.isPending || isUploadingEditCover || isUploadingEditImages}
                         data-testid="button-save-edit"
                       >
                         {updateCatalogueMutation.isPending ? "Saving..." : "Save Changes"}
