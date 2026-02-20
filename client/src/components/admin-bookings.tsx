@@ -485,15 +485,6 @@ export function AdminBookings() {
     setSelectedGallery(g);
   }, []);
 
-  // Ensure gallery exists for the current booking, then return it
-  const ensureGallery = async (bookingId: string): Promise<Gallery> => {
-    const res = await apiRequest("POST", `/api/admin/bookings/${bookingId}/ensure-gallery`, {});
-    const gallery = await res.json() as Gallery;
-    syncSelectedGallery(gallery);
-    queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
-    return gallery;
-  };
-
   // Upload files handler (called by the hidden file input)
   const handleUploadFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -1270,39 +1261,54 @@ export function AdminBookings() {
                     </Select>
                   </div>
 
-                  {/* Hidden file input */}
-                  <input
-                    ref={uploadInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => handleUploadFiles(e.target.files)}
-                  />
-
-                  {/* Upload button — auto-creates gallery if missing */}
-                  <label
-                    onClick={async (e) => {
-                      if (!selectedGallery && selectedBooking) {
-                        e.preventDefault();
-                        setIsEnsuring(true);
-                        try {
-                          await ensureGallery(selectedBooking.id);
-                        } catch {
-                          toast({ title: "Could not create gallery", variant: "destructive" });
-                          setIsEnsuring(false);
-                          return;
-                        }
-                        setIsEnsuring(false);
-                      }
-                      // trigger the input after ensuring
-                      setTimeout(() => uploadInputRef.current?.click(), 0);
-                    }}
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border-2 border-dashed border-green-300 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none"
-                  >
-                    <Upload className="w-4 h-4" />
-                    {isEnsuring ? "Setting up gallery…" : "Select Photos to Upload"}
-                  </label>
+                  {/* Step 1 — create gallery if none exists */}
+                  {!selectedGallery ? (
+                    <div className="text-center space-y-3 py-4">
+                      <Camera className="w-10 h-10 mx-auto text-gray-400" />
+                      <p className="text-sm text-gray-500">No gallery exists for this booking yet.</p>
+                      <Button
+                        type="button"
+                        disabled={isEnsuring}
+                        onClick={async () => {
+                          if (!selectedBooking) return;
+                          setIsEnsuring(true);
+                          try {
+                            const res = await apiRequest("POST", `/api/admin/bookings/${selectedBooking.id}/ensure-gallery`, {});
+                            const gallery = await res.json() as Gallery;
+                            syncSelectedGallery(gallery);
+                            queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
+                          } catch (err: any) {
+                            toast({ title: `Could not create gallery: ${err?.message ?? "unknown error"}`, variant: "destructive" });
+                          } finally {
+                            setIsEnsuring(false);
+                          }
+                        }}
+                      >
+                        <FolderPlus className="w-4 h-4 mr-2" />
+                        {isEnsuring ? "Creating…" : "Create Gallery"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Step 2 — file input + label (direct user gesture, no await) */}
+                      <input
+                        ref={uploadInputRef}
+                        id="booking-upload-input"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => { handleUploadFiles(e.target.files); e.target.value = ""; }}
+                      />
+                      <label
+                        htmlFor="booking-upload-input"
+                        className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border-2 border-dashed border-green-300 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Select Photos to Upload
+                      </label>
+                    </>
+                  )}
 
                   {/* Upload progress list */}
                   {uploadItems.length > 0 && (
@@ -1311,8 +1317,8 @@ export function AdminBookings() {
                         <span className="text-sm font-medium">Uploads</span>
                         <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setUploadItems([])}>Clear</Button>
                       </div>
-                      {uploadItems.map((item, i) => (
-                        <div key={i} className="flex items-center gap-2 text-sm">
+                      {uploadItems.map((item) => (
+                        <div key={(item as any).id} className="flex items-center gap-2 text-sm">
                           {item.url ? (
                             <img src={item.url} className="w-10 h-10 object-cover rounded shrink-0" />
                           ) : (
@@ -1335,10 +1341,6 @@ export function AdminBookings() {
                         </div>
                       ))}
                     </div>
-                  )}
-
-                  {!selectedGallery && (
-                    <p className="text-xs text-gray-500 text-center">A gallery will be created automatically when you upload the first photo.</p>
                   )}
                 </div>
               )}
