@@ -180,6 +180,7 @@ export function AdminBookings() {
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const uploadTypeRef = useRef<'gallery' | 'selected' | 'final'>('gallery');
   const selectedGalleryRef = useRef<Gallery | null>(null);
+  const selectedBookingRef = useRef<Booking | null>(null);
 
   // Catalogue tab image upload state
   const [catCoverUrl, setCatCoverUrl] = useState("");
@@ -488,9 +489,30 @@ export function AdminBookings() {
   // Upload files handler (called by the hidden file input)
   const handleUploadFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const gallery = selectedGalleryRef.current;
-    if (!gallery) return;
     const type = uploadTypeRef.current;
+
+    // Auto-create gallery if missing (happens after file selection, no user-gesture needed)
+    let gallery = selectedGalleryRef.current;
+    if (!gallery) {
+      const booking = selectedBookingRef.current;
+      if (!booking) return;
+      setIsEnsuring(true);
+      try {
+        const res = await apiRequest("POST", `/api/admin/bookings/${booking.id}/ensure-gallery`, {});
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`${res.status}: ${text}`);
+        }
+        gallery = await res.json() as Gallery;
+        syncSelectedGallery(gallery);
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
+      } catch (err: any) {
+        toast({ title: `Could not create gallery: ${err?.message ?? 'server error'}`, variant: "destructive" });
+        setIsEnsuring(false);
+        return;
+      }
+      setIsEnsuring(false);
+    }
 
     // Assign a stable id to each file so we can update it independently
     const ids = Array.from(files).map(() => Math.random().toString(36).slice(2));
@@ -519,6 +541,7 @@ export function AdminBookings() {
 
 
   const openManagementModal = (booking: Booking) => {
+    selectedBookingRef.current = booking;
     setSelectedBooking(booking);
     setActiveTab('details');
     setManagementModalOpen(true);
@@ -1261,53 +1284,25 @@ export function AdminBookings() {
                     </Select>
                   </div>
 
-                  {/* Step 1 — create gallery if none exists */}
-                  {!selectedGallery ? (
-                    <div className="text-center space-y-3 py-4">
-                      <Camera className="w-10 h-10 mx-auto text-gray-400" />
-                      <p className="text-sm text-gray-500">No gallery exists for this booking yet.</p>
-                      <Button
-                        type="button"
-                        disabled={isEnsuring}
-                        onClick={async () => {
-                          if (!selectedBooking) return;
-                          setIsEnsuring(true);
-                          try {
-                            const res = await apiRequest("POST", `/api/admin/bookings/${selectedBooking.id}/ensure-gallery`, {});
-                            const gallery = await res.json() as Gallery;
-                            syncSelectedGallery(gallery);
-                            queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
-                          } catch (err: any) {
-                            toast({ title: `Could not create gallery: ${err?.message ?? "unknown error"}`, variant: "destructive" });
-                          } finally {
-                            setIsEnsuring(false);
-                          }
-                        }}
-                      >
-                        <FolderPlus className="w-4 h-4 mr-2" />
-                        {isEnsuring ? "Creating…" : "Create Gallery"}
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Step 2 — file input + label (direct user gesture, no await) */}
-                      <input
-                        ref={uploadInputRef}
-                        id="booking-upload-input"
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => { handleUploadFiles(e.target.files); e.target.value = ""; }}
-                      />
-                      <label
-                        htmlFor="booking-upload-input"
-                        className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border-2 border-dashed border-green-300 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none"
-                      >
-                        <Upload className="w-4 h-4" />
-                        Select Photos to Upload
-                      </label>
-                    </>
+                  {/* File picker — always visible; gallery auto-created inside handleUploadFiles if needed */}
+                  <input
+                    ref={uploadInputRef}
+                    id="booking-upload-input"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => { handleUploadFiles(e.target.files); e.target.value = ""; }}
+                  />
+                  <label
+                    htmlFor="booking-upload-input"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border-2 border-dashed border-green-300 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {isEnsuring ? "Setting up gallery…" : "Select Photos to Upload"}
+                  </label>
+                  {!selectedGallery && !isEnsuring && (
+                    <p className="text-xs text-gray-400 text-center">A gallery will be created automatically on your first upload.</p>
                   )}
 
                   {/* Upload progress list */}
