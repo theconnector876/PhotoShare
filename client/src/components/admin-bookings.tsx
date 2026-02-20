@@ -34,7 +34,7 @@ import {
   GripVertical,
 } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 
 // ── Cloudinary signed upload helpers ─────────────────────────────────────────
 
@@ -211,6 +211,14 @@ export function AdminBookings() {
     queryKey: ["/api/admin/photographers"],
     retry: false,
   });
+
+  // Keep selectedGallery in sync whenever the galleries query loads/updates
+  useEffect(() => {
+    if (!selectedBooking || !galleries) return;
+    const gallery = galleries.find(g => g.bookingId === selectedBooking.id) ?? null;
+    selectedGalleryRef.current = gallery;
+    setSelectedGallery(gallery);
+  }, [galleries, selectedBooking?.id]);
 
   // Filter bookings based on search and filter criteria
   const filteredBookings = bookings?.filter(booking => {
