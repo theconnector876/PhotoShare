@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import JSZip from "jszip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, StarIcon, ArrowUp, ArrowDown, X, Trash2, Globe, EyeOff, Upload } from "lucide-react";
+import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, StarIcon, ArrowUp, ArrowDown, X, Trash2, Globe, EyeOff, Upload, FileArchive } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 // ── Cloudinary signed upload helpers ─────────────────────────────────────────
@@ -80,6 +81,14 @@ interface Review {
   createdAt: string;
 }
 
+interface ZipGroup {
+  folderName: string;
+  title: string;
+  description: string;
+  serviceType: "photoshoot" | "wedding" | "event";
+  files: File[];
+}
+
 const catalogueFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
@@ -113,6 +122,14 @@ export function AdminCatalogues() {
   const createImagesRef = useRef<HTMLInputElement>(null);
   const editCoverRef = useRef<HTMLInputElement>(null);
   const editImagesRef = useRef<HTMLInputElement>(null);
+
+  // ZIP bulk import state
+  const [isZipImportDialogOpen, setIsZipImportDialogOpen] = useState(false);
+  const [zipGroups, setZipGroups] = useState<ZipGroup[]>([]);
+  const [isParsingZip, setIsParsingZip] = useState(false);
+  const [isImportingZip, setIsImportingZip] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number; status: string } | null>(null);
+  const zipInputRef = useRef<HTMLInputElement>(null);
 
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -393,6 +410,113 @@ export function AdminCatalogues() {
     reorderCataloguesMutation.mutate(newOrder.map((c) => c.id));
   };
 
+  // ── ZIP bulk import helpers ───────────────────────────────────────────────
+
+  const handleZipSelect = async (file: File) => {
+    setIsParsingZip(true);
+    setZipGroups([]);
+    try {
+      const zip = await JSZip.loadAsync(file);
+      const groups = new Map<string, { name: string; blob: Blob }[]>();
+      const filePromises: Promise<void>[] = [];
+
+      zip.forEach((relativePath, zipEntry) => {
+        if (zipEntry.dir) return;
+        const parts = relativePath.split("/").filter(Boolean);
+        if (parts.length < 2) return; // skip root-level files
+        const folder = parts[0];
+        const filename = parts[parts.length - 1];
+        if (!filename || filename.startsWith(".")) return;
+        if (!/\.(jpe?g|png|webp|gif|heic)$/i.test(filename)) return;
+
+        const promise = zipEntry.async("blob").then(blob => {
+          if (!groups.has(folder)) groups.set(folder, []);
+          groups.get(folder)!.push({ name: filename, blob });
+        });
+        filePromises.push(promise);
+      });
+
+      await Promise.all(filePromises);
+
+      const result: ZipGroup[] = Array.from(groups.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([folderName, entries]) => ({
+          folderName,
+          title: folderName,
+          description: "",
+          serviceType: "photoshoot" as const,
+          files: entries
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(({ name, blob }) => {
+              const mime = /\.png$/i.test(name) ? "image/png" : /\.webp$/i.test(name) ? "image/webp" : "image/jpeg";
+              return new File([blob], name, { type: mime });
+            }),
+        }));
+
+      if (result.length === 0) {
+        toast({ title: "No image folders found in ZIP", description: "Make sure photos are organised in subfolders.", variant: "destructive" });
+      }
+      setZipGroups(result);
+    } catch {
+      toast({ title: "Failed to read ZIP file", variant: "destructive" });
+    } finally {
+      setIsParsingZip(false);
+    }
+  };
+
+  const updateZipGroup = (index: number, field: keyof Pick<ZipGroup, "title" | "description" | "serviceType">, value: string) => {
+    setZipGroups(prev => prev.map((g, i) => i === index ? { ...g, [field]: value } : g));
+  };
+
+  const removeZipGroup = (index: number) => {
+    setZipGroups(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleZipImport = async () => {
+    if (zipGroups.length === 0) return;
+    setIsImportingZip(true);
+    let successCount = 0;
+
+    for (let i = 0; i < zipGroups.length; i++) {
+      const group = zipGroups[i];
+      setImportProgress({ current: i + 1, total: zipGroups.length, status: `Uploading "${group.title}" (${i + 1}/${zipGroups.length})…` });
+
+      try {
+        const urls: string[] = [];
+        for (const file of group.files) {
+          const compressed = await compressCatImg(file);
+          const url = await catCloudinaryUpload(compressed);
+          urls.push(url);
+        }
+
+        if (urls.length === 0) continue;
+
+        await apiRequest("POST", "/api/admin/catalogues", {
+          title: group.title,
+          description: group.description || group.folderName,
+          serviceType: group.serviceType,
+          coverImage: urls[0],
+          images: urls,
+          bookingId: null,
+        });
+
+        successCount++;
+      } catch {
+        toast({ title: `Failed to import "${group.title}"`, variant: "destructive" });
+      }
+    }
+
+    setIsImportingZip(false);
+    setImportProgress(null);
+
+    if (successCount > 0) {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogues"] });
+      toast({ title: `Imported ${successCount} catalogue${successCount !== 1 ? "s" : ""} successfully` });
+      setIsZipImportDialogOpen(false);
+      setZipGroups([]);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -415,6 +539,11 @@ export function AdminCatalogues() {
                 Manage your completed work catalogues and their publication status.
               </CardDescription>
             </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setZipGroups([]); setIsZipImportDialogOpen(true); }} data-testid="button-import-zip">
+                <FileArchive className="w-4 h-4 mr-2" />
+                Import ZIP
+              </Button>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-create-catalogue">
@@ -674,6 +803,7 @@ export function AdminCatalogues() {
                 </Form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -910,6 +1040,132 @@ export function AdminCatalogues() {
               {deleteCatalogueMutation.isPending ? "Deleting…" : "Delete"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ZIP Bulk Import Dialog */}
+      <input
+        ref={zipInputRef}
+        type="file"
+        accept=".zip"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleZipSelect(file);
+          e.target.value = "";
+        }}
+      />
+      <Dialog open={isZipImportDialogOpen} onOpenChange={(open) => { if (!open && !isImportingZip) { setIsZipImportDialogOpen(false); setZipGroups([]); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileArchive className="w-5 h-5" />
+              Import Catalogues from ZIP
+            </DialogTitle>
+            <DialogDescription>
+              Upload a ZIP file containing subfolders — each subfolder becomes a catalogue. The first image in each folder becomes the cover.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* ZIP drop zone */}
+          {zipGroups.length === 0 && !isParsingZip && (
+            <div
+              className="flex flex-col items-center justify-center w-full h-40 rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={() => zipInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files[0];
+                if (file?.name.endsWith(".zip")) handleZipSelect(file);
+                else toast({ title: "Please drop a .zip file", variant: "destructive" });
+              }}
+            >
+              <FileArchive className="w-8 h-8 text-gray-400 mb-2" />
+              <span className="text-sm text-gray-500 font-medium">Click or drag a ZIP file here</span>
+              <span className="text-xs text-gray-400 mt-1">Subfolders → catalogues · Images inside → gallery</span>
+            </div>
+          )}
+
+          {isParsingZip && (
+            <div className="flex items-center justify-center h-32 gap-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600" />
+              <span className="text-sm text-gray-600">Reading ZIP file…</span>
+            </div>
+          )}
+
+          {/* Group list */}
+          {zipGroups.length > 0 && !isImportingZip && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">{zipGroups.length} folder{zipGroups.length !== 1 ? "s" : ""} detected. Edit details below, then click Import.</p>
+              {zipGroups.map((group, i) => (
+                <div key={i} className="border rounded-lg p-4 space-y-3 relative">
+                  <button
+                    type="button"
+                    className="absolute top-2 right-2 text-gray-400 hover:text-red-500"
+                    onClick={() => removeZipGroup(i)}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <FolderIcon className="w-4 h-4" />
+                    <span>{group.folderName}</span>
+                    <span className="text-gray-400">· {group.files.length} image{group.files.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Catalogue title"
+                      value={group.title}
+                      onChange={(e) => updateZipGroup(i, "title", e.target.value)}
+                    />
+                    <Textarea
+                      placeholder="Description (optional)"
+                      value={group.description}
+                      onChange={(e) => updateZipGroup(i, "description", e.target.value)}
+                      rows={2}
+                    />
+                    <Select value={group.serviceType} onValueChange={(v) => updateZipGroup(i, "serviceType", v as ZipGroup["serviceType"])}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="photoshoot">Photoshoot</SelectItem>
+                        <SelectItem value="wedding">Wedding</SelectItem>
+                        <SelectItem value="event">Event</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-between pt-2">
+                <Button variant="outline" onClick={() => zipInputRef.current?.click()}>
+                  Choose different ZIP
+                </Button>
+                <Button onClick={handleZipImport} disabled={zipGroups.every(g => !g.title.trim())}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import {zipGroups.length} Catalogue{zipGroups.length !== 1 ? "s" : ""}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Import progress */}
+          {isImportingZip && importProgress && (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">{importProgress.status}</p>
+                  <p className="text-xs text-gray-500">{importProgress.current} of {importProgress.total} catalogues</p>
+                </div>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div
+                  className="bg-green-600 h-2 rounded-full transition-all"
+                  style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
