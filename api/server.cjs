@@ -66597,7 +66597,7 @@ async function registerRoutes(app2) {
       res.json(gallery);
     } catch (error) {
       console.error("Error ensuring gallery:", error);
-      res.status(500).json({ error: "Failed to ensure gallery" });
+      res.status(500).json({ error: "Failed to ensure gallery", details: error?.message, code: error?.code });
     }
   });
   app2.post("/api/admin/upload-signature", isAdmin, (req, res) => {

@@ -632,9 +632,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.json(gallery);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error ensuring gallery:', error);
-      res.status(500).json({ error: 'Failed to ensure gallery' });
+      res.status(500).json({ error: 'Failed to ensure gallery', details: error?.message, code: error?.code });
     }
   });
 
