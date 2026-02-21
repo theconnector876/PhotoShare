@@ -159,6 +159,7 @@ export function setupPasswordAuth(app: Express) {
         lastName: validatedData.lastName,
         profileImageUrl: null,
         isAdmin: isFirstUser,
+        isBlocked: false,
         role: validatedData.role,
         photographerStatus: validatedData.role === "photographer" ? "pending" : null,
       });

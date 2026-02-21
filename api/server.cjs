@@ -65625,6 +65625,7 @@ function setupPasswordAuth(app2) {
         lastName: validatedData.lastName,
         profileImageUrl: null,
         isAdmin: isFirstUser,
+        isBlocked: false,
         role: validatedData.role,
         photographerStatus: validatedData.role === "photographer" ? "pending" : null
       });
@@ -66338,7 +66339,7 @@ async function registerRoutes(app2) {
           lastName,
           profileImageUrl: null,
           isAdmin: false,
-          // New users are not admin by default
+          isBlocked: false,
           role: "client",
           photographerStatus: null
         });
@@ -67410,7 +67411,7 @@ async function registerRoutes(app2) {
       const expiresAt = new Date(Date.now() + 60 * 60 * 1e3);
       await storage.createPasswordResetToken(user.id, token, expiresAt);
       const resetUrl = `${process.env.APP_URL || "http://localhost:5000"}/reset-password?token=${token}`;
-      await sendPasswordReset(user.email, user.firstName || "User", resetUrl);
+      await sendPasswordReset(user.email, token);
       res.json({ success: true });
     } catch (error) {
       console.error("Error sending password reset:", error);

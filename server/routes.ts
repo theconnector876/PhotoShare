@@ -342,7 +342,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName: firstName,
           lastName: lastName,
           profileImageUrl: null,
-          isAdmin: false, // New users are not admin by default
+          isAdmin: false,
+          isBlocked: false,
           role: "client",
           photographerStatus: null,
         });
@@ -1625,7 +1626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
       await storage.createPasswordResetToken(user.id, token, expiresAt);
       const resetUrl = `${process.env.APP_URL || 'http://localhost:5000'}/reset-password?token=${token}`;
-      await sendPasswordReset(user.email, user.firstName || 'User', resetUrl);
+      await sendPasswordReset(user.email, token);
       res.json({ success: true });
     } catch (error) {
       console.error('Error sending password reset:', error);
