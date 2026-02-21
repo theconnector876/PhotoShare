@@ -72,7 +72,10 @@ export interface IStorage {
   getGalleryByAccess(email: string, accessCode: string): Promise<Gallery | undefined>;
   getGalleryByBookingId(bookingId: string): Promise<Gallery | undefined>;
   updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined>;
-  updateGallerySettings(id: string, settings: { downloadEnabled?: boolean; status?: string }): Promise<Gallery | undefined>;
+  updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string }): Promise<Gallery | undefined>;
+  deleteUser(id: string): Promise<boolean>;
+  updateUser(id: string, data: { firstName?: string; lastName?: string; email?: string; password?: string }): Promise<User | undefined>;
+  blockUser(id: string, blocked: boolean): Promise<User | undefined>;
   
   // Contact operations
   createContactMessage(message: InsertContactMessage): Promise<ContactMessage>;
@@ -367,13 +370,36 @@ export class DatabaseStorage implements IStorage {
     return gallery;
   }
 
-  async updateGallerySettings(id: string, settings: { downloadEnabled?: boolean; status?: string }): Promise<Gallery | undefined> {
+  async updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string }): Promise<Gallery | undefined> {
     const [gallery] = await db
       .update(galleries)
       .set(settings)
       .where(eq(galleries.id, id))
       .returning();
     return gallery;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async updateUser(id: string, data: { firstName?: string; lastName?: string; email?: string; password?: string }): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async blockUser(id: string, blocked: boolean): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ isBlocked: blocked, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
   }
 
   async createContactMessage(insertMessage: InsertContactMessage): Promise<ContactMessage> {

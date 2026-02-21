@@ -30,7 +30,9 @@ interface Gallery {
   selectedImages: string[];
   finalImages: string[];
   status: string;
-  downloadEnabled: boolean;
+  galleryDownloadEnabled: boolean;
+  selectedDownloadEnabled: boolean;
+  finalDownloadEnabled: boolean;
   createdAt: Date;
 }
 
@@ -249,7 +251,7 @@ export default function Gallery() {
                 onClick={() => setViewMode('final')}
                 data-testid="button-view-final"
               >
-                {gallery.downloadEnabled ? <Download className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}
+                {gallery.finalDownloadEnabled ? <Download className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}
                 Final ({gallery.finalImages.length})
               </Button>
             )}
@@ -301,8 +303,10 @@ export default function Gallery() {
                 </div>
               )}
 
-              {/* Download button for final images */}
-              {viewMode === 'final' && gallery.downloadEnabled && (
+              {/* Download button per section */}
+              {((viewMode === 'gallery' && gallery.galleryDownloadEnabled) ||
+                (viewMode === 'selected' && gallery.selectedDownloadEnabled) ||
+                (viewMode === 'final' && gallery.finalDownloadEnabled)) && (
                 <a
                   href={imageUrl}
                   download
@@ -357,7 +361,7 @@ export default function Gallery() {
                 <Heart className="mr-2 h-4 w-4" />
                 {updateSelectionMutation.isPending ? 'Saving...' : 'Save Selection'}
               </Button>
-              
+
               {selectedImages.length > 0 && (
                 <Button
                   variant="outline"
@@ -368,7 +372,85 @@ export default function Gallery() {
                   Clear Selection
                 </Button>
               )}
+
+              {gallery.galleryDownloadEnabled && currentImages.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    currentImages.forEach((url, i) => {
+                      setTimeout(() => {
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `photo-${i + 1}.jpg`;
+                        a.target = '_blank';
+                        a.rel = 'noreferrer';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                      }, i * 200);
+                    });
+                  }}
+                  className="px-8 py-3 rounded-lg font-semibold magnetic-btn"
+                  data-testid="button-download-all-gallery"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download All
+                </Button>
+              )}
             </div>
+          </div>
+        )}
+
+        {viewMode === 'selected' && gallery.selectedDownloadEnabled && currentImages.length > 0 && (
+          <div className="text-center">
+            <Button
+              variant="outline"
+              onClick={() => {
+                currentImages.forEach((url, i) => {
+                  setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `selected-${i + 1}.jpg`;
+                    a.target = '_blank';
+                    a.rel = 'noreferrer';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }, i * 200);
+                });
+              }}
+              className="px-8 py-3 rounded-lg font-semibold magnetic-btn"
+              data-testid="button-download-all-selected"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download All Selected
+            </Button>
+          </div>
+        )}
+
+        {viewMode === 'final' && gallery.finalDownloadEnabled && currentImages.length > 0 && (
+          <div className="text-center">
+            <Button
+              onClick={() => {
+                currentImages.forEach((url, i) => {
+                  setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `final-${i + 1}.jpg`;
+                    a.target = '_blank';
+                    a.rel = 'noreferrer';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }, i * 200);
+                });
+              }}
+              className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow"
+              data-testid="button-download-all-final"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download All Final Photos
+            </Button>
           </div>
         )}
 

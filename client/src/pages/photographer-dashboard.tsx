@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Camera, Calendar, Image, User, Clock, CheckCircle, Upload, Phone, Mail, MapPin, DollarSign, Users, GripVertical, X, Eye, Loader2, CheckCircle2, AlertCircle, Copy } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface UserBooking {
   id: string;
@@ -46,6 +47,9 @@ interface UserGallery {
   galleryImages: string[];
   selectedImages: string[];
   finalImages: string[];
+  galleryDownloadEnabled: boolean;
+  selectedDownloadEnabled: boolean;
+  finalDownloadEnabled: boolean;
   createdAt: string;
 }
 
@@ -309,6 +313,18 @@ export default function PhotographerDashboard() {
     },
     onError: () => {
       toast({ title: "Failed to update gallery", variant: "destructive" });
+    },
+  });
+
+  const updateGallerySettingsMutation = useMutation({
+    mutationFn: async ({ galleryId, settings }: { galleryId: string; settings: Record<string, boolean | string> }) => {
+      await apiRequest("PATCH", `/api/photographer/gallery/${galleryId}/settings`, settings);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photographer/galleries"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update settings", variant: "destructive" });
     },
   });
 
@@ -845,6 +861,26 @@ export default function PhotographerDashboard() {
                         <Badge className="bg-green-100 text-green-800 text-[10px]">
                           {gallery.status}
                         </Badge>
+                      </div>
+
+                      {/* Download toggles */}
+                      <div className="mb-4 p-3 bg-green-50 rounded space-y-2">
+                        <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Download Settings</p>
+                        {([
+                          { key: 'galleryDownloadEnabled' as const, label: 'Gallery downloads' },
+                          { key: 'selectedDownloadEnabled' as const, label: 'Selected downloads' },
+                          { key: 'finalDownloadEnabled' as const, label: 'Final downloads' },
+                        ]).map(({ key, label }) => (
+                          <div key={key} className="flex items-center justify-between">
+                            <span className="text-sm text-green-800">{label}</span>
+                            <Switch
+                              checked={gallery[key] ?? false}
+                              onCheckedChange={(checked) => {
+                                updateGallerySettingsMutation.mutate({ galleryId: gallery.id, settings: { [key]: checked } });
+                              }}
+                            />
+                          </div>
+                        ))}
                       </div>
 
                       {/* Three image sections */}

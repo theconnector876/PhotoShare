@@ -628,7 +628,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           galleryImages: [],
           selectedImages: [],
           finalImages: [],
-          downloadEnabled: true,
         });
       }
       res.json(gallery);
@@ -659,17 +658,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Update gallery settings (download toggle, status)
+  // Update gallery settings (download toggles, status)
   app.patch('/api/admin/gallery/:id/settings', isAdmin, async (req, res) => {
     try {
       const schema = z.object({
-        downloadEnabled: z.boolean().optional(),
+        galleryDownloadEnabled: z.boolean().optional(),
+        selectedDownloadEnabled: z.boolean().optional(),
+        finalDownloadEnabled: z.boolean().optional(),
         status: z.enum(['pending', 'active', 'selection', 'editing', 'completed']).optional(),
       });
       const settings = schema.parse(req.body);
       const gallery = await storage.updateGallerySettings(req.params.id, settings);
       if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
       res.json(gallery);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid settings' });
+    }
+  });
+
+  // Photographer gallery settings
+  app.patch('/api/photographer/gallery/:id/settings', isPhotographerApproved, async (req, res) => {
+    try {
+      const schema = z.object({
+        galleryDownloadEnabled: z.boolean().optional(),
+        selectedDownloadEnabled: z.boolean().optional(),
+        finalDownloadEnabled: z.boolean().optional(),
+        status: z.enum(['pending', 'active', 'selection', 'editing', 'completed']).optional(),
+      });
+      const settings = schema.parse(req.body);
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
+      if (gallery.bookingId) {
+        const booking = await storage.getBooking(gallery.bookingId);
+        const userId = (req as any).user?.id;
+        if (!booking || booking.photographerId !== userId) {
+          return res.status(403).json({ error: 'Not assigned to this gallery' });
+        }
+      }
+      const updated = await storage.updateGallerySettings(req.params.id, settings);
+      res.json(updated);
     } catch (error) {
       res.status(400).json({ error: 'Invalid settings' });
     }
@@ -1516,7 +1543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/users', isAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
-      
+
       // Remove password fields for security
       const safeUsers = users.map(user => ({
         id: user.id,
@@ -1524,15 +1551,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: user.firstName,
         lastName: user.lastName,
         isAdmin: user.isAdmin,
+        isBlocked: user.isBlocked,
         role: user.role,
         photographerStatus: user.photographerStatus,
         createdAt: user.createdAt
       }));
-      
+
       res.json(safeUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  });
+
+  // Delete user (admin only)
+  app.delete('/api/admin/users/:id', isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteUser(req.params.id);
+      if (!ok) return res.status(404).json({ error: 'User not found' });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ error: 'Failed to delete user' });
+    }
+  });
+
+  // Edit user (admin only)
+  app.put('/api/admin/users/:id', isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        email: z.string().email().optional(),
+        password: z.string().min(6).optional(),
+      });
+      const data = schema.parse(req.body);
+      if (data.password) {
+        data.password = await hashPassword(data.password);
+      }
+      const user = await storage.updateUser(req.params.id, data);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      const { password: _, ...safeUser } = user as any;
+      res.json(safeUser);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: error.errors });
+      console.error('Error updating user:', error);
+      res.status(500).json({ error: 'Failed to update user' });
+    }
+  });
+
+  // Block/unblock user (admin only)
+  app.patch('/api/admin/users/:id/block', isAdmin, async (req, res) => {
+    try {
+      const { blocked } = z.object({ blocked: z.boolean() }).parse(req.body);
+      const user = await storage.blockUser(req.params.id, blocked);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      const { password: _, ...safeUser } = user as any;
+      res.json(safeUser);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data' });
+      console.error('Error blocking user:', error);
+      res.status(500).json({ error: 'Failed to block/unblock user' });
+    }
+  });
+
+  // Send password reset email to user (admin only)
+  app.post('/api/admin/users/:id/reset-password', isAdmin, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.params.id);
+      if (!user || !user.email) return res.status(404).json({ error: 'User not found' });
+      const crypto = require('crypto');
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await storage.createPasswordResetToken(user.id, token, expiresAt);
+      const resetUrl = `${process.env.APP_URL || 'http://localhost:5000'}/reset-password?token=${token}`;
+      await sendPasswordReset(user.email, user.firstName || 'User', resetUrl);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error sending password reset:', error);
+      res.status(500).json({ error: 'Failed to send reset email' });
+    }
+  });
+
+  // Send payment link to client (admin only)
+  app.post('/api/admin/bookings/:id/send-payment-link', isAdmin, async (req, res) => {
+    try {
+      if (!lemonSqueezyEnabled) {
+        return res.status(501).json({ error: 'Payments not configured' });
+      }
+      const { paymentType } = z.object({ paymentType: z.enum(['deposit', 'balance']) }).parse(req.body);
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) return res.status(404).json({ error: 'Booking not found' });
+      if (booking.status !== 'confirmed' && booking.status !== 'pending') {
+        return res.status(400).json({ error: 'Booking must be confirmed or pending' });
+      }
+      const serverDepositAmount = Math.round(booking.totalPrice * 0.5);
+      const serverBalanceDue = booking.totalPrice - serverDepositAmount;
+      let amount: number;
+      if (paymentType === 'deposit') {
+        if (booking.depositPaid) return res.status(400).json({ error: 'Deposit already paid' });
+        amount = serverDepositAmount;
+      } else {
+        if (!booking.depositPaid) return res.status(400).json({ error: 'Deposit must be paid first' });
+        if (booking.balancePaid) return res.status(400).json({ error: 'Balance already paid' });
+        amount = serverBalanceDue;
+      }
+      const storeId = process.env.LEMONSQUEEZY_STORE_ID!;
+      const variantId = process.env.LEMONSQUEEZY_VARIANT_ID!;
+      const customPriceInCents = Math.round(amount * 100);
+      const newCheckout = {
+        customPrice: customPriceInCents,
+        productOptions: {
+          name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment`,
+          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}`,
+          redirectUrl: `${process.env.APP_URL || 'http://localhost:5000'}/payment-success?booking=${booking.id}`,
+        },
+        checkoutOptions: { embed: false, media: true, logo: true },
+        checkoutData: {
+          email: booking.email,
+          name: booking.clientName,
+          custom: { booking_id: booking.id, payment_type: paymentType, service_type: booking.serviceType, total_amount: String(booking.totalPrice) }
+        },
+      };
+      const checkout = await createCheckout(storeId, variantId, newCheckout);
+      if (checkout.error) return res.status(500).json({ error: 'Failed to create checkout' });
+      const url = checkout.data?.data?.attributes?.url;
+      if (!url) return res.status(500).json({ error: 'No checkout URL returned' });
+      // Send by email
+      await sendAdminEmail(
+        booking.email,
+        booking.clientName,
+        `Payment Link – ${paymentType === 'deposit' ? 'Deposit' : 'Balance'}`,
+        `Hi ${booking.clientName},\n\nPlease use the following link to complete your ${paymentType} payment of $${(amount).toFixed(2)}:\n\n${url}\n\nThank you!`
+      );
+      res.json({ url });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data' });
+      console.error('Error sending payment link:', error);
+      res.status(500).json({ error: 'Failed to send payment link' });
     }
   });
 

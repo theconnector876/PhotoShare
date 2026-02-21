@@ -182,6 +182,7 @@ export default function Home() {
       <AdminInlineEditor
         open={!!editorSection}
         sectionId={editorSection}
+        focusSection={editorSection}
         onOpenChange={(open) => {
           if (!open) setEditorSection(null);
         }}

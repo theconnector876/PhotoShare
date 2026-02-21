@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   isAdmin: boolean("is_admin").default(false),
+  isBlocked: boolean("is_blocked").notNull().default(false),
   role: text("role").notNull().default("client"), // client, photographer
   photographerStatus: text("photographer_status").default("pending"), // pending, approved, rejected
   createdAt: timestamp("created_at").defaultNow(),
@@ -103,7 +104,9 @@ export const galleries = pgTable("galleries", {
   selectedImages: text("selected_images").array().default([]),
   finalImages: text("final_images").array().default([]),
   status: text("status").notNull().default("pending"), // pending, selection, editing, completed
-  downloadEnabled: boolean("download_enabled").notNull().default(true),
+  galleryDownloadEnabled: boolean("gallery_download_enabled").notNull().default(false),
+  selectedDownloadEnabled: boolean("selected_download_enabled").notNull().default(false),
+  finalDownloadEnabled: boolean("final_download_enabled").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

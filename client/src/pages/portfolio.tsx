@@ -61,6 +61,7 @@ export default function Portfolio() {
       <AdminInlineEditor
         open={!!editorSection}
         sectionId={editorSection}
+        focusSection={editorSection}
         onOpenChange={(open) => {
           if (!open) setEditorSection(null);
         }}

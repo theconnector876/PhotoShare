@@ -8,7 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { defaultSiteConfig, type SiteConfig } from "@shared/site-config";
+import { ChevronUp, ChevronDown } from "lucide-react";
+
+const FONT_OPTIONS = [
+  { label: "Inter", value: "Inter" },
+  { label: "Playfair Display", value: "Playfair Display" },
+  { label: "DM Sans", value: "DM Sans" },
+  { label: "Lato", value: "Lato" },
+  { label: "Montserrat", value: "Montserrat" },
+  { label: "Custom", value: "custom" },
+];
 
 const splitCommaList = (value: string) =>
   value
@@ -18,7 +30,7 @@ const splitCommaList = (value: string) =>
 
 const joinCommaList = (items: string[]) => items.join(", ");
 
-export function AdminSite() {
+export function AdminSite({ onlySection }: { onlySection?: string | null } = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [location] = useLocation();
@@ -157,6 +169,9 @@ export function AdminSite() {
     ]);
   };
 
+  // Helper: only show a card if no filter, the id matches exactly, or onlySection is a sub-section of id
+  const showSection = (id: string) => !onlySection || onlySection === id || onlySection.startsWith(id + "-");
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -167,7 +182,7 @@ export function AdminSite() {
 
   return (
     <div className="space-y-6">
-      <Card id="site-branding">
+      {showSection("site-branding") && <Card id="site-branding">
         <CardHeader>
           <CardTitle>Branding</CardTitle>
           <CardDescription>Update your app name, logo, and general branding.</CardDescription>
@@ -206,51 +221,43 @@ export function AdminSite() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card id="site-theme">
+      {showSection("site-theme") && <Card id="site-theme">
         <CardHeader>
           <CardTitle>Theme</CardTitle>
           <CardDescription>Colors, fonts, and base text size.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <Label>Primary Color</Label>
-              <Input
-                value={config.theme.primary}
-                onChange={(e) => updateConfig("theme.primary", e.target.value)}
-                placeholder="hsl(120, 100%, 20%)"
-              />
-            </div>
-            <div>
-              <Label>Secondary Color</Label>
-              <Input
-                value={config.theme.secondary}
-                onChange={(e) => updateConfig("theme.secondary", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Accent Color</Label>
-              <Input
-                value={config.theme.accent}
-                onChange={(e) => updateConfig("theme.accent", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Background Color</Label>
-              <Input
-                value={config.theme.background}
-                onChange={(e) => updateConfig("theme.background", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Foreground Color</Label>
-              <Input
-                value={config.theme.foreground}
-                onChange={(e) => updateConfig("theme.foreground", e.target.value)}
-              />
-            </div>
+            {([
+              { label: "Primary Color", path: "theme.primary" },
+              { label: "Secondary Color", path: "theme.secondary" },
+              { label: "Accent Color", path: "theme.accent" },
+              { label: "Background Color", path: "theme.background" },
+              { label: "Foreground Color", path: "theme.foreground" },
+            ] as const).map(({ label, path }) => {
+              const rawVal: string = path.split(".").reduce((o: any, k) => o?.[k], config) ?? "";
+              return (
+                <div key={path}>
+                  <Label>{label}</Label>
+                  <div className="flex gap-2 items-center mt-1">
+                    <input
+                      type="color"
+                      value={rawVal.startsWith("#") ? rawVal : "#000000"}
+                      onChange={(e) => updateConfig(path, e.target.value)}
+                      className="w-10 h-9 rounded border cursor-pointer p-0.5"
+                    />
+                    <Input
+                      value={rawVal}
+                      onChange={(e) => updateConfig(path, e.target.value)}
+                      placeholder="hsl(...) or #hex"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              );
+            })}
             <div>
               <Label>Base Font Size</Label>
               <Input
@@ -259,88 +266,129 @@ export function AdminSite() {
                 placeholder="16px"
               />
             </div>
-            <div>
-              <Label>Font Sans</Label>
-              <Input
-                value={config.theme.fontSans}
-                onChange={(e) => updateConfig("theme.fontSans", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Font Serif</Label>
-              <Input
-                value={config.theme.fontSerif}
-                onChange={(e) => updateConfig("theme.fontSerif", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Font Mono</Label>
-              <Input
-                value={config.theme.fontMono}
-                onChange={(e) => updateConfig("theme.fontMono", e.target.value)}
-              />
-            </div>
           </div>
-          <div>
-            <Label>Extra CSS Variables (JSON)</Label>
-            <Textarea
-              rows={6}
-              value={extraVarsRaw}
-              onChange={(e) => setExtraVarsRaw(e.target.value)}
-              placeholder='{"card":"hsl(0,0%,100%)","primary-foreground":"hsl(210,40%,98%)"}'
-            />
-          </div>
-          <div>
-            <Label>Custom CSS</Label>
-            <Textarea
-              rows={8}
-              value={customCssRaw}
-              onChange={(e) => setCustomCssRaw(e.target.value)}
-              placeholder=".hero-overlay { opacity: 0.6; }"
-            />
-          </div>
-        </CardContent>
-      </Card>
 
-      <Card id="site-layout">
+          <div className="grid md:grid-cols-3 gap-4">
+            {([
+              { label: "Font Sans", path: "theme.fontSans" },
+              { label: "Font Serif", path: "theme.fontSerif" },
+              { label: "Font Mono", path: "theme.fontMono" },
+            ] as const).map(({ label, path }) => {
+              const rawVal: string = path.split(".").reduce((o: any, k) => o?.[k], config) ?? "";
+              const isKnown = FONT_OPTIONS.some((f) => f.value !== "custom" && f.value === rawVal);
+              return (
+                <div key={path} className="space-y-1">
+                  <Label>{label}</Label>
+                  <Select
+                    value={isKnown ? rawVal : "custom"}
+                    onValueChange={(val) => {
+                      if (val !== "custom") updateConfig(path, val);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_OPTIONS.map((f) => (
+                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {(!isKnown || rawVal === "") && (
+                    <Input
+                      value={rawVal}
+                      onChange={(e) => updateConfig(path, e.target.value)}
+                      placeholder="Custom font name"
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <details className="border rounded-md">
+            <summary className="cursor-pointer px-4 py-2 font-medium text-sm select-none">Advanced (CSS variables &amp; custom CSS)</summary>
+            <div className="p-4 space-y-4">
+              <div>
+                <Label>Extra CSS Variables (JSON)</Label>
+                <Textarea
+                  rows={6}
+                  value={extraVarsRaw}
+                  onChange={(e) => setExtraVarsRaw(e.target.value)}
+                  placeholder='{"card":"hsl(0,0%,100%)","primary-foreground":"hsl(210,40%,98%)"}'
+                />
+              </div>
+              <div>
+                <Label>Custom CSS</Label>
+                <Textarea
+                  rows={8}
+                  value={customCssRaw}
+                  onChange={(e) => setCustomCssRaw(e.target.value)}
+                  placeholder=".hero-overlay { opacity: 0.6; }"
+                />
+              </div>
+            </div>
+          </details>
+        </CardContent>
+      </Card>}
+
+      {showSection("site-layout") && <Card id="site-layout">
         <CardHeader>
           <CardTitle>Layout Controls</CardTitle>
           <CardDescription>Adjust section order and visibility.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div id="site-home-hero" className="grid md:grid-cols-2 gap-4">
-            <div>
-              <Label>Home Section Order</Label>
-              <Input value={layoutHomeOrder} onChange={(e) => setLayoutHomeOrder(e.target.value)} />
-            </div>
-            <div>
-              <Label>Home Hidden Sections</Label>
-              <Input value={layoutHomeHidden} onChange={(e) => setLayoutHomeHidden(e.target.value)} />
-            </div>
-            <div>
-              <Label>About Section Order</Label>
-              <Input value={layoutAboutOrder} onChange={(e) => setLayoutAboutOrder(e.target.value)} />
-            </div>
-            <div>
-              <Label>About Hidden Sections</Label>
-              <Input value={layoutAboutHidden} onChange={(e) => setLayoutAboutHidden(e.target.value)} />
-            </div>
-            <div>
-              <Label>Portfolio Section Order</Label>
-              <Input value={layoutPortfolioOrder} onChange={(e) => setLayoutPortfolioOrder(e.target.value)} />
-            </div>
-            <div>
-              <Label>Portfolio Hidden Sections</Label>
-              <Input value={layoutPortfolioHidden} onChange={(e) => setLayoutPortfolioHidden(e.target.value)} />
-            </div>
-          </div>
+          {([
+            { page: "Home", orderState: layoutHomeOrder, setOrder: setLayoutHomeOrder, hiddenState: layoutHomeHidden, setHidden: setLayoutHomeHidden },
+            { page: "About", orderState: layoutAboutOrder, setOrder: setLayoutAboutOrder, hiddenState: layoutAboutHidden, setHidden: setLayoutAboutHidden },
+            { page: "Portfolio", orderState: layoutPortfolioOrder, setOrder: setLayoutPortfolioOrder, hiddenState: layoutPortfolioHidden, setHidden: setLayoutPortfolioHidden },
+          ]).map(({ page, orderState, setOrder, hiddenState, setHidden }) => {
+            const sections = splitCommaList(orderState);
+            const hidden = splitCommaList(hiddenState);
+            const moveSection = (index: number, direction: -1 | 1) => {
+              const next = [...sections];
+              const target = index + direction;
+              if (target < 0 || target >= next.length) return;
+              [next[index], next[target]] = [next[target], next[index]];
+              setOrder(joinCommaList(next));
+            };
+            const toggleHidden = (section: string) => {
+              const isHidden = hidden.includes(section);
+              setHidden(isHidden ? joinCommaList(hidden.filter((s) => s !== section)) : joinCommaList([...hidden, section]));
+            };
+            return (
+              <div key={page}>
+                <p className="font-medium text-sm mb-2">{page} Page Sections</p>
+                <div className="space-y-1">
+                  {sections.map((section, i) => (
+                    <div key={section} className="flex items-center gap-2 p-2 rounded border bg-white">
+                      <div className="flex flex-col">
+                        <button type="button" onClick={() => moveSection(i, -1)} className="hover:text-primary disabled:opacity-30" disabled={i === 0}><ChevronUp className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => moveSection(i, 1)} className="hover:text-primary disabled:opacity-30" disabled={i === sections.length - 1}><ChevronDown className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <Checkbox
+                        id={`${page}-${section}-vis`}
+                        checked={!hidden.includes(section)}
+                        onCheckedChange={() => toggleHidden(section)}
+                      />
+                      <label htmlFor={`${page}-${section}-vis`} className="text-sm flex-1 cursor-pointer capitalize">
+                        {section}
+                        {hidden.includes(section) && <span className="ml-2 text-xs text-muted-foreground">(hidden)</span>}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Raw: {orderState || "(empty)"}</p>
+              </div>
+            );
+          })}
           <p className="text-sm text-muted-foreground">
-            Use comma-separated lists. Example: hero, services, portfolio, reviews.
+            Use the arrows to reorder sections. Check to show, uncheck to hide.
           </p>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card id="site-home">
+      {showSection("site-home") && <Card id="site-home">
         <CardHeader>
           <CardTitle>Home Page</CardTitle>
           <CardDescription>Hero text, cover image, and services.</CardDescription>
@@ -505,9 +553,9 @@ export function AdminSite() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card id="site-about">
+      {showSection("site-about") && <Card id="site-about">
         <CardHeader>
           <CardTitle>About Page</CardTitle>
           <CardDescription>Copy, stats, and highlight blocks.</CardDescription>
@@ -624,9 +672,9 @@ export function AdminSite() {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card id="site-portfolio">
+      {showSection("site-portfolio") && <Card id="site-portfolio">
         <CardHeader>
           <CardTitle>Portfolio Page</CardTitle>
           <CardDescription>Heading and call-to-action.</CardDescription>
@@ -661,7 +709,7 @@ export function AdminSite() {
             />
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saveMutation.isPending}>

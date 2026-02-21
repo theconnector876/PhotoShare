@@ -126,7 +126,7 @@ export function AdminDashboard() {
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("bookings")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
               <ClockIcon className="h-4 w-4 text-muted-foreground" />
@@ -141,7 +141,7 @@ export function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("bookings")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Confirmed Bookings</CardTitle>
               <CheckCircleIcon className="h-4 w-4 text-muted-foreground" />
@@ -156,7 +156,7 @@ export function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("galleries")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Galleries</CardTitle>
               <ImageIcon className="h-4 w-4 text-muted-foreground" />
@@ -171,7 +171,7 @@ export function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("contacts")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Unread Messages</CardTitle>
               <MessageSquareIcon className="h-4 w-4 text-muted-foreground" />
@@ -186,7 +186,7 @@ export function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("catalogues")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Published Catalogues</CardTitle>
               <FolderIcon className="h-4 w-4 text-muted-foreground" />
@@ -201,7 +201,7 @@ export function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("reviews")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
               <Star className="h-4 w-4 text-muted-foreground" />

@@ -89,6 +89,9 @@ export function setupPasswordAuth(app: Express) {
           if (!user || !user.password || !(await comparePasswords(password, user.password))) {
             return done(null, false, { message: 'Invalid email or password' });
           }
+          if (user.isBlocked) {
+            return done(null, false, { message: 'Your account has been blocked. Please contact support.' });
+          }
           
           // Return user without password - handle nullable fields
           const userWithoutPassword = {

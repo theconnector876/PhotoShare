@@ -6,9 +6,10 @@ type AdminInlineEditorProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sectionId?: string | null;
+  focusSection?: string | null;
 };
 
-export function AdminInlineEditor({ open, onOpenChange, sectionId }: AdminInlineEditorProps) {
+export function AdminInlineEditor({ open, onOpenChange, sectionId, focusSection }: AdminInlineEditorProps) {
   useEffect(() => {
     if (!open || !sectionId) return;
     window.location.hash = sectionId;
@@ -20,7 +21,7 @@ export function AdminInlineEditor({ open, onOpenChange, sectionId }: AdminInline
         <DialogHeader>
           <DialogTitle>Edit Page Content</DialogTitle>
         </DialogHeader>
-        <AdminSite />
+        <AdminSite onlySection={focusSection} />
       </DialogContent>
     </Dialog>
   );

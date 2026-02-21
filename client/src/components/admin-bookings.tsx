@@ -32,7 +32,11 @@ import {
   MessageSquare,
   Camera,
   GripVertical,
+  Copy,
+  Send,
+  Download,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useRef, useCallback, useEffect } from "react";
 
@@ -132,6 +136,9 @@ interface Gallery {
   selectedImages: string[];
   finalImages: string[];
   status: string;
+  galleryDownloadEnabled: boolean;
+  selectedDownloadEnabled: boolean;
+  finalDownloadEnabled: boolean;
   createdAt: string;
 }
 
@@ -408,6 +415,35 @@ export function AdminBookings() {
         description: "Failed to create catalogue.",
         variant: "destructive",
       });
+    },
+  });
+
+  // Update gallery download settings
+  const updateGallerySettingsMutation = useMutation({
+    mutationFn: async ({ galleryId, settings }: { galleryId: string; settings: Record<string, boolean | string> }) => {
+      const res = await apiRequest('PATCH', `/api/admin/gallery/${galleryId}/settings`, settings);
+      return res.json() as Promise<Gallery>;
+    },
+    onSuccess: (gallery) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
+      setSelectedGallery(gallery);
+    },
+    onError: () => {
+      toast({ title: "Failed to update settings", variant: "destructive" });
+    },
+  });
+
+  // Send payment link
+  const sendPaymentLinkMutation = useMutation({
+    mutationFn: async ({ bookingId, paymentType }: { bookingId: string; paymentType: 'deposit' | 'balance' }) => {
+      const res = await apiRequest('POST', `/api/admin/bookings/${bookingId}/send-payment-link`, { paymentType });
+      return res.json() as Promise<{ url: string }>;
+    },
+    onSuccess: () => {
+      toast({ title: "Payment link sent successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to send payment link", variant: "destructive" });
     },
   });
 
@@ -899,11 +935,75 @@ export function AdminBookings() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Deposit Amount</Label>
-                      <p>{formatCurrency(selectedBooking.depositAmount)} - {selectedBooking.depositPaid ? "✓ Paid" : "Pending"}</p>
+                      <p className="mb-2">{formatCurrency(selectedBooking.depositAmount)} - {selectedBooking.depositPaid ? "✓ Paid" : "Pending"}</p>
+                      {!selectedBooking.depositPaid && (
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                const res = await apiRequest('POST', `/api/admin/bookings/${selectedBooking.id}/send-payment-link`, { paymentType: 'deposit' });
+                                const data = await res.json();
+                                if (data.url) {
+                                  await navigator.clipboard.writeText(data.url);
+                                  toast({ title: "Deposit link copied to clipboard" });
+                                }
+                              } catch {
+                                toast({ title: "Failed to get payment link", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <Copy className="w-3 h-3 mr-1" />
+                            Copy Link
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => sendPaymentLinkMutation.mutate({ bookingId: selectedBooking.id, paymentType: 'deposit' })}
+                            disabled={sendPaymentLinkMutation.isPending}
+                          >
+                            <Send className="w-3 h-3 mr-1" />
+                            Send by Email
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <Label>Balance Due</Label>
-                      <p>{formatCurrency(selectedBooking.balanceDue)} - {selectedBooking.balancePaid ? "✓ Paid" : "Pending"}</p>
+                      <p className="mb-2">{formatCurrency(selectedBooking.balanceDue)} - {selectedBooking.balancePaid ? "✓ Paid" : "Pending"}</p>
+                      {selectedBooking.depositPaid && !selectedBooking.balancePaid && (
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                const res = await apiRequest('POST', `/api/admin/bookings/${selectedBooking.id}/send-payment-link`, { paymentType: 'balance' });
+                                const data = await res.json();
+                                if (data.url) {
+                                  await navigator.clipboard.writeText(data.url);
+                                  toast({ title: "Balance link copied to clipboard" });
+                                }
+                              } catch {
+                                toast({ title: "Failed to get payment link", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <Copy className="w-3 h-3 mr-1" />
+                            Copy Link
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => sendPaymentLinkMutation.mutate({ bookingId: selectedBooking.id, paymentType: 'balance' })}
+                            disabled={sendPaymentLinkMutation.isPending}
+                          >
+                            <Send className="w-3 h-3 mr-1" />
+                            Send by Email
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1248,6 +1348,26 @@ export function AdminBookings() {
                           </div>
                         </div>
                       ))}
+
+                      {/* Download toggles */}
+                      <div className="p-3 bg-gray-50 rounded space-y-2">
+                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Download Settings</p>
+                        {([
+                          { key: 'galleryDownloadEnabled' as const, label: 'Gallery section downloads' },
+                          { key: 'selectedDownloadEnabled' as const, label: 'Selected section downloads' },
+                          { key: 'finalDownloadEnabled' as const, label: 'Final section downloads' },
+                        ]).map(({ key, label }) => (
+                          <div key={key} className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700">{label}</span>
+                            <Switch
+                              checked={selectedGallery[key]}
+                              onCheckedChange={(checked) => {
+                                updateGallerySettingsMutation.mutate({ galleryId: selectedGallery.id, settings: { [key]: checked } });
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
 
                       <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
                         <div className="text-sm text-gray-500">

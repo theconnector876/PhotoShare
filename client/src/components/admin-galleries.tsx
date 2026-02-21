@@ -27,7 +27,9 @@ interface Gallery {
   selectedImages: string[];
   finalImages: string[];
   status: string;
-  downloadEnabled: boolean;
+  galleryDownloadEnabled: boolean;
+  selectedDownloadEnabled: boolean;
+  finalDownloadEnabled: boolean;
   createdAt: string;
 }
 
@@ -400,7 +402,7 @@ export function AdminGalleries() {
   });
 
   const updateSettingsMutation = useMutation({
-    mutationFn: ({ galleryId, settings }: { galleryId: string; settings: { downloadEnabled?: boolean; status?: string } }) =>
+    mutationFn: ({ galleryId, settings }: { galleryId: string; settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string } }) =>
       apiRequest("PATCH", `/api/admin/gallery/${galleryId}/settings`, settings),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] }),
     onError: () => toast({ title: "Failed to update settings", variant: "destructive" }),
@@ -577,7 +579,7 @@ export function AdminGalleries() {
                             <Badge className={`${statusColor(gallery.status)} text-white text-[10px] shrink-0`}>
                               {gallery.status.toUpperCase()}
                             </Badge>
-                            {gallery.downloadEnabled === false && (
+                            {!gallery.galleryDownloadEnabled && !gallery.selectedDownloadEnabled && !gallery.finalDownloadEnabled && (
                               <Badge variant="outline" className="text-[10px] border-orange-300 text-orange-600 shrink-0">
                                 Downloads OFF
                               </Badge>
@@ -623,13 +625,30 @@ export function AdminGalleries() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="flex items-center gap-2 ml-auto sm:ml-0">
-                              <Download className="w-3.5 h-3.5 text-green-700" />
-                              <span className="text-xs text-green-700 font-medium">Client Downloads</span>
-                              <Switch
-                                checked={gallery.downloadEnabled !== false}
-                                onCheckedChange={(v) => updateSettingsMutation.mutate({ galleryId: gallery.id, settings: { downloadEnabled: v } })}
-                              />
+                            <div className="flex items-center gap-3 ml-auto sm:ml-0 flex-wrap">
+                              <Download className="w-3.5 h-3.5 text-green-700 shrink-0" />
+                              <span className="text-xs text-green-700 font-medium">Downloads:</span>
+                              <label className="flex items-center gap-1 text-xs text-green-700">
+                                <Switch
+                                  checked={gallery.galleryDownloadEnabled}
+                                  onCheckedChange={(v) => updateSettingsMutation.mutate({ galleryId: gallery.id, settings: { galleryDownloadEnabled: v } })}
+                                />
+                                Gallery
+                              </label>
+                              <label className="flex items-center gap-1 text-xs text-green-700">
+                                <Switch
+                                  checked={gallery.selectedDownloadEnabled}
+                                  onCheckedChange={(v) => updateSettingsMutation.mutate({ galleryId: gallery.id, settings: { selectedDownloadEnabled: v } })}
+                                />
+                                Selected
+                              </label>
+                              <label className="flex items-center gap-1 text-xs text-green-700">
+                                <Switch
+                                  checked={gallery.finalDownloadEnabled}
+                                  onCheckedChange={(v) => updateSettingsMutation.mutate({ galleryId: gallery.id, settings: { finalDownloadEnabled: v } })}
+                                />
+                                Final
+                              </label>
                             </div>
                           </div>
 
