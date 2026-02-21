@@ -54172,6 +54172,7 @@ var users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   isAdmin: boolean("is_admin").default(false),
+  isBlocked: boolean("is_blocked").notNull().default(false),
   role: text("role").notNull().default("client"),
   // client, photographer
   photographerStatus: text("photographer_status").default("pending"),
@@ -54254,7 +54255,9 @@ var galleries = pgTable("galleries", {
   finalImages: text("final_images").array().default([]),
   status: text("status").notNull().default("pending"),
   // pending, selection, editing, completed
-  downloadEnabled: boolean("download_enabled").notNull().default(true),
+  galleryDownloadEnabled: boolean("gallery_download_enabled").notNull().default(false),
+  selectedDownloadEnabled: boolean("selected_download_enabled").notNull().default(false),
+  finalDownloadEnabled: boolean("final_download_enabled").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow()
 });
 var contactMessages = pgTable("contact_messages", {
@@ -60418,6 +60421,18 @@ var DatabaseStorage = class {
     const [gallery] = await db.update(galleries).set(settings).where(eq(galleries.id, id)).returning();
     return gallery;
   }
+  async deleteUser(id) {
+    const result = await db.delete(users).where(eq(users.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+  async updateUser(id, data) {
+    const [user] = await db.update(users).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, id)).returning();
+    return user;
+  }
+  async blockUser(id, blocked) {
+    const [user] = await db.update(users).set({ isBlocked: blocked, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, id)).returning();
+    return user;
+  }
   async createContactMessage(insertMessage) {
     const [message] = await db.insert(contactMessages).values(insertMessage).returning();
     return message;
@@ -65550,6 +65565,9 @@ function setupPasswordAuth(app2) {
           if (!user || !user.password || !await comparePasswords(password, user.password)) {
             return done(null, false, { message: "Invalid email or password" });
           }
+          if (user.isBlocked) {
+            return done(null, false, { message: "Your account has been blocked. Please contact support." });
+          }
           const userWithoutPassword = {
             id: user.id,
             email: user.email || "",
@@ -66572,8 +66590,7 @@ async function registerRoutes(app2) {
           accessCode,
           galleryImages: [],
           selectedImages: [],
-          finalImages: [],
-          downloadEnabled: true
+          finalImages: []
         });
       }
       res.json(gallery);
@@ -66602,13 +66619,39 @@ async function registerRoutes(app2) {
   app2.patch("/api/admin/gallery/:id/settings", isAdmin, async (req, res) => {
     try {
       const schema = z.object({
-        downloadEnabled: z.boolean().optional(),
+        galleryDownloadEnabled: z.boolean().optional(),
+        selectedDownloadEnabled: z.boolean().optional(),
+        finalDownloadEnabled: z.boolean().optional(),
         status: z.enum(["pending", "active", "selection", "editing", "completed"]).optional()
       });
       const settings = schema.parse(req.body);
       const gallery = await storage.updateGallerySettings(req.params.id, settings);
       if (!gallery) return res.status(404).json({ error: "Gallery not found" });
       res.json(gallery);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid settings" });
+    }
+  });
+  app2.patch("/api/photographer/gallery/:id/settings", isPhotographerApproved, async (req, res) => {
+    try {
+      const schema = z.object({
+        galleryDownloadEnabled: z.boolean().optional(),
+        selectedDownloadEnabled: z.boolean().optional(),
+        finalDownloadEnabled: z.boolean().optional(),
+        status: z.enum(["pending", "active", "selection", "editing", "completed"]).optional()
+      });
+      const settings = schema.parse(req.body);
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      if (gallery.bookingId) {
+        const booking = await storage.getBooking(gallery.bookingId);
+        const userId = req.user?.id;
+        if (!booking || booking.photographerId !== userId) {
+          return res.status(403).json({ error: "Not assigned to this gallery" });
+        }
+      }
+      const updated = await storage.updateGallerySettings(req.params.id, settings);
+      res.json(updated);
     } catch (error) {
       res.status(400).json({ error: "Invalid settings" });
     }
@@ -67302,6 +67345,7 @@ async function registerRoutes(app2) {
         firstName: user.firstName,
         lastName: user.lastName,
         isAdmin: user.isAdmin,
+        isBlocked: user.isBlocked,
         role: user.role,
         photographerStatus: user.photographerStatus,
         createdAt: user.createdAt
@@ -67310,6 +67354,129 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+  app2.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteUser(req.params.id);
+      if (!ok) return res.status(404).json({ error: "User not found" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+  app2.put("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        email: z.string().email().optional(),
+        password: z.string().min(6).optional()
+      });
+      const data = schema.parse(req.body);
+      if (data.password) {
+        data.password = await hashPassword(data.password);
+      }
+      const user = await storage.updateUser(req.params.id, data);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const { password: _2, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: error.errors });
+      console.error("Error updating user:", error);
+      res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+  app2.patch("/api/admin/users/:id/block", isAdmin, async (req, res) => {
+    try {
+      const { blocked } = z.object({ blocked: z.boolean() }).parse(req.body);
+      const user = await storage.blockUser(req.params.id, blocked);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const { password: _2, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });
+      console.error("Error blocking user:", error);
+      res.status(500).json({ error: "Failed to block/unblock user" });
+    }
+  });
+  app2.post("/api/admin/users/:id/reset-password", isAdmin, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.params.id);
+      if (!user || !user.email) return res.status(404).json({ error: "User not found" });
+      const crypto6 = require("crypto");
+      const token = crypto6.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1e3);
+      await storage.createPasswordResetToken(user.id, token, expiresAt);
+      const resetUrl = `${process.env.APP_URL || "http://localhost:5000"}/reset-password?token=${token}`;
+      await sendPasswordReset(user.email, user.firstName || "User", resetUrl);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error sending password reset:", error);
+      res.status(500).json({ error: "Failed to send reset email" });
+    }
+  });
+  app2.post("/api/admin/bookings/:id/send-payment-link", isAdmin, async (req, res) => {
+    try {
+      if (!lemonSqueezyEnabled) {
+        return res.status(501).json({ error: "Payments not configured" });
+      }
+      const { paymentType } = z.object({ paymentType: z.enum(["deposit", "balance"]) }).parse(req.body);
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) return res.status(404).json({ error: "Booking not found" });
+      if (booking.status !== "confirmed" && booking.status !== "pending") {
+        return res.status(400).json({ error: "Booking must be confirmed or pending" });
+      }
+      const serverDepositAmount = Math.round(booking.totalPrice * 0.5);
+      const serverBalanceDue = booking.totalPrice - serverDepositAmount;
+      let amount;
+      if (paymentType === "deposit") {
+        if (booking.depositPaid) return res.status(400).json({ error: "Deposit already paid" });
+        amount = serverDepositAmount;
+      } else {
+        if (!booking.depositPaid) return res.status(400).json({ error: "Deposit must be paid first" });
+        if (booking.balancePaid) return res.status(400).json({ error: "Balance already paid" });
+        amount = serverBalanceDue;
+      }
+      const storeId = process.env.LEMONSQUEEZY_STORE_ID;
+      const variantId = process.env.LEMONSQUEEZY_VARIANT_ID;
+      const customPriceInCents = Math.round(amount * 100);
+      const newCheckout = {
+        customPrice: customPriceInCents,
+        productOptions: {
+          name: `Photography ${paymentType === "deposit" ? "Deposit" : "Balance"} Payment`,
+          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}`,
+          redirectUrl: `${process.env.APP_URL || "http://localhost:5000"}/payment-success?booking=${booking.id}`
+        },
+        checkoutOptions: { embed: false, media: true, logo: true },
+        checkoutData: {
+          email: booking.email,
+          name: booking.clientName,
+          custom: { booking_id: booking.id, payment_type: paymentType, service_type: booking.serviceType, total_amount: String(booking.totalPrice) }
+        }
+      };
+      const checkout = await Ot(storeId, variantId, newCheckout);
+      if (checkout.error) return res.status(500).json({ error: "Failed to create checkout" });
+      const url = checkout.data?.data?.attributes?.url;
+      if (!url) return res.status(500).json({ error: "No checkout URL returned" });
+      await sendAdminEmail(
+        booking.email,
+        booking.clientName,
+        `Payment Link \u2013 ${paymentType === "deposit" ? "Deposit" : "Balance"}`,
+        `Hi ${booking.clientName},
+
+Please use the following link to complete your ${paymentType} payment of $${amount.toFixed(2)}:
+
+${url}
+
+Thank you!`
+      );
+      res.json({ url });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });
+      console.error("Error sending payment link:", error);
+      res.status(500).json({ error: "Failed to send payment link" });
     }
   });
   app2.get("/api/admin/photographers/pending", isAdmin, async (_req, res) => {
