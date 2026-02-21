@@ -497,20 +497,25 @@ export function AdminBookings() {
   // Upload files handler (called by the hidden file input)
   const handleUploadFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    // Snapshot to Array immediately — FileList is a live object tied to the input element.
+    // The onChange handler clears input.value right after calling this function, which
+    // empties the FileList in-place. Using a real Array ensures files are accessible
+    // after any await.
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
     const type = uploadTypeRef.current;
 
     // Auto-create gallery if missing (happens after file selection, no user-gesture needed)
     let gallery = selectedGalleryRef.current;
     if (!gallery) {
       const booking = selectedBookingRef.current;
-      if (!booking) return;
+      if (!booking) {
+        toast({ title: "No booking selected — please close and reopen the booking.", variant: "destructive" });
+        return;
+      }
       setIsEnsuring(true);
       try {
         const res = await apiRequest("POST", `/api/admin/bookings/${booking.id}/ensure-gallery`, {});
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`${res.status}: ${text}`);
-        }
         gallery = await res.json() as Gallery;
         syncSelectedGallery(gallery);
         queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
@@ -523,26 +528,26 @@ export function AdminBookings() {
     }
 
     // Assign a stable id to each file so we can update it independently
-    const ids = Array.from(files).map(() => Math.random().toString(36).slice(2));
+    const ids = fileArray.map(() => Math.random().toString(36).slice(2));
     setUploadItems(prev => [
       ...prev,
-      ...Array.from(files).map((f, i) => ({ id: ids[i], name: f.name, pct: 0 })),
+      ...fileArray.map((f, i) => ({ id: ids[i], name: f.name, pct: 0 })),
     ]);
 
-    for (let i = 0; i < files.length; i++) {
+    for (let i = 0; i < fileArray.length; i++) {
       const id = ids[i];
       const update = (patch: object) =>
         setUploadItems(prev => prev.map(it => (it as any).id === id ? { ...it, ...patch } : it));
       try {
-        const compressed = await compressImage(files[i]);
+        const compressed = await compressImage(fileArray[i]);
         const url = await cloudinaryUpload(compressed, "/api/admin/upload-signature",
           (pct) => update({ pct }));
         update({ pct: 100, url });
         await apiRequest("PUT", "/api/admin/gallery-images", { galleryId: gallery.id, imageURL: url, type });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
-      } catch {
+      } catch (err: any) {
         update({ error: "Failed" });
-        toast({ title: `Failed to upload ${files[i].name}`, variant: "destructive" });
+        toast({ title: `Failed to upload ${fileArray[i].name}: ${err?.message ?? 'unknown error'}`, variant: "destructive" });
       }
     }
   }, [queryClient, toast]);
