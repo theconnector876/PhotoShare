@@ -272,16 +272,25 @@ export default function Gallery() {
         {/* Image Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
           {currentImages.map((imageUrl, index) => (
-            <div 
+            <div
               key={`${imageUrl}-${index}`}
-              className="relative aspect-square overflow-hidden rounded-xl hover-3d group cursor-pointer"
+              className="relative aspect-square overflow-hidden rounded-xl hover-3d group cursor-pointer select-none"
               onClick={() => viewMode === 'gallery' && toggleImageSelection(imageUrl)}
+              onContextMenu={(e) => e.preventDefault()}
               data-testid={`gallery-image-${index}`}
             >
               <img
                 src={imageUrl}
                 alt={`Gallery image ${index + 1}`}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 pointer-events-none"
+                draggable={false}
+                onDragStart={(e) => e.preventDefault()}
+                style={{
+                  WebkitUserDrag: 'none' as any,
+                  WebkitUserSelect: 'none',
+                  WebkitTouchCallout: 'none' as any,
+                  userSelect: 'none',
+                }}
               />
               
               {/* Selection overlay for gallery mode */}
