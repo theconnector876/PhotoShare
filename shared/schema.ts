@@ -107,6 +107,7 @@ export const galleries = pgTable("galleries", {
   galleryDownloadEnabled: boolean("gallery_download_enabled").notNull().default(false),
   selectedDownloadEnabled: boolean("selected_download_enabled").notNull().default(false),
   finalDownloadEnabled: boolean("final_download_enabled").notNull().default(true),
+  clientComment: text("client_comment"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

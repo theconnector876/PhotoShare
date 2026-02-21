@@ -461,6 +461,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Client leaves a comment on their gallery
+  app.patch("/api/gallery/:id/comment", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { comment } = z.object({ comment: z.string().max(2000) }).parse(req.body);
+      const gallery = await storage.getGalleryById(id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      const updated = await storage.updateGalleryComment(id, comment);
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });
+      res.status(500).json({ error: "Failed to save comment" });
+    }
+  });
+
   // Contact routes
   app.post("/api/contact", async (req, res) => {
     try {
@@ -1643,7 +1658,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!lemonSqueezyEnabled) {
         return res.status(501).json({ error: 'Payments not configured' });
       }
-      const { paymentType } = z.object({ paymentType: z.enum(['deposit', 'balance']) }).parse(req.body);
+      const { paymentType, sendEmail } = z.object({ paymentType: z.enum(['deposit', 'balance']), sendEmail: z.boolean().optional().default(false) }).parse(req.body);
       const booking = await storage.getBooking(req.params.id);
       if (!booking) return res.status(404).json({ error: 'Booking not found' });
       if (booking.status !== 'confirmed' && booking.status !== 'pending') {
@@ -1681,13 +1696,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (checkout.error) return res.status(500).json({ error: 'Failed to create checkout' });
       const url = checkout.data?.data?.attributes?.url;
       if (!url) return res.status(500).json({ error: 'No checkout URL returned' });
-      // Send by email
-      await sendAdminEmail(
-        booking.email,
-        booking.clientName,
-        `Payment Link – ${paymentType === 'deposit' ? 'Deposit' : 'Balance'}`,
-        `Hi ${booking.clientName},\n\nPlease use the following link to complete your ${paymentType} payment of $${(amount).toFixed(2)}:\n\n${url}\n\nThank you!`
-      );
+      // Send by email only when explicitly requested
+      if (sendEmail) {
+        await sendAdminEmail(
+          booking.email,
+          booking.clientName,
+          `Payment Link – ${paymentType === 'deposit' ? 'Deposit' : 'Balance'}`,
+          `Hi ${booking.clientName},\n\nPlease use the following link to complete your ${paymentType} payment of $${(amount).toFixed(2)}:\n\n${url}\n\nThank you!`
+        );
+      }
       res.json({ url });
     } catch (error: any) {
       if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data' });

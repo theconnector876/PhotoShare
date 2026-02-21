@@ -54258,6 +54258,7 @@ var galleries = pgTable("galleries", {
   galleryDownloadEnabled: boolean("gallery_download_enabled").notNull().default(false),
   selectedDownloadEnabled: boolean("selected_download_enabled").notNull().default(false),
   finalDownloadEnabled: boolean("final_download_enabled").notNull().default(true),
+  clientComment: text("client_comment"),
   createdAt: timestamp("created_at").defaultNow()
 });
 var contactMessages = pgTable("contact_messages", {
@@ -60421,6 +60422,10 @@ var DatabaseStorage = class {
     const [gallery] = await db.update(galleries).set(settings).where(eq(galleries.id, id)).returning();
     return gallery;
   }
+  async updateGalleryComment(id, comment) {
+    const [gallery] = await db.update(galleries).set({ clientComment: comment }).where(eq(galleries.id, id)).returning();
+    return gallery;
+  }
   async deleteUser(id) {
     const result = await db.delete(users).where(eq(users.id, id));
     return (result.rowCount ?? 0) > 0;
@@ -66436,6 +66441,19 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to update gallery" });
     }
   });
+  app2.patch("/api/gallery/:id/comment", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { comment } = z.object({ comment: z.string().max(2e3) }).parse(req.body);
+      const gallery = await storage.getGalleryById(id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      const updated = await storage.updateGalleryComment(id, comment);
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });
+      res.status(500).json({ error: "Failed to save comment" });
+    }
+  });
   app2.post("/api/contact", async (req, res) => {
     try {
       const messageData = insertContactMessageSchema.parse(req.body);
@@ -67424,7 +67442,7 @@ async function registerRoutes(app2) {
       if (!lemonSqueezyEnabled) {
         return res.status(501).json({ error: "Payments not configured" });
       }
-      const { paymentType } = z.object({ paymentType: z.enum(["deposit", "balance"]) }).parse(req.body);
+      const { paymentType, sendEmail: sendEmail2 } = z.object({ paymentType: z.enum(["deposit", "balance"]), sendEmail: z.boolean().optional().default(false) }).parse(req.body);
       const booking = await storage.getBooking(req.params.id);
       if (!booking) return res.status(404).json({ error: "Booking not found" });
       if (booking.status !== "confirmed" && booking.status !== "pending") {
@@ -67462,18 +67480,20 @@ async function registerRoutes(app2) {
       if (checkout.error) return res.status(500).json({ error: "Failed to create checkout" });
       const url = checkout.data?.data?.attributes?.url;
       if (!url) return res.status(500).json({ error: "No checkout URL returned" });
-      await sendAdminEmail(
-        booking.email,
-        booking.clientName,
-        `Payment Link \u2013 ${paymentType === "deposit" ? "Deposit" : "Balance"}`,
-        `Hi ${booking.clientName},
+      if (sendEmail2) {
+        await sendAdminEmail(
+          booking.email,
+          booking.clientName,
+          `Payment Link \u2013 ${paymentType === "deposit" ? "Deposit" : "Balance"}`,
+          `Hi ${booking.clientName},
 
 Please use the following link to complete your ${paymentType} payment of $${amount.toFixed(2)}:
 
 ${url}
 
 Thank you!`
-      );
+        );
+      }
       res.json({ url });
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });

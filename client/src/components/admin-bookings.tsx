@@ -433,14 +433,14 @@ export function AdminBookings() {
     },
   });
 
-  // Send payment link
+  // Send payment link via email
   const sendPaymentLinkMutation = useMutation({
     mutationFn: async ({ bookingId, paymentType }: { bookingId: string; paymentType: 'deposit' | 'balance' }) => {
-      const res = await apiRequest('POST', `/api/admin/bookings/${bookingId}/send-payment-link`, { paymentType });
+      const res = await apiRequest('POST', `/api/admin/bookings/${bookingId}/send-payment-link`, { paymentType, sendEmail: true });
       return res.json() as Promise<{ url: string }>;
     },
     onSuccess: () => {
-      toast({ title: "Payment link sent successfully" });
+      toast({ title: "Payment link sent by email" });
     },
     onError: () => {
       toast({ title: "Failed to send payment link", variant: "destructive" });
