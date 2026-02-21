@@ -66156,6 +66156,7 @@ var createSafeReviewDTO = (review) => ({
 });
 var normalizeEmail = (email) => email.toLowerCase().trim();
 async function registerRoutes(app2) {
+  app2.get("/api/version", (_req, res) => res.json({ v: 3, schema: "galleryDownloadEnabled" }));
   app2.use(getSession());
   app2.use(import_passport2.default.initialize());
   app2.use(import_passport2.default.session());

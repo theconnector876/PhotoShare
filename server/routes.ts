@@ -124,6 +124,9 @@ const createSafeReviewDTO = (review: any) => ({
 const normalizeEmail = (email: string) => email.toLowerCase().trim();
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Version probe — lets us verify which bundle Vercel is serving
+  app.get('/api/version', (_req, res) => res.json({ v: 3, schema: 'galleryDownloadEnabled' }));
+
   // Setup session and passport authentication
   app.use(getSession());
   app.use(passport.initialize());
