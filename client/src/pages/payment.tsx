@@ -174,11 +174,19 @@ export default function Payment() {
               </div>
             </div>
 
-            {/* Pay Button — navigates to checkout URL; CheckoutOverlay intercepts and opens LS overlay */}
+            {/* Pay Button — opens Lemon Squeezy checkout overlay */}
             <Button
               className="w-full"
               data-testid="button-submit-payment"
-              onClick={() => { window.location.href = checkoutUrl; }}
+              onClick={() => {
+                const ls = window as any;
+                if (ls.createLemonSqueezy) ls.createLemonSqueezy();
+                if (ls.LemonSqueezy?.Url?.Open) {
+                  ls.LemonSqueezy.Url.Open(checkoutUrl);
+                } else {
+                  window.location.href = checkoutUrl;
+                }
+              }}
             >
               <CreditCard className="w-4 h-4 mr-2" />
               Pay ${amount.toFixed(2)}

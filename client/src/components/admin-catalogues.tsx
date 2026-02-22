@@ -253,15 +253,20 @@ export function AdminCatalogues() {
   });
 
   const updateCatalogueMutation = useMutation({
-    mutationFn: async (data: CatalogueFormData & { id: string; coverImage: string; images: string[] }) => {
-      await apiRequest("PUT", `/api/admin/catalogues/${data.id}`, {
+    mutationFn: async (data: CatalogueFormData & { id: string; coverImage: string; images: string[]; photographerId?: string; photographerName?: string }) => {
+      const body: Record<string, any> = {
         title: data.title,
         description: data.description,
         serviceType: data.serviceType,
         coverImage: data.coverImage,
         images: data.images,
         bookingId: data.bookingId || null,
-      });
+      };
+      if (data.photographerId) {
+        body.photographerId = data.photographerId;
+        body.photographerName = data.photographerName;
+      }
+      await apiRequest("PUT", `/api/admin/catalogues/${data.id}`, body);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogues"] });
@@ -358,27 +363,24 @@ export function AdminCatalogues() {
   const onSubmit = (data: CatalogueFormData) => {
     if (!createCoverUrl) { toast({ title: "Please upload a cover image", variant: "destructive" }); return; }
     if (createGalleryUrls.length === 0) { toast({ title: "Please upload at least one gallery image", variant: "destructive" }); return; }
-    createCatalogueMutation.mutate({
-      ...data,
-      coverImage: createCoverUrl,
-      images: createGalleryUrls,
-      photographerId: createPhotographerId || null,
-      photographerName: createPhotographerId ? getPhotographerName(createPhotographerId) : null,
-    } as any);
+    const extra: Record<string, string> = {};
+    if (createPhotographerId) {
+      extra.photographerId = createPhotographerId;
+      extra.photographerName = getPhotographerName(createPhotographerId);
+    }
+    createCatalogueMutation.mutate({ ...data, coverImage: createCoverUrl, images: createGalleryUrls, ...extra } as any);
   };
 
   const onEditSubmit = (data: CatalogueFormData) => {
     if (!selectedCatalogue) return;
     if (!editCoverUrl) { toast({ title: "Please upload a cover image", variant: "destructive" }); return; }
     if (editGalleryUrls.length === 0) { toast({ title: "Please upload at least one gallery image", variant: "destructive" }); return; }
-    updateCatalogueMutation.mutate({
-      ...data,
-      id: selectedCatalogue.id,
-      coverImage: editCoverUrl,
-      images: editGalleryUrls,
-      photographerId: editPhotographerId || null,
-      photographerName: editPhotographerId ? getPhotographerName(editPhotographerId) : null,
-    } as any);
+    const extra: Record<string, string> = {};
+    if (editPhotographerId) {
+      extra.photographerId = editPhotographerId;
+      extra.photographerName = getPhotographerName(editPhotographerId);
+    }
+    updateCatalogueMutation.mutate({ ...data, id: selectedCatalogue.id, coverImage: editCoverUrl, images: editGalleryUrls, ...extra } as any);
   };
 
   const openEditDialog = (catalogue: Catalogue) => {
