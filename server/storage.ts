@@ -74,6 +74,7 @@ export interface IStorage {
   updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined>;
   updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string }): Promise<Gallery | undefined>;
   updateGalleryComment(id: string, comment: string): Promise<Gallery | undefined>;
+  updateImageComment(id: string, imageUrl: string, comment: string): Promise<Gallery | undefined>;
   deleteUser(id: string): Promise<boolean>;
   updateUser(id: string, data: { firstName?: string; lastName?: string; email?: string; password?: string }): Promise<User | undefined>;
   blockUser(id: string, blocked: boolean): Promise<User | undefined>;
@@ -387,6 +388,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(galleries.id, id))
       .returning();
     return gallery;
+  }
+
+  async updateImageComment(id: string, imageUrl: string, comment: string): Promise<Gallery | undefined> {
+    const gallery = await this.getGalleryById(id);
+    if (!gallery) return undefined;
+    const current = (gallery.imageComments as Record<string, string>) || {};
+    const updated = comment ? { ...current, [imageUrl]: comment } : Object.fromEntries(Object.entries(current).filter(([k]) => k !== imageUrl));
+    const [result] = await db.update(galleries).set({ imageComments: updated }).where(eq(galleries.id, id)).returning();
+    return result;
   }
 
   async deleteUser(id: string): Promise<boolean> {

@@ -54259,6 +54259,7 @@ var galleries = pgTable("galleries", {
   selectedDownloadEnabled: boolean("selected_download_enabled").notNull().default(false),
   finalDownloadEnabled: boolean("final_download_enabled").notNull().default(true),
   clientComment: text("client_comment"),
+  imageComments: jsonb("image_comments").default({}),
   createdAt: timestamp("created_at").defaultNow()
 });
 var contactMessages = pgTable("contact_messages", {
@@ -60426,6 +60427,14 @@ var DatabaseStorage = class {
     const [gallery] = await db.update(galleries).set({ clientComment: comment }).where(eq(galleries.id, id)).returning();
     return gallery;
   }
+  async updateImageComment(id, imageUrl, comment) {
+    const gallery = await this.getGalleryById(id);
+    if (!gallery) return void 0;
+    const current = gallery.imageComments || {};
+    const updated = comment ? { ...current, [imageUrl]: comment } : Object.fromEntries(Object.entries(current).filter(([k2]) => k2 !== imageUrl));
+    const [result] = await db.update(galleries).set({ imageComments: updated }).where(eq(galleries.id, id)).returning();
+    return result;
+  }
   async deleteUser(id) {
     const result = await db.delete(users).where(eq(users.id, id));
     return (result.rowCount ?? 0) > 0;
@@ -66439,6 +66448,19 @@ async function registerRoutes(app2) {
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update gallery" });
+    }
+  });
+  app2.patch("/api/gallery/:id/image-comment", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { imageUrl, comment } = z.object({ imageUrl: z.string().url(), comment: z.string().max(500) }).parse(req.body);
+      const gallery = await storage.getGalleryById(id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      const updated = await storage.updateImageComment(id, imageUrl, comment);
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });
+      res.status(500).json({ error: "Failed to save image comment" });
     }
   });
   app2.patch("/api/gallery/:id/comment", async (req, res) => {

@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Download, Eye, Camera, Clock, MapPin, Phone, Mail, LogOut } from "lucide-react";
+import { Calendar, Download, Eye, Camera, Clock, MapPin, Phone, Mail, LogOut, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
+import { Link } from "wouter";
 
 interface UserBooking {
   id: string;
@@ -21,6 +22,12 @@ interface UserBooking {
   location: string;
   parish: string;
   totalPrice: number;
+  depositAmount: number;
+  balanceDue: number;
+  depositPaid: boolean;
+  balancePaid: boolean;
+  lemonSqueezyDepositCheckoutId: string | null;
+  lemonSqueezyBalanceCheckoutId: string | null;
   status: string;
   createdAt: string;
 }
@@ -28,6 +35,8 @@ interface UserBooking {
 interface UserGallery {
   id: string;
   bookingId: string;
+  clientEmail: string;
+  accessCode: string;
   status: string;
   galleryImages: string[];
   selectedImages: string[];
@@ -154,61 +163,36 @@ export default function Dashboard() {
 
         {/* Admin Statistics Dashboard */}
         {isAdmin && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="p-6">
-              <h3 className="font-semibold mb-4">System Statistics</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span>Total Bookings:</span>
-                  <span className="font-medium">{userBookings?.length || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Total Galleries:</span>
-                  <span className="font-medium">{userGalleries?.length || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Contact Messages:</span>
-                  <span className="font-medium">{Array.isArray(adminContacts) ? adminContacts.length : 0}</span>
-                </div>
-              </div>
-            </Card>
-            
-            <Card className="p-6">
-              <h3 className="font-semibold mb-4">Quick Actions</h3>
-              <div className="space-y-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => setLocation("/booking")}
-                >
-                  <Camera className="mr-2" size={16} />
-                  Create New Booking
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => setLocation("/gallery")}
-                >
-                  <Eye className="mr-2" size={16} />
-                  Access Gallery
-                </Button>
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <h3 className="font-semibold mb-4">Admin Status</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center text-green-600">
-                  <div className="w-2 h-2 bg-green-600 rounded-full mr-2"></div>
-                  Admin Access Active
-                </div>
-                <div className="text-muted-foreground">
-                  Managing all system operations
-                </div>
-              </div>
-            </Card>
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Admin Overview</h2>
+              <Button onClick={() => setLocation("/admin")} className="gap-2">
+                Open Admin Dashboard
+                <ArrowRight size={16} />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/admin?tab=bookings")}>
+                <div className="text-2xl font-bold text-primary">{userBookings?.length || 0}</div>
+                <div className="text-sm text-muted-foreground">Total Bookings</div>
+                <div className="text-xs text-primary mt-1 flex items-center gap-1">Manage <ArrowRight size={10} /></div>
+              </Card>
+              <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/admin?tab=galleries")}>
+                <div className="text-2xl font-bold text-primary">{userGalleries?.length || 0}</div>
+                <div className="text-sm text-muted-foreground">Total Galleries</div>
+                <div className="text-xs text-primary mt-1 flex items-center gap-1">Manage <ArrowRight size={10} /></div>
+              </Card>
+              <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/admin?tab=contacts")}>
+                <div className="text-2xl font-bold text-primary">{Array.isArray(adminContacts) ? adminContacts.length : 0}</div>
+                <div className="text-sm text-muted-foreground">Contact Messages</div>
+                <div className="text-xs text-primary mt-1 flex items-center gap-1">View <ArrowRight size={10} /></div>
+              </Card>
+              <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/admin?tab=catalogues")}>
+                <div className="text-2xl font-bold text-primary">—</div>
+                <div className="text-sm text-muted-foreground">Catalogues & Site</div>
+                <div className="text-xs text-primary mt-1 flex items-center gap-1">Edit <ArrowRight size={10} /></div>
+              </Card>
+            </div>
           </div>
         )}
 
@@ -293,6 +277,16 @@ export default function Dashboard() {
                           <div className="text-lg font-semibold text-primary">
                             Total: ${booking.totalPrice}
                           </div>
+                          <div className="text-sm mt-1">
+                            <span className={booking.depositPaid ? "text-green-600" : "text-orange-500"}>
+                              Deposit ${booking.depositAmount}: {booking.depositPaid ? "✓ Paid" : "Pending"}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <span className={booking.balancePaid ? "text-green-600" : "text-muted-foreground"}>
+                              Balance ${booking.balanceDue}: {booking.balancePaid ? "✓ Paid" : booking.depositPaid ? "Pending" : "—"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -350,26 +344,31 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      <div className="flex gap-2 mt-4">
+                      <div className="flex gap-2 mt-4 flex-wrap">
                         {gallery.galleryImages?.length > 0 && (
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
+                            onClick={() => setLocation(`/gallery/${encodeURIComponent(gallery.clientEmail)}/${gallery.accessCode}`)}
                             data-testid={`button-view-gallery-${gallery.id}`}
                           >
                             <Eye className="mr-2" size={16} />
-                            View Gallery
+                            Open Gallery
                           </Button>
                         )}
                         {gallery.finalImages?.length > 0 && (
-                          <Button 
+                          <Button
                             size="sm"
                             className="bg-gradient-to-r from-primary to-secondary text-white"
+                            onClick={() => setLocation(`/gallery/${encodeURIComponent(gallery.clientEmail)}/${gallery.accessCode}`)}
                             data-testid={`button-download-final-${gallery.id}`}
                           >
                             <Download className="mr-2" size={16} />
-                            Download Final
+                            View Finals
                           </Button>
+                        )}
+                        {gallery.galleryImages?.length === 0 && (
+                          <span className="text-xs text-muted-foreground italic">Awaiting photo upload</span>
                         )}
                       </div>
                     </CardContent>

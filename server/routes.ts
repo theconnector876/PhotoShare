@@ -461,6 +461,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Client leaves a comment on a specific image
+  app.patch("/api/gallery/:id/image-comment", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { imageUrl, comment } = z.object({ imageUrl: z.string().url(), comment: z.string().max(500) }).parse(req.body);
+      const gallery = await storage.getGalleryById(id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      const updated = await storage.updateImageComment(id, imageUrl, comment);
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });
+      res.status(500).json({ error: "Failed to save image comment" });
+    }
+  });
+
   // Client leaves a comment on their gallery
   app.patch("/api/gallery/:id/comment", async (req, res) => {
     try {
