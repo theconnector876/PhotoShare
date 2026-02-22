@@ -67161,7 +67161,7 @@ async function registerRoutes(app2) {
           redirectUrl: `${process.env.APP_URL || (process.env.REPLIT_DEV_DOMAIN ? "https://" + process.env.REPLIT_DEV_DOMAIN : "http://localhost:5000")}/payment-success?booking=${bookingId}`
         },
         checkoutOptions: {
-          embed: false,
+          embed: true,
           media: true,
           logo: true
         },
@@ -67190,9 +67190,7 @@ async function registerRoutes(app2) {
       } else {
         await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkoutData.id, "balance");
       }
-      const rawUrl = checkoutData.attributes.url;
-      const checkoutUrl = rawUrl.replace("connectagrapher.com", "connectagrapherpayment.lemonsqueezy.com");
-      res.json({ checkoutUrl });
+      res.json({ checkoutUrl: checkoutData.attributes.url });
     } catch (error) {
       console.error("Error creating checkout:", error);
       res.status(500).json({ error: "Error creating checkout: " + error.message });
