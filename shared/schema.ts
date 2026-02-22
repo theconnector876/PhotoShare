@@ -148,6 +148,8 @@ export const catalogues = pgTable("catalogues", {
   sortOrder: integer("sort_order").notNull().default(0), // admin order for display
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  photographerId: varchar("photographer_id"),
+  photographerName: text("photographer_name"),
 });
 
 export const reviews = pgTable("reviews", {

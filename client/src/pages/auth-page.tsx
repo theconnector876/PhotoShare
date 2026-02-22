@@ -234,6 +234,10 @@ export default function AuthPage() {
   };
 
   const onRegister = (data: RegisterFormData) => {
+    if (data.role === 'photographer' && !idPhotoUrl) {
+      toast({ title: "ID Photo Required", description: "Please upload a photo of your ID for verification.", variant: "destructive" });
+      return;
+    }
     const baseSocials = parseSocials(data.socials);
     const payload = {
       email: data.email,
@@ -442,7 +446,7 @@ export default function AuthPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email Address</FormLabel>
+                      <FormLabel>Email Address <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
                         <Input
                           type="email"
@@ -460,7 +464,7 @@ export default function AuthPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel>Password <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
                         <Input
                           type="password"
@@ -611,6 +615,7 @@ export default function AuthPage() {
                             <SelectItem value="drivers_license">Driver's License</SelectItem>
                             <SelectItem value="national_id">National ID</SelectItem>
                             <SelectItem value="tax_registration">Tax Registration</SelectItem>
+                            <SelectItem value="business_registration">Business Registration</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

@@ -30,6 +30,49 @@ async function sendEmail(to: string, subject: string, html: string, from: string
 
 // -- Email Templates --
 
+// Sent immediately when a booking is submitted — lets the client know we received it
+// and reminds them the deposit is still due before the session is confirmed.
+export async function sendBookingReceived(booking: {
+  clientName: string;
+  email: string;
+  serviceType: string;
+  shootDate: string;
+  shootTime?: string;
+  location?: string;
+  totalPrice: number;
+  depositAmount: number;
+  balanceDue: number;
+  id: string;
+}, accessCode: string) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Booking Request Received!</h1>
+      <p>Hi ${booking.clientName},</p>
+      <p>We've received your booking request. Your session will be <strong>confirmed once the deposit is received</strong>. Here are your details:</p>
+
+      <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p><strong>Service:</strong> ${booking.serviceType}</p>
+        <p><strong>Date:</strong> ${booking.shootDate}</p>
+        ${booking.shootTime ? `<p><strong>Time:</strong> ${booking.shootTime}</p>` : ""}
+        ${booking.location ? `<p><strong>Location:</strong> ${booking.location}</p>` : ""}
+        <p><strong>Total Price:</strong> $${booking.totalPrice.toFixed(2)}</p>
+        <p><strong>Deposit Required (50%):</strong> $${booking.depositAmount.toFixed(2)}</p>
+        <p><strong>Balance Due on Day:</strong> $${booking.balanceDue.toFixed(2)}</p>
+      </div>
+
+      <div style="background: #fff8e1; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+        <p style="margin: 0; font-weight: bold; color: #92400e;">⏳ Awaiting Deposit</p>
+        <p style="margin: 8px 0 0; font-size: 13px; color: #78350f;">Our team will send you a payment link shortly. Once the deposit is received, you'll get a confirmation email with your gallery access code.</p>
+      </div>
+
+      <p style="color: #666; font-size: 13px; margin-top: 30px;">If you have any questions, reply to this email or visit <a href="${APP_URL}">${APP_URL}</a>.</p>
+    </div>
+  `;
+
+  return sendEmail(booking.email, "Booking Request Received — ConnectAGrapher", html, FROM_BOOKINGS);
+}
+
+// Sent after deposit is confirmed — this is the official booking confirmation.
 export async function sendBookingConfirmation(booking: {
   clientName: string;
   email: string;
@@ -44,18 +87,18 @@ export async function sendBookingConfirmation(booking: {
 }, accessCode: string) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Booking Confirmed!</h1>
+      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Booking Confirmed! 🎉</h1>
       <p>Hi ${booking.clientName},</p>
-      <p>Your photography session has been booked successfully. Here are your details:</p>
+      <p>Your deposit has been received and your photography session is now <strong>confirmed</strong>. Here are your details:</p>
 
       <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <p><strong>Service:</strong> ${booking.serviceType}</p>
         <p><strong>Date:</strong> ${booking.shootDate}</p>
         ${booking.shootTime ? `<p><strong>Time:</strong> ${booking.shootTime}</p>` : ""}
         ${booking.location ? `<p><strong>Location:</strong> ${booking.location}</p>` : ""}
-        <p><strong>Total Price:</strong> $${(booking.totalPrice / 100).toFixed(2)}</p>
-        <p><strong>Deposit (50%):</strong> $${(booking.depositAmount / 100).toFixed(2)}</p>
-        <p><strong>Balance Due:</strong> $${(booking.balanceDue / 100).toFixed(2)}</p>
+        <p><strong>Total Price:</strong> $${booking.totalPrice.toFixed(2)}</p>
+        <p><strong>Deposit Paid:</strong> $${booking.depositAmount.toFixed(2)} ✓</p>
+        <p><strong>Balance Due on Day:</strong> $${booking.balanceDue.toFixed(2)}</p>
       </div>
 
       <div style="background: #f0f7ff; padding: 16px; border-radius: 8px; margin: 20px 0;">
@@ -63,13 +106,11 @@ export async function sendBookingConfirmation(booking: {
         <p style="margin: 8px 0 0; font-size: 13px; color: #666;">Save this code — you'll need it to view your photos after the shoot.</p>
       </div>
 
-      <a href="${APP_URL}/payment?booking=${booking.id}" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 12px 0;">Pay Deposit Now</a>
-
       <p style="color: #666; font-size: 13px; margin-top: 30px;">If you have any questions, reply to this email or visit <a href="${APP_URL}">${APP_URL}</a>.</p>
     </div>
   `;
 
-  return sendEmail(booking.email, "Your Photography Session is Confirmed!", html, FROM_BOOKINGS);
+  return sendEmail(booking.email, "Your Photography Session is Confirmed! 🎉", html, FROM_BOOKINGS);
 }
 
 export async function sendPaymentConfirmation(booking: {
@@ -86,7 +127,7 @@ export async function sendPaymentConfirmation(booking: {
       <p>We've received your ${isDeposit ? "deposit" : "final balance"} payment.</p>
 
       <div style="background: #f0fff4; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <p><strong>Amount Paid:</strong> $${(amount / 100).toFixed(2)}</p>
+        <p><strong>Amount Paid:</strong> $${amount.toFixed(2)}</p>
         <p><strong>Payment Type:</strong> ${isDeposit ? "Deposit (50%)" : "Balance Payment"}</p>
         <p><strong>Service:</strong> ${booking.serviceType}</p>
         <p><strong>Booking ID:</strong> ${booking.id}</p>

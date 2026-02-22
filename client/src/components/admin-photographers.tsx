@@ -55,7 +55,7 @@ export function AdminPhotographers() {
 
   const approveMutation = useMutation({
     mutationFn: async (userId: string) => {
-      await apiRequest(`/api/admin/photographers/${userId}/approve`, "POST", {});
+      await apiRequest("POST", `/api/admin/photographers/${userId}/approve`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/photographers/pending"] });
@@ -68,7 +68,7 @@ export function AdminPhotographers() {
 
   const rejectMutation = useMutation({
     mutationFn: async (userId: string) => {
-      await apiRequest(`/api/admin/photographers/${userId}/reject`, "POST", {});
+      await apiRequest("POST", `/api/admin/photographers/${userId}/reject`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/photographers/pending"] });
@@ -81,7 +81,7 @@ export function AdminPhotographers() {
 
   const updatePricingMutation = useMutation({
     mutationFn: async ({ userId, config }: { userId: string; config: PricingConfig }) => {
-      await apiRequest(`/api/admin/photographers/${userId}/pricing`, "PUT", { config });
+      await apiRequest("PUT", `/api/admin/photographers/${userId}/pricing`, { config });
     },
     onSuccess: () => {
       toast({ title: "Pricing updated" });

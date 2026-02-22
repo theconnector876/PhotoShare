@@ -20,6 +20,7 @@ interface Catalogue {
   images: string[];
   createdAt: string;
   publishedAt: string;
+  photographerName?: string | null;
 }
 
 interface Review {
@@ -357,6 +358,11 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                   </Badge>
                 </div>
                 <div className="text-lg font-semibold">{catalogue.title}</div>
+                {catalogue.photographerName && (
+                  <div className="text-xs text-primary font-medium mt-0.5">
+                    📷 {catalogue.photographerName}
+                  </div>
+                )}
                 {catalogue.description && (
                   <div className="text-sm text-muted-foreground mt-1">
                     {catalogue.description}
@@ -557,6 +563,11 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                             <h3 className="text-xl font-semibold mb-2" data-testid="lightbox-catalogue-title">
                               {catalogue.title}
                             </h3>
+                            {catalogue.photographerName && (
+                              <p className="text-sm text-primary font-medium mb-2">
+                                📷 {catalogue.photographerName}
+                              </p>
+                            )}
                             <p className="text-sm text-white/80 mb-3">
                               {catalogue.description}
                             </p>

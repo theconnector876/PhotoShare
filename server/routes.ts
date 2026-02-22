@@ -132,7 +132,9 @@ const createSafeCatalogueDTO = (catalogue: any) => ({
   images: catalogue.images,
   sortOrder: catalogue.sortOrder,
   createdAt: catalogue.createdAt,
-  publishedAt: catalogue.publishedAt
+  publishedAt: catalogue.publishedAt,
+  photographerId: catalogue.photographerId ?? null,
+  photographerName: catalogue.photographerName ?? null,
 });
 
 const createSafeReviewDTO = (review: any) => ({
@@ -1233,7 +1235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkoutData.id, 'balance');
       }
 
-      res.json({ checkoutUrl: normalizeLsUrl(checkoutData.attributes.url) });
+      res.json({ checkoutUrl: checkoutData.attributes.url });
     } catch (error: any) {
       console.error('Error creating checkout:', error);
       res.status(500).json({ error: "Error creating checkout: " + error.message });

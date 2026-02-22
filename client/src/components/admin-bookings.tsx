@@ -282,10 +282,12 @@ export function AdminBookings() {
   // Update booking status
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      await apiRequest("PATCH", `/api/admin/bookings/${id}/status`, { status });
+      const res = await apiRequest("PATCH", `/api/admin/bookings/${id}/status`, { status });
+      return res.json() as Promise<Booking>;
     },
-    onSuccess: () => {
+    onSuccess: (updatedBooking) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/bookings"] });
+      setSelectedBooking(updatedBooking);
       toast({
         title: "Status Updated",
         description: "Booking status has been updated successfully.",
@@ -446,6 +448,22 @@ export function AdminBookings() {
     },
     onError: () => {
       toast({ title: "Failed to send payment link", variant: "destructive" });
+    },
+  });
+
+  // Mark deposit or balance as manually paid
+  const markPaidMutation = useMutation({
+    mutationFn: async ({ bookingId, paymentType }: { bookingId: string; paymentType: 'deposit' | 'balance' }) => {
+      const res = await apiRequest('PATCH', `/api/admin/bookings/${bookingId}/mark-paid`, { paymentType });
+      return res.json() as Promise<any>;
+    },
+    onSuccess: (updatedBooking) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/bookings"] });
+      setSelectedBooking(updatedBooking);
+      toast({ title: "Payment marked as received" });
+    },
+    onError: () => {
+      toast({ title: "Failed to mark payment", variant: "destructive" });
     },
   });
 
@@ -947,6 +965,15 @@ export function AdminBookings() {
                         <div className="flex gap-2 flex-wrap">
                           <Button
                             size="sm"
+                            variant="default"
+                            onClick={() => markPaidMutation.mutate({ bookingId: selectedBooking.id, paymentType: 'deposit' })}
+                            disabled={markPaidMutation.isPending}
+                          >
+                            <Check className="w-3 h-3 mr-1" />
+                            Mark as Paid
+                          </Button>
+                          <Button
+                            size="sm"
                             variant="outline"
                             onClick={async () => {
                               try {
@@ -981,6 +1008,15 @@ export function AdminBookings() {
                       <p className="mb-2">{formatCurrency(selectedBooking.balanceDue)} - {selectedBooking.balancePaid ? "✓ Paid" : "Pending"}</p>
                       {selectedBooking.depositPaid && !selectedBooking.balancePaid && (
                         <div className="flex gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => markPaidMutation.mutate({ bookingId: selectedBooking.id, paymentType: 'balance' })}
+                            disabled={markPaidMutation.isPending}
+                          >
+                            <Check className="w-3 h-3 mr-1" />
+                            Mark as Paid
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"

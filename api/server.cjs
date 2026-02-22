@@ -54306,7 +54306,9 @@ var catalogues = pgTable("catalogues", {
   sortOrder: integer("sort_order").notNull().default(0),
   // admin order for display
   publishedAt: timestamp("published_at"),
-  createdAt: timestamp("created_at").defaultNow()
+  createdAt: timestamp("created_at").defaultNow(),
+  photographerId: varchar("photographer_id"),
+  photographerName: text("photographer_name")
 });
 var reviews = pgTable("reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -66243,7 +66245,9 @@ var createSafeCatalogueDTO = (catalogue) => ({
   images: catalogue.images,
   sortOrder: catalogue.sortOrder,
   createdAt: catalogue.createdAt,
-  publishedAt: catalogue.publishedAt
+  publishedAt: catalogue.publishedAt,
+  photographerId: catalogue.photographerId ?? null,
+  photographerName: catalogue.photographerName ?? null
 });
 var createSafeReviewDTO = (review) => ({
   id: review.id,
@@ -67186,7 +67190,7 @@ async function registerRoutes(app2) {
       } else {
         await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkoutData.id, "balance");
       }
-      res.json({ checkoutUrl: normalizeLsUrl(checkoutData.attributes.url) });
+      res.json({ checkoutUrl: checkoutData.attributes.url });
     } catch (error) {
       console.error("Error creating checkout:", error);
       res.status(500).json({ error: "Error creating checkout: " + error.message });

@@ -141,6 +141,14 @@ export function AdminCatalogues() {
     retry: false,
   });
 
+  const { data: photographers } = useQuery<{ id: string; firstName: string | null; lastName: string | null; email: string | null; photographerStatus: string | null }[]>({
+    queryKey: ["/api/admin/photographers"],
+    retry: false,
+  });
+
+  const [createPhotographerId, setCreatePhotographerId] = useState('');
+  const [editPhotographerId, setEditPhotographerId] = useState('');
+
   const { data: reviews } = useQuery<Review[]>({
     queryKey: ["/api/admin/reviews"],
     retry: false,
@@ -341,17 +349,36 @@ export function AdminCatalogues() {
     },
   });
 
+  const getPhotographerName = (id: string) => {
+    const p = photographers?.find(ph => ph.id === id);
+    if (!p) return '';
+    return `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || p.email || '';
+  };
+
   const onSubmit = (data: CatalogueFormData) => {
     if (!createCoverUrl) { toast({ title: "Please upload a cover image", variant: "destructive" }); return; }
     if (createGalleryUrls.length === 0) { toast({ title: "Please upload at least one gallery image", variant: "destructive" }); return; }
-    createCatalogueMutation.mutate({ ...data, coverImage: createCoverUrl, images: createGalleryUrls });
+    createCatalogueMutation.mutate({
+      ...data,
+      coverImage: createCoverUrl,
+      images: createGalleryUrls,
+      photographerId: createPhotographerId || null,
+      photographerName: createPhotographerId ? getPhotographerName(createPhotographerId) : null,
+    } as any);
   };
 
   const onEditSubmit = (data: CatalogueFormData) => {
     if (!selectedCatalogue) return;
     if (!editCoverUrl) { toast({ title: "Please upload a cover image", variant: "destructive" }); return; }
     if (editGalleryUrls.length === 0) { toast({ title: "Please upload at least one gallery image", variant: "destructive" }); return; }
-    updateCatalogueMutation.mutate({ ...data, id: selectedCatalogue.id, coverImage: editCoverUrl, images: editGalleryUrls });
+    updateCatalogueMutation.mutate({
+      ...data,
+      id: selectedCatalogue.id,
+      coverImage: editCoverUrl,
+      images: editGalleryUrls,
+      photographerId: editPhotographerId || null,
+      photographerName: editPhotographerId ? getPhotographerName(editPhotographerId) : null,
+    } as any);
   };
 
   const openEditDialog = (catalogue: Catalogue) => {
@@ -364,6 +391,7 @@ export function AdminCatalogues() {
     });
     setEditCoverUrl(catalogue.coverImage || "");
     setEditGalleryUrls(catalogue.images || []);
+    setEditPhotographerId((catalogue as any).photographerId || '');
     setIsEditDialogOpen(true);
   };
 
@@ -608,6 +636,24 @@ export function AdminCatalogues() {
                         </FormItem>
                       )}
                     />
+                    {/* Photographer */}
+                    <div className="space-y-2">
+                      <Label>Photographer</Label>
+                      <Select value={createPhotographerId} onValueChange={setCreatePhotographerId}>
+                        <SelectTrigger data-testid="select-create-photographer">
+                          <SelectValue placeholder="Select photographer (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          {photographers?.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {`${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || p.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* Cover Image Upload */}
                     <div className="space-y-2">
                       <Label>Cover Image</Label>
@@ -735,6 +781,24 @@ export function AdminCatalogues() {
                         </FormItem>
                       )}
                     />
+                    {/* Photographer */}
+                    <div className="space-y-2">
+                      <Label>Photographer</Label>
+                      <Select value={editPhotographerId} onValueChange={setEditPhotographerId}>
+                        <SelectTrigger data-testid="select-edit-photographer">
+                          <SelectValue placeholder="Select photographer (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          {photographers?.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {`${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || p.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* Edit Cover Image Upload */}
                     <div className="space-y-2">
                       <Label>Cover Image</Label>

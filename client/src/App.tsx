@@ -20,6 +20,7 @@ import PhotographerDashboard from "@/pages/photographer-dashboard";
 import { AdminDashboard } from "@/pages/admin-dashboard";
 import Payment from "@/pages/payment";
 import { PaymentSuccess } from "@/pages/payment-success";
+import CheckoutOverlay from "@/pages/checkout-overlay";
 import Navigation from "@/components/navigation";
 import ConstellationBackground from "@/components/constellation-background";
 
@@ -40,6 +41,8 @@ function Router() {
       <ProtectedRoute path="/admin" component={AdminDashboard} requireAdmin />
       <Route path="/payment" component={Payment} />
       <Route path="/payment-success" component={PaymentSuccess} />
+      <Route path="/checkout/custom/:id" component={CheckoutOverlay} />
+      <Route path="/checkout/:rest*" component={CheckoutOverlay} />
       <Route component={NotFound} />
     </Switch>
   );
