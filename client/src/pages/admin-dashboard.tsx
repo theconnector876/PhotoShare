@@ -7,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  CalendarIcon, 
-  ImageIcon, 
-  MessageSquareIcon, 
+import {
+  CalendarIcon,
+  ImageIcon,
+  MessageSquareIcon,
   UsersIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -20,7 +20,8 @@ import {
   Shield,
   Camera,
   DollarSignIcon,
-  Settings
+  Settings,
+  Tag
 } from "lucide-react";
 import { AdminBookings } from "@/components/admin-bookings";
 import { AdminGalleries } from "@/components/admin-galleries";
@@ -31,6 +32,7 @@ import { AdminUsers } from "@/components/admin-users";
 import { AdminPhotographers } from "@/components/admin-photographers";
 import { AdminPricing } from "@/components/admin-pricing";
 import { AdminSite } from "@/components/admin-site";
+import { AdminCoupons } from "@/components/admin-coupons";
 
 export function AdminDashboard() {
   const { toast } = useToast();
@@ -259,6 +261,10 @@ export function AdminDashboard() {
                 <DollarSignIcon className="w-4 h-4 shrink-0" />
                 <span>Pricing</span>
               </TabsTrigger>
+              <TabsTrigger value="coupons" data-testid="tab-coupons" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <Tag className="w-4 h-4 shrink-0" />
+                <span>Coupons</span>
+              </TabsTrigger>
               <TabsTrigger value="site" data-testid="tab-site" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
                 <Settings className="w-4 h-4 shrink-0" />
                 <span>Site</span>
@@ -296,6 +302,9 @@ export function AdminDashboard() {
 
           <TabsContent value="pricing">
             <AdminPricing />
+          </TabsContent>
+          <TabsContent value="coupons">
+            <AdminCoupons />
           </TabsContent>
           <TabsContent value="site">
             <AdminSite />

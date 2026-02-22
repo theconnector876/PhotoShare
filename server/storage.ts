@@ -1,4 +1,4 @@
-import { 
+import {
   users,
   bookings,
   galleries,
@@ -9,6 +9,7 @@ import {
   photographerProfiles,
   pricingConfigs,
   siteConfigs,
+  coupons,
   type User,
   type UpsertUser,
   type Booking,
@@ -25,7 +26,9 @@ import {
   type PhotographerProfile,
   type InsertPhotographerProfile,
   type PricingConfigRow,
-  type SiteConfigRow
+  type SiteConfigRow,
+  type Coupon,
+  type InsertCoupon,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
@@ -112,6 +115,14 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<{ userId: string; expiresAt: Date } | undefined>;
   updateUserPassword(userId: string, hashedPassword: string): Promise<void>;
   deletePasswordResetToken(token: string): Promise<void>;
+
+  // Coupon operations
+  getCouponByCode(code: string): Promise<Coupon | undefined>;
+  getAllCoupons(): Promise<Coupon[]>;
+  createCoupon(data: InsertCoupon): Promise<Coupon>;
+  updateCoupon(id: string, data: Partial<Coupon>): Promise<Coupon | undefined>;
+  deleteCoupon(id: string): Promise<boolean>;
+  incrementCouponUsage(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -710,6 +721,34 @@ export class DatabaseStorage implements IStorage {
   async deletePasswordResetToken(token: string): Promise<void> {
     await db.delete(passwordResetTokens)
       .where(eq(passwordResetTokens.token, token));
+  }
+
+  async getCouponByCode(code: string): Promise<Coupon | undefined> {
+    const [coupon] = await db.select().from(coupons).where(eq(coupons.code, code.toUpperCase()));
+    return coupon;
+  }
+
+  async getAllCoupons(): Promise<Coupon[]> {
+    return db.select().from(coupons).orderBy(coupons.createdAt);
+  }
+
+  async createCoupon(data: InsertCoupon): Promise<Coupon> {
+    const [coupon] = await db.insert(coupons).values({ ...data, code: data.code.toUpperCase() }).returning();
+    return coupon;
+  }
+
+  async updateCoupon(id: string, data: Partial<Coupon>): Promise<Coupon | undefined> {
+    const [coupon] = await db.update(coupons).set(data).where(eq(coupons.id, id)).returning();
+    return coupon;
+  }
+
+  async deleteCoupon(id: string): Promise<boolean> {
+    const result = await db.delete(coupons).where(eq(coupons.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async incrementCouponUsage(id: string): Promise<void> {
+    await db.update(coupons).set({ usageCount: sql`${coupons.usageCount} + 1` }).where(eq(coupons.id, id));
   }
 }
 

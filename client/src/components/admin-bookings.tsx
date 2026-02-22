@@ -116,6 +116,8 @@ interface Booking {
   balancePaid: boolean;
   depositAmount: number;
   balanceDue: number;
+  couponCode: string | null;
+  discountAmount: number;
   createdAt: string;
 }
 
@@ -918,6 +920,11 @@ export function AdminBookings() {
                     <div>
                       <Label>Total Price</Label>
                       <p className="text-lg font-bold text-green-600">{formatCurrency(selectedBooking.totalPrice)}</p>
+                      {selectedBooking.couponCode && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Coupon <span className="font-mono font-semibold">{selectedBooking.couponCode}</span> — saved {formatCurrency(selectedBooking.discountAmount || 0)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   

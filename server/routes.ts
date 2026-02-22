@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupPasswordAuth, hashPassword } from "./auth";
 import { getSession } from "./session";
 import passport from "passport";
-import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema, insertUserSchema } from "@shared/schema";
+import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema, insertUserSchema, insertCouponSchema, type Coupon } from "@shared/schema";
 import { defaultPricingConfig } from "@shared/pricing";
 import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
@@ -32,6 +32,7 @@ if (lemonSqueezyEnabled) {
 const bookingWithAccountSchema = insertBookingSchema.extend({
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string().min(1, "Please confirm your password"),
+  couponCode: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -364,18 +365,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Calculate deposit and balance amounts (50% split)
-      const depositAmount = Math.round(bookingData.totalPrice * 0.5);
-      const balanceDue = bookingData.totalPrice - depositAmount;
-      
+      // Validate and apply coupon if provided
+      let discountAmount = 0;
+      let appliedCouponCode: string | null = null;
+      let couponRecord: Coupon | undefined = undefined;
+      if (bookingData.couponCode) {
+        couponRecord = await storage.getCouponByCode(bookingData.couponCode);
+        if (couponRecord && couponRecord.isActive) {
+          const now = new Date();
+          const notExpired = !couponRecord.expiresAt || couponRecord.expiresAt > now;
+          const withinLimit = couponRecord.usageLimit === null || couponRecord.usageCount < couponRecord.usageLimit;
+          if (notExpired && withinLimit) {
+            if (couponRecord.discountType === 'percentage') {
+              discountAmount = Math.round(bookingData.totalPrice * (couponRecord.discountValue / 100));
+            } else {
+              discountAmount = Math.min(couponRecord.discountValue, bookingData.totalPrice);
+            }
+            appliedCouponCode = couponRecord.code;
+          }
+        }
+      }
+
+      const discountedTotal = bookingData.totalPrice - discountAmount;
+
+      // Calculate deposit and balance amounts (50% split on discounted total)
+      const depositAmount = Math.round(discountedTotal * 0.5);
+      const balanceDue = discountedTotal - depositAmount;
+
       // Create the booking with calculated amounts
       const bookingWithAmounts = {
         ...bookingData,
+        totalPrice: discountedTotal,
         depositAmount,
-        balanceDue
+        balanceDue,
+        couponCode: appliedCouponCode,
+        discountAmount,
       };
-      
+
       const booking = await storage.createBooking(bookingWithAmounts);
+
+      // Increment coupon usage
+      if (couponRecord && appliedCouponCode) {
+        await storage.incrementCouponUsage(couponRecord.id);
+      }
       
       // Create gallery access for the booking
       const accessCode = Math.random().toString(36).substr(2, 8).toUpperCase();
@@ -489,6 +521,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });
       res.status(500).json({ error: "Failed to save comment" });
     }
+  });
+
+  // Coupon: public validate endpoint
+  app.get("/api/coupons/validate", async (req, res) => {
+    try {
+      const code = String(req.query.code || "").trim().toUpperCase();
+      const price = Number(req.query.price || 0);
+      if (!code) return res.status(400).json({ error: "Code required" });
+      const coupon = await storage.getCouponByCode(code);
+      if (!coupon || !coupon.isActive) return res.status(404).json({ error: "Invalid or inactive coupon" });
+      const now = new Date();
+      if (coupon.expiresAt && coupon.expiresAt <= now) return res.status(400).json({ error: "Coupon has expired" });
+      if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) return res.status(400).json({ error: "Coupon usage limit reached" });
+      const discount = coupon.discountType === 'percentage'
+        ? Math.round(price * (coupon.discountValue / 100))
+        : Math.min(coupon.discountValue, price);
+      res.json({ valid: true, code: coupon.code, discountType: coupon.discountType, discountValue: coupon.discountValue, discount, description: coupon.description });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to validate coupon" });
+    }
+  });
+
+  // Coupon: admin CRUD
+  app.get("/api/admin/coupons", isAdmin, async (_req, res) => {
+    try { res.json(await storage.getAllCoupons()); }
+    catch { res.status(500).json({ error: "Failed to fetch coupons" }); }
+  });
+
+  app.post("/api/admin/coupons", isAdmin, async (req, res) => {
+    try {
+      const data = insertCouponSchema.parse(req.body);
+      res.json(await storage.createCoupon(data));
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: error.errors });
+      res.status(500).json({ error: "Failed to create coupon" });
+    }
+  });
+
+  app.put("/api/admin/coupons/:id", isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.updateCoupon(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ error: "Coupon not found" });
+      res.json(updated);
+    } catch { res.status(500).json({ error: "Failed to update coupon" }); }
+  });
+
+  app.delete("/api/admin/coupons/:id", isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteCoupon(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Coupon not found" });
+      res.json({ success: true });
+    } catch { res.status(500).json({ error: "Failed to delete coupon" }); }
   });
 
   // Contact routes

@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useBookingCalculator } from "@/hooks/use-booking-calculator";
 import PackageCard from "@/components/package-card";
-import { Camera, Heart, Users, Plus, Minus, ChevronDown, Shield, AlertTriangle, Clock, DollarSign, CheckCircle } from "lucide-react";
+import { Camera, Heart, Users, Plus, Minus, ChevronDown, Shield, AlertTriangle, Clock, DollarSign, CheckCircle, Tag, X } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -59,6 +59,11 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
   const { user } = useAuth();
   const isLoggedIn = !!user;
 
+  // Coupon state
+  const [couponInput, setCouponInput] = useState("");
+  const [couponStatus, setCouponStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [couponData, setCouponData] = useState<{ code: string; discount: number; discountType: string; discountValue: number; description?: string } | null>(null);
+
   const form = useForm<BookingFormData>({
     resolver: zodResolver(createBookingFormSchema(isLoggedIn)),
     defaultValues: {
@@ -100,7 +105,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
       // Remove depositAmount and balanceDue - these are calculated server-side
       const bookingData = {
         ...data,
-        numberOfPeople: Number(data.numberOfPeople), // Ensure it's a number
+        numberOfPeople: Number(data.numberOfPeople),
         serviceType: calculation.serviceType,
         packageType: calculation.packageType,
         hasPhotoPackage: calculation.hasPhotoPackage,
@@ -108,7 +113,8 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
         videoPackageType: calculation.videoPackageType,
         transportationFee: calculation.transportationFee,
         addons: calculation.addons,
-        totalPrice: calculation.totalPrice,
+        totalPrice: calculation.totalPrice, // server will apply discount based on coupon code
+        couponCode: couponData?.code || undefined,
         photographerId: photographerId || undefined,
       };
       
@@ -179,6 +185,35 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
       });
     },
   });
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setCouponStatus('checking');
+    try {
+      const res = await fetch(`/api/coupons/validate?code=${encodeURIComponent(code)}&price=${calculation.totalPrice}`);
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setCouponData(data);
+        setCouponStatus('valid');
+        toast({ title: "Coupon applied!", description: data.description || `${data.discountType === 'percentage' ? data.discountValue + '%' : '$' + data.discountValue} off your order.` });
+      } else {
+        setCouponData(null);
+        setCouponStatus('invalid');
+      }
+    } catch {
+      setCouponData(null);
+      setCouponStatus('invalid');
+    }
+  };
+
+  const removeCoupon = () => {
+    setCouponData(null);
+    setCouponInput("");
+    setCouponStatus('idle');
+  };
+
+  const finalPrice = couponData ? Math.max(0, calculation.totalPrice - couponData.discount) : calculation.totalPrice;
 
   const onSubmit = (data: BookingFormData) => {
     console.log('Form submission data:', data);
@@ -651,12 +686,65 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
         </Card>
 
         {/* Price Summary */}
-        <Card className="bg-gradient-to-r from-primary to-secondary rounded-xl p-8 text-white text-center mb-8 animate-glow">
+        <Card className="bg-gradient-to-r from-primary to-secondary rounded-xl p-8 text-white text-center mb-4 animate-glow">
           <div className="text-lg mb-2">Total Investment</div>
+          {couponData && (
+            <div className="text-2xl line-through opacity-60 mb-1">${calculation.totalPrice}</div>
+          )}
           <div className="text-5xl font-bold counter-animation" data-testid="total-price">
-            ${calculation.totalPrice}
+            ${finalPrice}
           </div>
-          <div className="text-sm opacity-90 mt-2">All pricing in USD</div>
+          {couponData && (
+            <div className="text-sm opacity-90 mt-2 bg-white/20 rounded-full px-3 py-1 inline-block">
+              🎉 {couponData.discountType === 'percentage' ? `${couponData.discountValue}% off` : `$${couponData.discountValue} off`} applied
+            </div>
+          )}
+          {!couponData && <div className="text-sm opacity-90 mt-2">All pricing in USD</div>}
+        </Card>
+
+        {/* Coupon Code */}
+        <Card className="p-5 mb-8 hover-3d">
+          <div className="flex items-center gap-2 mb-3">
+            <Tag className="w-4 h-4 text-primary" />
+            <span className="font-semibold text-sm">Have a coupon code?</span>
+          </div>
+          {couponData ? (
+            <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+              <div>
+                <span className="font-mono font-bold text-green-700">{couponData.code}</span>
+                {couponData.description && <span className="text-xs text-green-600 ml-2">— {couponData.description}</span>}
+                <p className="text-xs text-green-600 mt-0.5">
+                  Saves you ${couponData.discount} ({couponData.discountType === 'percentage' ? `${couponData.discountValue}%` : `$${couponData.discountValue} flat`})
+                </p>
+              </div>
+              <button onClick={removeCoupon} className="text-green-700 hover:text-red-600 transition-colors ml-3">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter coupon code"
+                value={couponInput}
+                onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponStatus('idle'); }}
+                onKeyDown={(e) => e.key === 'Enter' && applyCoupon()}
+                className="font-mono uppercase"
+                data-testid="input-coupon-code"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={applyCoupon}
+                disabled={couponStatus === 'checking' || !couponInput.trim()}
+                data-testid="button-apply-coupon"
+              >
+                {couponStatus === 'checking' ? 'Checking…' : 'Apply'}
+              </Button>
+            </div>
+          )}
+          {couponStatus === 'invalid' && (
+            <p className="text-xs text-red-500 mt-2">Invalid, expired, or usage-limited coupon code.</p>
+          )}
         </Card>
 
         {/* Booking Form */}
@@ -1134,7 +1222,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                 <i className="fas fa-calendar-check mr-2"></i>
                 {createBookingMutation.isPending 
                   ? 'Processing...' 
-                  : `Confirm Booking - $${calculation.totalPrice}`
+                  : `Confirm Booking - $${finalPrice}`
                 }
               </Button>
             </form>

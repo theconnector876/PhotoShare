@@ -91,6 +91,8 @@ export const bookings = pgTable("bookings", {
   referralSource: text("referral_source").array().default([]),
   clientInitials: text("client_initials").notNull(),
   contractAccepted: boolean("contract_accepted").notNull().default(false),
+  couponCode: text("coupon_code"),
+  discountAmount: integer("discount_amount").notNull().default(0),
   status: text("status").notNull().default("pending"), // pending, confirmed, completed
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -118,6 +120,19 @@ export const contactMessages = pgTable("contact_messages", {
   email: text("email").notNull(),
   message: text("message").notNull(),
   status: text("status").notNull().default("unread"), // unread, read, responded
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const coupons = pgTable("coupons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  discountType: text("discount_type").notNull().default("percentage"), // percentage | fixed
+  discountValue: integer("discount_value").notNull(), // 0-100 for percentage, dollar amount for fixed
+  isActive: boolean("is_active").notNull().default(true),
+  usageLimit: integer("usage_limit"), // null = unlimited
+  usageCount: integer("usage_count").notNull().default(0),
+  expiresAt: timestamp("expires_at"),
+  description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -234,3 +249,7 @@ export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usageCount: true });
+export type Coupon = typeof coupons.$inferSelect;
+export type InsertCoupon = z.infer<typeof insertCouponSchema>;

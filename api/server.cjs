@@ -43420,10 +43420,12 @@ __export(schema_exports, {
   bookings: () => bookings,
   catalogues: () => catalogues,
   contactMessages: () => contactMessages,
+  coupons: () => coupons,
   galleries: () => galleries,
   insertBookingSchema: () => insertBookingSchema,
   insertCatalogueSchema: () => insertCatalogueSchema,
   insertContactMessageSchema: () => insertContactMessageSchema,
+  insertCouponSchema: () => insertCouponSchema,
   insertGallerySchema: () => insertGallerySchema,
   insertPhotographerProfileSchema: () => insertPhotographerProfileSchema,
   insertPricingConfigSchema: () => insertPricingConfigSchema,
@@ -54241,6 +54243,8 @@ var bookings = pgTable("bookings", {
   referralSource: text("referral_source").array().default([]),
   clientInitials: text("client_initials").notNull(),
   contractAccepted: boolean("contract_accepted").notNull().default(false),
+  couponCode: text("coupon_code"),
+  discountAmount: integer("discount_amount").notNull().default(0),
   status: text("status").notNull().default("pending"),
   // pending, confirmed, completed
   createdAt: timestamp("created_at").defaultNow()
@@ -54269,6 +54273,21 @@ var contactMessages = pgTable("contact_messages", {
   message: text("message").notNull(),
   status: text("status").notNull().default("unread"),
   // unread, read, responded
+  createdAt: timestamp("created_at").defaultNow()
+});
+var coupons = pgTable("coupons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  discountType: text("discount_type").notNull().default("percentage"),
+  // percentage | fixed
+  discountValue: integer("discount_value").notNull(),
+  // 0-100 for percentage, dollar amount for fixed
+  isActive: boolean("is_active").notNull().default(true),
+  usageLimit: integer("usage_limit"),
+  // null = unlimited
+  usageCount: integer("usage_count").notNull().default(0),
+  expiresAt: timestamp("expires_at"),
+  description: text("description"),
   createdAt: timestamp("created_at").defaultNow()
 });
 var catalogues = pgTable("catalogues", {
@@ -54354,6 +54373,7 @@ var insertPricingConfigSchema = createInsertSchema(pricingConfigs).omit({
 var insertSiteConfigSchema = createInsertSchema(siteConfigs).omit({
   updatedAt: true
 });
+var insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usageCount: true });
 
 // node_modules/@neondatabase/serverless/index.mjs
 var io = Object.create;
@@ -60621,6 +60641,28 @@ var DatabaseStorage = class {
   async deletePasswordResetToken(token) {
     await db.delete(passwordResetTokens).where(eq(passwordResetTokens.token, token));
   }
+  async getCouponByCode(code) {
+    const [coupon] = await db.select().from(coupons).where(eq(coupons.code, code.toUpperCase()));
+    return coupon;
+  }
+  async getAllCoupons() {
+    return db.select().from(coupons).orderBy(coupons.createdAt);
+  }
+  async createCoupon(data) {
+    const [coupon] = await db.insert(coupons).values({ ...data, code: data.code.toUpperCase() }).returning();
+    return coupon;
+  }
+  async updateCoupon(id, data) {
+    const [coupon] = await db.update(coupons).set(data).where(eq(coupons.id, id)).returning();
+    return coupon;
+  }
+  async deleteCoupon(id) {
+    const result = await db.delete(coupons).where(eq(coupons.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+  async incrementCouponUsage(id) {
+    await db.update(coupons).set({ usageCount: sql`${coupons.usageCount} + 1` }).where(eq(coupons.id, id));
+  }
 };
 var storage = new DatabaseStorage();
 
@@ -66096,7 +66138,8 @@ if (lemonSqueezyEnabled) {
 }
 var bookingWithAccountSchema = insertBookingSchema.extend({
   password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(1, "Please confirm your password")
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+  couponCode: z.string().optional()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"]
@@ -66369,14 +66412,40 @@ async function registerRoutes(app2) {
           return res.status(400).json({ error: "Invalid photographer selection" });
         }
       }
-      const depositAmount = Math.round(bookingData.totalPrice * 0.5);
-      const balanceDue = bookingData.totalPrice - depositAmount;
+      let discountAmount = 0;
+      let appliedCouponCode = null;
+      let couponRecord = void 0;
+      if (bookingData.couponCode) {
+        couponRecord = await storage.getCouponByCode(bookingData.couponCode);
+        if (couponRecord && couponRecord.isActive) {
+          const now = /* @__PURE__ */ new Date();
+          const notExpired = !couponRecord.expiresAt || couponRecord.expiresAt > now;
+          const withinLimit = couponRecord.usageLimit === null || couponRecord.usageCount < couponRecord.usageLimit;
+          if (notExpired && withinLimit) {
+            if (couponRecord.discountType === "percentage") {
+              discountAmount = Math.round(bookingData.totalPrice * (couponRecord.discountValue / 100));
+            } else {
+              discountAmount = Math.min(couponRecord.discountValue, bookingData.totalPrice);
+            }
+            appliedCouponCode = couponRecord.code;
+          }
+        }
+      }
+      const discountedTotal = bookingData.totalPrice - discountAmount;
+      const depositAmount = Math.round(discountedTotal * 0.5);
+      const balanceDue = discountedTotal - depositAmount;
       const bookingWithAmounts = {
         ...bookingData,
+        totalPrice: discountedTotal,
         depositAmount,
-        balanceDue
+        balanceDue,
+        couponCode: appliedCouponCode,
+        discountAmount
       };
       const booking = await storage.createBooking(bookingWithAmounts);
+      if (couponRecord && appliedCouponCode) {
+        await storage.incrementCouponUsage(couponRecord.id);
+      }
       const accessCode = Math.random().toString(36).substr(2, 8).toUpperCase();
       await storage.createGallery({
         bookingId: booking.id,
@@ -66474,6 +66543,56 @@ async function registerRoutes(app2) {
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });
       res.status(500).json({ error: "Failed to save comment" });
+    }
+  });
+  app2.get("/api/coupons/validate", async (req, res) => {
+    try {
+      const code = String(req.query.code || "").trim().toUpperCase();
+      const price = Number(req.query.price || 0);
+      if (!code) return res.status(400).json({ error: "Code required" });
+      const coupon = await storage.getCouponByCode(code);
+      if (!coupon || !coupon.isActive) return res.status(404).json({ error: "Invalid or inactive coupon" });
+      const now = /* @__PURE__ */ new Date();
+      if (coupon.expiresAt && coupon.expiresAt <= now) return res.status(400).json({ error: "Coupon has expired" });
+      if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) return res.status(400).json({ error: "Coupon usage limit reached" });
+      const discount = coupon.discountType === "percentage" ? Math.round(price * (coupon.discountValue / 100)) : Math.min(coupon.discountValue, price);
+      res.json({ valid: true, code: coupon.code, discountType: coupon.discountType, discountValue: coupon.discountValue, discount, description: coupon.description });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to validate coupon" });
+    }
+  });
+  app2.get("/api/admin/coupons", isAdmin, async (_req, res) => {
+    try {
+      res.json(await storage.getAllCoupons());
+    } catch {
+      res.status(500).json({ error: "Failed to fetch coupons" });
+    }
+  });
+  app2.post("/api/admin/coupons", isAdmin, async (req, res) => {
+    try {
+      const data = insertCouponSchema.parse(req.body);
+      res.json(await storage.createCoupon(data));
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: error.errors });
+      res.status(500).json({ error: "Failed to create coupon" });
+    }
+  });
+  app2.put("/api/admin/coupons/:id", isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.updateCoupon(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ error: "Coupon not found" });
+      res.json(updated);
+    } catch {
+      res.status(500).json({ error: "Failed to update coupon" });
+    }
+  });
+  app2.delete("/api/admin/coupons/:id", isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteCoupon(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Coupon not found" });
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ error: "Failed to delete coupon" });
     }
   });
   app2.post("/api/contact", async (req, res) => {
