@@ -28,16 +28,18 @@ if (lemonSqueezyEnabled) {
   console.warn("Lemon Squeezy disabled: missing required env vars.");
 }
 
-// Lemon Squeezy returns checkout URLs using the store's custom domain
-// (connectagrapher.com), but DNS for that domain points to Vercel, not LS.
-// Replace the hostname with the store's native LS subdomain so the checkout
-// URL resolves to Lemon Squeezy's own servers.
-const LS_STORE_SLUG = 'theconnectorphotography';
+// LS store info: store 292314, slug "connectagrapherpayment", domain "connectagrapher.com"
+// connectagrapher.com → Vercel (not LS), so checkout URLs must be proxied.
+// The proxy (registered below) intercepts /checkout/* and serves LS checkout HTML
+// using the X-Forwarded-Host trick to get LS to serve HTML without redirecting.
+const LS_NATIVE_HOST = 'connectagrapherpayment.lemonsqueezy.com';
+const LS_STORE_HOST = 'connectagrapher.com';
+
 function normalizeLsUrl(url: string): string {
   try {
     const u = new URL(url);
-    if (u.hostname !== `${LS_STORE_SLUG}.lemonsqueezy.com`) {
-      u.hostname = `${LS_STORE_SLUG}.lemonsqueezy.com`;
+    if (u.hostname !== LS_NATIVE_HOST) {
+      u.hostname = LS_NATIVE_HOST;
     }
     return u.toString();
   } catch {
@@ -151,7 +153,97 @@ const normalizeEmail = (email: string) => email.toLowerCase().trim();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Version probe — lets us verify which bundle Vercel is serving
-  app.get('/api/version', (_req, res) => res.json({ v: 5, schema: 'lsSlugFix' }));
+  app.get('/api/version', (_req, res) => res.json({ v: 6, schema: 'checkoutProxy' }));
+
+  // ── Lemon Squeezy Checkout Proxy ──────────────────────────────────────────
+  // connectagrapher.com (the LS store domain) points to Vercel, not LS servers.
+  // So checkout URLs from LS land on our app instead of LS's checkout page.
+  //
+  // Fix: proxy /checkout/* to the LS native domain with X-Forwarded-Host.
+  // When LS sees X-Forwarded-Host: connectagrapher.com, it serves the checkout
+  // HTML directly (200) rather than redirecting to the store domain.
+  //
+  // Two-step flow:
+  //   /checkout/custom/UUID  →  LS native → 302 → /checkout/cart/CART_UUID
+  //   /checkout/cart/CART_UUID →  LS native (with X-Fwd-Host) → 200 HTML
+  app.all('/checkout/*', async (req: any, res: any) => {
+    try {
+      const qs = new URLSearchParams(req.query as Record<string, string>).toString();
+      const targetUrl = `https://${LS_NATIVE_HOST}${req.path}${qs ? '?' + qs : ''}`;
+
+      const headers: Record<string, string> = {
+        'X-Forwarded-Host': LS_STORE_HOST,
+        'X-Forwarded-Proto': 'https',
+        'Accept': (req.headers['accept'] as string) || 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': (req.headers['accept-language'] as string) || 'en-US,en;q=0.9',
+        'User-Agent': (req.headers['user-agent'] as string) || 'Mozilla/5.0',
+      };
+
+      if (req.headers.cookie)          headers['Cookie']           = req.headers.cookie;
+      if (req.headers['x-inertia'])    headers['X-Inertia']        = req.headers['x-inertia'] as string;
+      if (req.headers['x-inertia-version']) headers['X-Inertia-Version'] = req.headers['x-inertia-version'] as string;
+      if (req.headers['x-xsrf-token']) headers['X-XSRF-TOKEN']     = req.headers['x-xsrf-token'] as string;
+      if (req.headers['x-requested-with']) headers['X-Requested-With'] = req.headers['x-requested-with'] as string;
+
+      let body: string | undefined;
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        const ct = (req.headers['content-type'] as string) || '';
+        if (ct.includes('application/x-www-form-urlencoded')) {
+          headers['Content-Type'] = 'application/x-www-form-urlencoded';
+          body = new URLSearchParams(req.body as Record<string, string>).toString();
+        } else {
+          headers['Content-Type'] = 'application/json';
+          body = JSON.stringify(req.body);
+        }
+      }
+
+      const lsRes = await fetch(targetUrl, { method: req.method, headers, body, redirect: 'manual' });
+
+      // Forward Set-Cookie headers without domain restriction so browser accepts them
+      const setCookies: string[] =
+        typeof (lsRes.headers as any).getSetCookie === 'function'
+          ? (lsRes.headers as any).getSetCookie()
+          : [lsRes.headers.get('set-cookie') ?? ''].filter(Boolean);
+      for (const c of setCookies) {
+        res.append('Set-Cookie', c.replace(/;\s*domain=[^;]*/gi, ''));
+      }
+
+      // Handle LS redirect to its store domain — convert to relative so browser
+      // follows it back to our www domain (where the proxy runs again for step 2)
+      if (lsRes.status === 301 || lsRes.status === 302 || lsRes.status === 303) {
+        const loc = lsRes.headers.get('location') || '';
+        try {
+          const locUrl = new URL(loc);
+          if (locUrl.hostname === LS_STORE_HOST) {
+            res.redirect(302, locUrl.pathname + locUrl.search);
+            return;
+          }
+        } catch { /* not a valid URL, fall through */ }
+        res.redirect(lsRes.status, loc);
+        return;
+      }
+
+      const ct = lsRes.headers.get('content-type') || 'text/html; charset=UTF-8';
+      res.setHeader('Content-Type', ct);
+      res.setHeader('Cache-Control', 'no-store');
+
+      let html = await lsRes.text();
+
+      // Patch all store domain references to www so checkout JS calls stay same-origin
+      if (ct.includes('text/html') || ct.includes('application/json')) {
+        html = html
+          .split('https:\\/\\/connectagrapher.com').join('https:\\/\\/www.connectagrapher.com')
+          .split('https://connectagrapher.com').join('https://www.connectagrapher.com')
+          .split('http:\\/\\/connectagrapher.com').join('http:\\/\\/www.connectagrapher.com')
+          .split('http://connectagrapher.com').join('http://www.connectagrapher.com');
+      }
+
+      res.status(lsRes.status).send(html);
+    } catch (err: any) {
+      console.error('[checkout proxy]', err.message);
+      res.status(502).send('Checkout temporarily unavailable. Please try again.');
+    }
+  });
 
   // Setup session and passport authentication
   app.use(getSession());
@@ -1197,7 +1289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         productOptions: {
           name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment`,
           description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}`,
-          redirectUrl: `${process.env.APP_URL || (process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000')}/payment-success?booking=${bookingId}`,
+          redirectUrl: `https://www.connectagrapher.com/payment-success?booking=${bookingId}&type=${paymentType}`,
         },
         checkoutOptions: {
           embed: true,

@@ -18,18 +18,6 @@ export default function Payment() {
   const bookingId = urlParams.get('booking');
   const paymentType = urlParams.get('type') || 'deposit'; // 'deposit' or 'balance'
 
-  // Initialize lemon.js as soon as the payment page mounts
-  useEffect(() => {
-    const ls = window as any;
-    const init = () => {
-      if (ls.createLemonSqueezy) {
-        ls.createLemonSqueezy();
-      } else {
-        setTimeout(init, 200);
-      }
-    };
-    init();
-  }, []);
 
   useEffect(() => {
     if (!bookingId) {
@@ -187,20 +175,11 @@ export default function Payment() {
               </div>
             </div>
 
-            {/* Pay Button — opens Lemon Squeezy checkout overlay */}
+            {/* Pay Button — navigate directly to checkout (proxied through our server to LS) */}
             <Button
               className="w-full"
               data-testid="button-submit-payment"
-              onClick={() => {
-                const ls = window as any;
-                // Try lemon.js overlay first (keeps user on page, works with custom domain)
-                if (ls.LemonSqueezy?.Url?.Open) {
-                  ls.LemonSqueezy.Url.Open(checkoutUrl);
-                } else {
-                  // Fallback: open in new tab so our app stays loaded
-                  window.open(checkoutUrl, '_blank');
-                }
-              }}
+              onClick={() => { window.location.href = checkoutUrl; }}
             >
               <CreditCard className="w-4 h-4 mr-2" />
               Pay ${amount.toFixed(2)}

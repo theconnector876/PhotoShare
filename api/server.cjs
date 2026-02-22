@@ -66163,12 +66163,13 @@ if (lemonSqueezyEnabled) {
 } else {
   console.warn("Lemon Squeezy disabled: missing required env vars.");
 }
-var LS_STORE_SLUG = "theconnectorphotography";
+var LS_NATIVE_HOST = "connectagrapherpayment.lemonsqueezy.com";
+var LS_STORE_HOST = "connectagrapher.com";
 function normalizeLsUrl(url) {
   try {
     const u = new URL(url);
-    if (u.hostname !== `${LS_STORE_SLUG}.lemonsqueezy.com`) {
-      u.hostname = `${LS_STORE_SLUG}.lemonsqueezy.com`;
+    if (u.hostname !== LS_NATIVE_HOST) {
+      u.hostname = LS_NATIVE_HOST;
     }
     return u.toString();
   } catch {
@@ -66259,7 +66260,65 @@ var createSafeReviewDTO = (review) => ({
 });
 var normalizeEmail = (email) => email.toLowerCase().trim();
 async function registerRoutes(app2) {
-  app2.get("/api/version", (_req, res) => res.json({ v: 5, schema: "lsSlugFix" }));
+  app2.get("/api/version", (_req, res) => res.json({ v: 6, schema: "checkoutProxy" }));
+  app2.all("/checkout/*", async (req, res) => {
+    try {
+      const qs2 = new URLSearchParams(req.query).toString();
+      const targetUrl = `https://${LS_NATIVE_HOST}${req.path}${qs2 ? "?" + qs2 : ""}`;
+      const headers = {
+        "X-Forwarded-Host": LS_STORE_HOST,
+        "X-Forwarded-Proto": "https",
+        "Accept": req.headers["accept"] || "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": req.headers["accept-language"] || "en-US,en;q=0.9",
+        "User-Agent": req.headers["user-agent"] || "Mozilla/5.0"
+      };
+      if (req.headers.cookie) headers["Cookie"] = req.headers.cookie;
+      if (req.headers["x-inertia"]) headers["X-Inertia"] = req.headers["x-inertia"];
+      if (req.headers["x-inertia-version"]) headers["X-Inertia-Version"] = req.headers["x-inertia-version"];
+      if (req.headers["x-xsrf-token"]) headers["X-XSRF-TOKEN"] = req.headers["x-xsrf-token"];
+      if (req.headers["x-requested-with"]) headers["X-Requested-With"] = req.headers["x-requested-with"];
+      let body;
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        const ct2 = req.headers["content-type"] || "";
+        if (ct2.includes("application/x-www-form-urlencoded")) {
+          headers["Content-Type"] = "application/x-www-form-urlencoded";
+          body = new URLSearchParams(req.body).toString();
+        } else {
+          headers["Content-Type"] = "application/json";
+          body = JSON.stringify(req.body);
+        }
+      }
+      const lsRes = await fetch(targetUrl, { method: req.method, headers, body, redirect: "manual" });
+      const setCookies = typeof lsRes.headers.getSetCookie === "function" ? lsRes.headers.getSetCookie() : [lsRes.headers.get("set-cookie") ?? ""].filter(Boolean);
+      for (const c2 of setCookies) {
+        res.append("Set-Cookie", c2.replace(/;\s*domain=[^;]*/gi, ""));
+      }
+      if (lsRes.status === 301 || lsRes.status === 302 || lsRes.status === 303) {
+        const loc = lsRes.headers.get("location") || "";
+        try {
+          const locUrl = new URL(loc);
+          if (locUrl.hostname === LS_STORE_HOST) {
+            res.redirect(302, locUrl.pathname + locUrl.search);
+            return;
+          }
+        } catch {
+        }
+        res.redirect(lsRes.status, loc);
+        return;
+      }
+      const ct = lsRes.headers.get("content-type") || "text/html; charset=UTF-8";
+      res.setHeader("Content-Type", ct);
+      res.setHeader("Cache-Control", "no-store");
+      let html = await lsRes.text();
+      if (ct.includes("text/html") || ct.includes("application/json")) {
+        html = html.split("https:\\/\\/connectagrapher.com").join("https:\\/\\/www.connectagrapher.com").split("https://connectagrapher.com").join("https://www.connectagrapher.com").split("http:\\/\\/connectagrapher.com").join("http:\\/\\/www.connectagrapher.com").split("http://connectagrapher.com").join("http://www.connectagrapher.com");
+      }
+      res.status(lsRes.status).send(html);
+    } catch (err) {
+      console.error("[checkout proxy]", err.message);
+      res.status(502).send("Checkout temporarily unavailable. Please try again.");
+    }
+  });
   app2.use(getSession());
   app2.use(import_passport2.default.initialize());
   app2.use(import_passport2.default.session());
@@ -67158,7 +67217,7 @@ async function registerRoutes(app2) {
         productOptions: {
           name: `Photography ${paymentType === "deposit" ? "Deposit" : "Balance"} Payment`,
           description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}`,
-          redirectUrl: `${process.env.APP_URL || (process.env.REPLIT_DEV_DOMAIN ? "https://" + process.env.REPLIT_DEV_DOMAIN : "http://localhost:5000")}/payment-success?booking=${bookingId}`
+          redirectUrl: `https://www.connectagrapher.com/payment-success?booking=${bookingId}&type=${paymentType}`
         },
         checkoutOptions: {
           embed: true,

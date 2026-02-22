@@ -4,6 +4,7 @@
   "outputDirectory": "dist/public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/checkout/(.*)", "destination": "/api/index.js" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
