@@ -1456,15 +1456,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/catalogues', isAdmin, async (req, res) => {
     try {
+      console.log('[catalogue create] body:', JSON.stringify(req.body));
       const catalogueData = catalogueSchema.parse(req.body);
+      console.log('[catalogue create] parsed ok, inserting...');
       const catalogue = await storage.createCatalogue(catalogueData);
       res.json(catalogue);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error('[catalogue create] zod error:', JSON.stringify(error.errors));
         return res.status(400).json({ error: 'Invalid catalogue data', details: error.errors });
       }
-      console.error('Error creating catalogue:', error);
-      res.status(500).json({ error: 'Failed to create catalogue' });
+      console.error('[catalogue create] unexpected error:', error);
+      res.status(500).json({ error: (error as any)?.message || 'Failed to create catalogue' });
     }
   });
 

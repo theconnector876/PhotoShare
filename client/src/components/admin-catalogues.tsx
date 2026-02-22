@@ -146,8 +146,8 @@ export function AdminCatalogues() {
     retry: false,
   });
 
-  const [createPhotographerId, setCreatePhotographerId] = useState('');
-  const [editPhotographerId, setEditPhotographerId] = useState('');
+  const [createPhotographerId, setCreatePhotographerId] = useState('none');
+  const [editPhotographerId, setEditPhotographerId] = useState('none');
 
   const { data: reviews } = useQuery<Review[]>({
     queryKey: ["/api/admin/reviews"],
@@ -231,8 +231,9 @@ export function AdminCatalogues() {
       form.reset();
       setCreateCoverUrl("");
       setCreateGalleryUrls([]);
+      setCreatePhotographerId('none');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -245,8 +246,8 @@ export function AdminCatalogues() {
         return;
       }
       toast({
-        title: "Error",
-        description: "Failed to create catalogue.",
+        title: "Error creating catalogue",
+        description: error?.message || "Failed to create catalogue.",
         variant: "destructive",
       });
     },
@@ -278,6 +279,7 @@ export function AdminCatalogues() {
       setSelectedCatalogue(null);
       setEditCoverUrl("");
       setEditGalleryUrls([]);
+      setEditPhotographerId('none');
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -292,8 +294,8 @@ export function AdminCatalogues() {
         return;
       }
       toast({
-        title: "Error",
-        description: "Failed to update catalogue.",
+        title: "Error updating catalogue",
+        description: (error as any)?.message || "Failed to update catalogue.",
         variant: "destructive",
       });
     },
@@ -364,9 +366,10 @@ export function AdminCatalogues() {
     if (!createCoverUrl) { toast({ title: "Please upload a cover image", variant: "destructive" }); return; }
     if (createGalleryUrls.length === 0) { toast({ title: "Please upload at least one gallery image", variant: "destructive" }); return; }
     const extra: Record<string, string> = {};
-    if (createPhotographerId) {
-      extra.photographerId = createPhotographerId;
-      extra.photographerName = getPhotographerName(createPhotographerId);
+    const pid = createPhotographerId !== 'none' ? createPhotographerId : '';
+    if (pid) {
+      extra.photographerId = pid;
+      extra.photographerName = getPhotographerName(pid);
     }
     createCatalogueMutation.mutate({ ...data, coverImage: createCoverUrl, images: createGalleryUrls, ...extra } as any);
   };
@@ -376,9 +379,10 @@ export function AdminCatalogues() {
     if (!editCoverUrl) { toast({ title: "Please upload a cover image", variant: "destructive" }); return; }
     if (editGalleryUrls.length === 0) { toast({ title: "Please upload at least one gallery image", variant: "destructive" }); return; }
     const extra: Record<string, string> = {};
-    if (editPhotographerId) {
-      extra.photographerId = editPhotographerId;
-      extra.photographerName = getPhotographerName(editPhotographerId);
+    const pid = editPhotographerId !== 'none' ? editPhotographerId : '';
+    if (pid) {
+      extra.photographerId = pid;
+      extra.photographerName = getPhotographerName(pid);
     }
     updateCatalogueMutation.mutate({ ...data, id: selectedCatalogue.id, coverImage: editCoverUrl, images: editGalleryUrls, ...extra } as any);
   };
@@ -393,7 +397,7 @@ export function AdminCatalogues() {
     });
     setEditCoverUrl(catalogue.coverImage || "");
     setEditGalleryUrls(catalogue.images || []);
-    setEditPhotographerId((catalogue as any).photographerId || '');
+    setEditPhotographerId((catalogue as any).photographerId || 'none');
     setIsEditDialogOpen(true);
   };
 
@@ -646,7 +650,7 @@ export function AdminCatalogues() {
                           <SelectValue placeholder="Select photographer (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {photographers?.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
                               {`${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || p.email}
@@ -791,7 +795,7 @@ export function AdminCatalogues() {
                           <SelectValue placeholder="Select photographer (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {photographers?.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
                               {`${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || p.email}
