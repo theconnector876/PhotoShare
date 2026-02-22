@@ -71,6 +71,13 @@ export default function Payment() {
     fetchBookingAndCreatePayment();
   }, [bookingId, paymentType, navigate, toast]);
 
+  // Initialize Lemon Squeezy overlay once checkout URL is ready
+  useEffect(() => {
+    if (checkoutUrl && (window as any).createLemonSqueezy) {
+      (window as any).createLemonSqueezy();
+    }
+  }, [checkoutUrl]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
@@ -174,20 +181,11 @@ export default function Payment() {
             </div>
 
             {/* Pay Button — opens Lemon Squeezy overlay checkout */}
-            <Button
-              className="w-full"
-              data-testid="button-submit-payment"
-              onClick={() => {
-                const ls = (window as any).LemonSqueezy;
-                if (ls?.Url?.Open) {
-                  ls.Url.Open(checkoutUrl);
-                } else {
-                  window.location.href = checkoutUrl;
-                }
-              }}
-            >
-              <CreditCard className="w-4 h-4 mr-2" />
-              Pay ${amount.toFixed(2)}
+            <Button asChild className="w-full" data-testid="button-submit-payment">
+              <a href={checkoutUrl} className="lemonsqueezy-button">
+                <CreditCard className="w-4 h-4 mr-2" />
+                Pay ${amount.toFixed(2)}
+              </a>
             </Button>
 
             {/* Contact */}

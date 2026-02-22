@@ -942,7 +942,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
               <div>
                 <Label className="text-sm font-semibold mb-3 block">How did you hear about us?</Label>
                 <div className="grid grid-cols-2 gap-3">
-                  {['Search Engine', 'Social Media', 'Word of Mouth'].map((source, index) => (
+                  {['Search Engine', 'Social Media', 'Referral'].map((source, index) => (
                     <FormField
                       key={source}
                       control={form.control}
