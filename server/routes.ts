@@ -9,7 +9,7 @@ import { defaultPricingConfig } from "@shared/pricing";
 import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
 import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
-import { sendBookingConfirmation, sendPaymentConfirmation, sendPasswordReset, sendPhotographerApproved, sendPhotographerRejected, sendAdminEmail } from "./email";
+import { sendBookingReceived, sendBookingConfirmation, sendPaymentConfirmation, sendPasswordReset, sendPhotographerApproved, sendPhotographerRejected, sendAdminEmail } from "./email";
 import { getCloudinarySignedConfig, generateSignature } from "./upload";
 
 const lemonSqueezyEnabled = Boolean(
@@ -28,12 +28,35 @@ if (lemonSqueezyEnabled) {
   console.warn("Lemon Squeezy disabled: missing required env vars.");
 }
 
+// Lemon Squeezy returns checkout URLs using the store's custom domain
+// (connectagrapher.com), but DNS for that domain points to Vercel, not LS.
+// Replace the hostname with the store's native LS subdomain so the checkout
+// URL resolves to Lemon Squeezy's own servers.
+const LS_STORE_SLUG = 'theconnectorphotography';
+function normalizeLsUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== `${LS_STORE_SLUG}.lemonsqueezy.com`) {
+      u.hostname = `${LS_STORE_SLUG}.lemonsqueezy.com`;
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 // Booking with user account creation schema
+// password/confirmPassword are optional — only required when creating a NEW user
 const bookingWithAccountSchema = insertBookingSchema.extend({
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(1, "Please confirm your password"),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  confirmPassword: z.string().optional(),
   couponCode: z.string().optional(),
-}).refine((data) => data.password === data.confirmPassword, {
+}).refine((data) => {
+  if (data.password !== undefined || data.confirmPassword !== undefined) {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
 });
@@ -126,7 +149,7 @@ const normalizeEmail = (email: string) => email.toLowerCase().trim();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Version probe — lets us verify which bundle Vercel is serving
-  app.get('/api/version', (_req, res) => res.json({ v: 3, schema: 'galleryDownloadEnabled' }));
+  app.get('/api/version', (_req, res) => res.json({ v: 5, schema: 'lsSlugFix' }));
 
   // Setup session and passport authentication
   app.use(getSession());
@@ -135,6 +158,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup password authentication (includes /api/register, /api/login, /api/logout, /api/user)
   setupPasswordAuth(app);
+
+  // Public endpoint for photographer ID photo upload signature (used during sign-up before auth)
+  app.post('/api/upload-id-signature', (req, res) => {
+    const config = getCloudinarySignedConfig();
+    if (!config) {
+      return res.status(503).json({ error: "Image upload not configured." });
+    }
+    const timestamp = Math.round(Date.now() / 1000);
+    const folder = 'verification_docs';
+    const params = { folder, timestamp };
+    const signature = generateSignature(params, config.apiSecret);
+    res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp, signature, folder });
+  });
 
   app.get("/api/photographer/profile", isAuthenticated, async (req, res) => {
     try {
@@ -333,12 +369,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If user doesn't exist, create a new account
       if (!user) {
+        if (!validatedPassword) {
+          return res.status(400).json({ error: 'Password is required to create your account. Please fill in the password fields.' });
+        }
         const hashedPassword = await hashPassword(validatedPassword);
-        
+
         // Extract first and last name from clientName
         const [firstName, ...lastNameParts] = bookingData.clientName.split(' ');
         const lastName = lastNameParts.join(' ') || '';
-        
+
         const newUser = await storage.createUser({
           id: crypto.randomUUID(),
           email: normalizedEmail,
@@ -351,7 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           role: "client",
           photographerStatus: null,
         });
-        
+
         user = newUser;
         console.log('Created new user account for booking:', normalizedEmail);
       } else {
@@ -420,8 +459,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalImages: [],
       });
 
-      // Send booking confirmation email (non-blocking)
-      sendBookingConfirmation({
+      // Send "booking received, awaiting deposit" email (non-blocking)
+      sendBookingReceived({
         clientName: booking.clientName,
         email: booking.email,
         serviceType: booking.serviceType,
@@ -432,7 +471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         depositAmount: booking.depositAmount ?? Math.round(booking.totalPrice * 0.5),
         balanceDue: booking.balanceDue ?? booking.totalPrice - Math.round(booking.totalPrice * 0.5),
         id: booking.id,
-      }, accessCode).catch(err => console.error('Failed to send booking confirmation email:', err));
+      }, accessCode).catch(err => console.error('Failed to send booking received email:', err));
 
       res.json({
         booking,
@@ -656,6 +695,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error('Error updating booking status:', error);
       res.status(500).json({ error: 'Failed to update booking status' });
+    }
+  });
+
+  // Admin manually marks deposit or balance as paid — sends confirmation email on deposit
+  app.patch('/api/admin/bookings/:id/mark-paid', isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentType } = z.object({ paymentType: z.enum(['deposit', 'balance']) }).parse(req.body);
+
+      const booking = await storage.updateBookingPaymentStatus(id, paymentType);
+      if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+      // Auto-confirm the booking when deposit is marked paid
+      if (paymentType === 'deposit' && booking.status === 'pending') {
+        await storage.updateBookingStatus(id, 'confirmed');
+      }
+
+      // Send confirmation email when deposit is marked paid
+      if (paymentType === 'deposit') {
+        const gallery = await storage.getGalleryByBookingId(id);
+        const accessCode = gallery?.accessCode ?? '';
+        sendBookingConfirmation({
+          clientName: booking.clientName,
+          email: booking.email,
+          serviceType: booking.serviceType,
+          shootDate: booking.shootDate,
+          shootTime: booking.shootTime ?? undefined,
+          location: booking.location ?? undefined,
+          totalPrice: booking.totalPrice,
+          depositAmount: booking.depositAmount ?? Math.round(booking.totalPrice * 0.5),
+          balanceDue: booking.balanceDue ?? booking.totalPrice - Math.round(booking.totalPrice * 0.5),
+          id: booking.id,
+        }, accessCode).catch(err => console.error('Failed to send booking confirmation email:', err));
+      }
+
+      const updatedBooking = await storage.getBooking(id);
+      res.json(updatedBooking);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid payment type' });
+      console.error('Error marking payment as paid:', error);
+      res.status(500).json({ error: 'Failed to mark payment as paid' });
     }
   });
 
@@ -1153,7 +1233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkoutData.id, 'balance');
       }
 
-      res.json({ checkoutUrl: checkoutData.attributes.url });
+      res.json({ checkoutUrl: normalizeLsUrl(checkoutData.attributes.url) });
     } catch (error: any) {
       console.error('Error creating checkout:', error);
       res.status(500).json({ error: "Error creating checkout: " + error.message });
@@ -1793,8 +1873,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       const checkout = await createCheckout(storeId, variantId, newCheckout);
       if (checkout.error) return res.status(500).json({ error: 'Failed to create checkout' });
-      const url = checkout.data?.data?.attributes?.url;
-      if (!url) return res.status(500).json({ error: 'No checkout URL returned' });
+      const rawUrl = checkout.data?.data?.attributes?.url;
+      if (!rawUrl) return res.status(500).json({ error: 'No checkout URL returned' });
+      const url = normalizeLsUrl(rawUrl);
       // Send by email only when explicitly requested
       if (sendEmail) {
         await sendAdminEmail(

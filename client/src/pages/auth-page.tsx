@@ -13,7 +13,9 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Heart, Users, LogIn, UserPlus, ArrowLeft } from "lucide-react";
+import { Camera, Heart, Users, LogIn, UserPlus, ArrowLeft, Upload } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -36,6 +38,7 @@ const registerSchema = z.object({
   phone: z.string().optional(),
   socials: z.string().optional(),
   verificationDocs: z.string().optional(),
+  catalogueId: z.string().optional(),
 });
 
 const forgotPasswordSchema = z.object({
@@ -60,6 +63,19 @@ export default function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
   const { toast } = useToast();
+
+  // Photographer ID verification state
+  const [idType, setIdType] = useState('passport');
+  const [idPhotoUrl, setIdPhotoUrl] = useState('');
+  const [idPhotoUploading, setIdPhotoUploading] = useState(false);
+
+  // Fetch catalogues for photographer assignment
+  const { data: catalogues } = useQuery<{ id: string; title: string; serviceType: string }[]>({
+    queryKey: ['/api/catalogues'],
+  });
+
+  // Auto-detect catalogue from URL params (when coming from a gallery)
+  const urlCatalogueId = new URLSearchParams(window.location.search).get('catalogue') || '';
   
   // Check if this is a password reset link
   const urlParams = new URLSearchParams(window.location.search);
@@ -71,6 +87,13 @@ export default function AuthPage() {
       setMode('reset');
     }
   }, [resetToken]);
+
+  // Pre-fill catalogueId if coming from a gallery URL
+  useEffect(() => {
+    if (urlCatalogueId) {
+      registerForm.setValue('catalogueId', urlCatalogueId);
+    }
+  }, [urlCatalogueId]);
 
   // Forgot password mutation
   const forgotPasswordMutation = useMutation({
@@ -160,10 +183,38 @@ export default function AuthPage() {
       phone: "",
       socials: "",
       verificationDocs: "",
+      catalogueId: "",
     },
   });
 
   const registerRole = registerForm.watch("role");
+
+  const uploadIdPhoto = async (file: File) => {
+    setIdPhotoUploading(true);
+    try {
+      const sigRes = await fetch('/api/upload-id-signature', { method: 'POST' });
+      if (!sigRes.ok) throw new Error('Upload not configured');
+      const { cloudName, apiKey, timestamp, signature, folder } = await sigRes.json();
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('api_key', apiKey);
+      formData.append('timestamp', String(timestamp));
+      formData.append('signature', signature);
+      formData.append('folder', folder);
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!uploadRes.ok) throw new Error('Upload failed');
+      const { secure_url } = await uploadRes.json();
+      setIdPhotoUrl(secure_url);
+      toast({ title: "ID photo uploaded successfully" });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIdPhotoUploading(false);
+    }
+  };
 
   const onLogin = (data: LoginFormData) => {
     loginMutation.mutate(data);
@@ -183,6 +234,7 @@ export default function AuthPage() {
   };
 
   const onRegister = (data: RegisterFormData) => {
+    const baseSocials = parseSocials(data.socials);
     const payload = {
       email: data.email,
       password: data.password,
@@ -198,8 +250,8 @@ export default function AuthPage() {
         pricing: data.pricing,
         availability: data.availability,
         phone: data.phone,
-        socials: parseSocials(data.socials),
-        verificationDocs: parseCsv(data.verificationDocs),
+        socials: data.catalogueId ? { ...baseSocials, catalogueId: data.catalogueId } : baseSocials,
+        verificationDocs: idPhotoUrl ? [idType, idPhotoUrl] : [],
       } : undefined,
     };
     registerMutation.mutate(payload);
@@ -428,11 +480,30 @@ export default function AuthPage() {
                       name="displayName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Display Name / Business Name</FormLabel>
+                          <FormLabel>Business Name <span className="text-destructive">*</span></FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Studio Name"
                               data-testid="input-register-displayname"
+                              required
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number <span className="text-destructive">*</span></FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="+1 876 ..."
+                              data-testid="input-register-phone"
+                              required
                               {...field}
                             />
                           </FormControl>
@@ -510,57 +581,6 @@ export default function AuthPage() {
                     />
                     <FormField
                       control={registerForm.control}
-                      name="pricing"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Starting Price / Packages</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Starting at $200"
-                              data-testid="input-register-pricing"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="availability"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Availability</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Weekends, evenings"
-                              data-testid="input-register-availability"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="+1 876 ..."
-                              data-testid="input-register-phone"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
                       name="socials"
                       render={({ field }) => (
                         <FormItem>
@@ -576,19 +596,67 @@ export default function AuthPage() {
                         </FormItem>
                       )}
                     />
+
+                    {/* ID Verification */}
+                    <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+                      <Label className="text-sm font-semibold">ID Verification</Label>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">ID Type</Label>
+                        <Select value={idType} onValueChange={setIdType}>
+                          <SelectTrigger data-testid="select-id-type">
+                            <SelectValue placeholder="Select ID type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="passport">Passport</SelectItem>
+                            <SelectItem value="drivers_license">Driver's License</SelectItem>
+                            <SelectItem value="national_id">National ID</SelectItem>
+                            <SelectItem value="tax_registration">Tax Registration</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">Upload ID Photo</Label>
+                        <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-border rounded-lg p-3 hover:border-primary transition-colors">
+                          <Upload className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
+                            {idPhotoUploading ? "Uploading..." : idPhotoUrl ? "Photo uploaded ✓" : "Click to upload ID photo"}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            data-testid="input-id-photo"
+                            disabled={idPhotoUploading}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) uploadIdPhoto(file);
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Catalogue Assignment */}
                     <FormField
                       control={registerForm.control}
-                      name="verificationDocs"
+                      name="catalogueId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Verification Docs (comma-separated)</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="link1, link2"
-                              data-testid="input-register-verification"
-                              {...field}
-                            />
-                          </FormControl>
+                          <FormLabel>Assign to Catalogue</FormLabel>
+                          <Select value={field.value || ''} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-catalogue">
+                                <SelectValue placeholder="Select a catalogue (optional)" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {catalogues?.map((cat) => (
+                                <SelectItem key={cat.id} value={cat.id}>
+                                  {cat.title} ({cat.serviceType})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}

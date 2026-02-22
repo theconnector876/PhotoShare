@@ -103,8 +103,11 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
   const createBookingMutation = useMutation({
     mutationFn: async (data: BookingFormData) => {
       // Remove depositAmount and balanceDue - these are calculated server-side
+      // Strip password fields for logged-in users (they already have an account)
+      const { password, confirmPassword, ...rest } = data;
       const bookingData = {
-        ...data,
+        ...rest,
+        ...(isLoggedIn ? {} : { password, confirmPassword }),
         numberOfPeople: Number(data.numberOfPeople),
         serviceType: calculation.serviceType,
         packageType: calculation.packageType,
@@ -117,7 +120,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
         couponCode: couponData?.code || undefined,
         photographerId: photographerId || undefined,
       };
-      
+
       return apiRequest('POST', '/api/bookings', bookingData);
     },
     onSuccess: async (response) => {
@@ -343,46 +346,6 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                 isSelected={calculation.packageType === 'platinum'}
                 onClick={() => updatePackage('platinum')}
               />
-            </div>
-            
-            {/* Video Package Add-on for Photoshoot */}
-            <div className="mt-8">
-              <Card className="p-6 hover-3d">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-semibold">Add Videography Package</h4>
-                  <Button
-                    variant={calculation.hasVideoPackage ? "default" : "outline"}
-                    onClick={toggleVideoPackage}
-                    className="magnetic-btn"
-                    data-testid="toggle-video-package"
-                  >
-                    {calculation.hasVideoPackage ? "✓ Video Added" : "Add Video"}
-                  </Button>
-                </div>
-                
-                {calculation.hasVideoPackage && (
-                  <div className="grid md:grid-cols-4 gap-4">
-                    {Object.entries(packages.photoshoot.videography).map(([tier, price]) => (
-                      <div 
-                        key={tier}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all duration-300 hover:border-primary ${
-                          calculation.videoPackageType === tier 
-                            ? 'border-primary bg-primary/10' 
-                            : 'border-border'
-                        }`}
-                        onClick={() => updateVideoPackage(tier)}
-                        data-testid={`video-package-${tier}`}
-                      >
-                        <div className="text-center">
-                          <h5 className="font-semibold text-sm mb-1 capitalize">{tier}</h5>
-                          <p className="text-2xl font-bold text-primary">${price}</p>
-                          <p className="text-xs text-muted-foreground">Video Package</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
             </div>
           </div>
         )}
@@ -979,7 +942,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
               <div>
                 <Label className="text-sm font-semibold mb-3 block">How did you hear about us?</Label>
                 <div className="grid grid-cols-2 gap-3">
-                  {['Search Engine', 'Social Media', 'Word of Mouth', 'Referral'].map((source, index) => (
+                  {['Search Engine', 'Social Media', 'Word of Mouth'].map((source, index) => (
                     <FormField
                       key={source}
                       control={form.control}

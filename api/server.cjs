@@ -65459,21 +65459,48 @@ async function sendEmail(to2, subject, html, from) {
     return null;
   }
 }
-async function sendBookingConfirmation(booking, accessCode) {
+async function sendBookingReceived(booking, accessCode) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Booking Confirmed!</h1>
+      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Booking Request Received!</h1>
       <p>Hi ${booking.clientName},</p>
-      <p>Your photography session has been booked successfully. Here are your details:</p>
+      <p>We've received your booking request. Your session will be <strong>confirmed once the deposit is received</strong>. Here are your details:</p>
 
       <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <p><strong>Service:</strong> ${booking.serviceType}</p>
         <p><strong>Date:</strong> ${booking.shootDate}</p>
         ${booking.shootTime ? `<p><strong>Time:</strong> ${booking.shootTime}</p>` : ""}
         ${booking.location ? `<p><strong>Location:</strong> ${booking.location}</p>` : ""}
-        <p><strong>Total Price:</strong> $${(booking.totalPrice / 100).toFixed(2)}</p>
-        <p><strong>Deposit (50%):</strong> $${(booking.depositAmount / 100).toFixed(2)}</p>
-        <p><strong>Balance Due:</strong> $${(booking.balanceDue / 100).toFixed(2)}</p>
+        <p><strong>Total Price:</strong> $${booking.totalPrice.toFixed(2)}</p>
+        <p><strong>Deposit Required (50%):</strong> $${booking.depositAmount.toFixed(2)}</p>
+        <p><strong>Balance Due on Day:</strong> $${booking.balanceDue.toFixed(2)}</p>
+      </div>
+
+      <div style="background: #fff8e1; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+        <p style="margin: 0; font-weight: bold; color: #92400e;">\u23F3 Awaiting Deposit</p>
+        <p style="margin: 8px 0 0; font-size: 13px; color: #78350f;">Our team will send you a payment link shortly. Once the deposit is received, you'll get a confirmation email with your gallery access code.</p>
+      </div>
+
+      <p style="color: #666; font-size: 13px; margin-top: 30px;">If you have any questions, reply to this email or visit <a href="${APP_URL}">${APP_URL}</a>.</p>
+    </div>
+  `;
+  return sendEmail(booking.email, "Booking Request Received \u2014 ConnectAGrapher", html, FROM_BOOKINGS);
+}
+async function sendBookingConfirmation(booking, accessCode) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Booking Confirmed! \u{1F389}</h1>
+      <p>Hi ${booking.clientName},</p>
+      <p>Your deposit has been received and your photography session is now <strong>confirmed</strong>. Here are your details:</p>
+
+      <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p><strong>Service:</strong> ${booking.serviceType}</p>
+        <p><strong>Date:</strong> ${booking.shootDate}</p>
+        ${booking.shootTime ? `<p><strong>Time:</strong> ${booking.shootTime}</p>` : ""}
+        ${booking.location ? `<p><strong>Location:</strong> ${booking.location}</p>` : ""}
+        <p><strong>Total Price:</strong> $${booking.totalPrice.toFixed(2)}</p>
+        <p><strong>Deposit Paid:</strong> $${booking.depositAmount.toFixed(2)} \u2713</p>
+        <p><strong>Balance Due on Day:</strong> $${booking.balanceDue.toFixed(2)}</p>
       </div>
 
       <div style="background: #f0f7ff; padding: 16px; border-radius: 8px; margin: 20px 0;">
@@ -65481,12 +65508,10 @@ async function sendBookingConfirmation(booking, accessCode) {
         <p style="margin: 8px 0 0; font-size: 13px; color: #666;">Save this code \u2014 you'll need it to view your photos after the shoot.</p>
       </div>
 
-      <a href="${APP_URL}/payment?booking=${booking.id}" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 12px 0;">Pay Deposit Now</a>
-
       <p style="color: #666; font-size: 13px; margin-top: 30px;">If you have any questions, reply to this email or visit <a href="${APP_URL}">${APP_URL}</a>.</p>
     </div>
   `;
-  return sendEmail(booking.email, "Your Photography Session is Confirmed!", html, FROM_BOOKINGS);
+  return sendEmail(booking.email, "Your Photography Session is Confirmed! \u{1F389}", html, FROM_BOOKINGS);
 }
 async function sendPaymentConfirmation(booking, paymentType, amount) {
   const isDeposit = paymentType === "deposit";
@@ -65497,7 +65522,7 @@ async function sendPaymentConfirmation(booking, paymentType, amount) {
       <p>We've received your ${isDeposit ? "deposit" : "final balance"} payment.</p>
 
       <div style="background: #f0fff4; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <p><strong>Amount Paid:</strong> $${(amount / 100).toFixed(2)}</p>
+        <p><strong>Amount Paid:</strong> $${amount.toFixed(2)}</p>
         <p><strong>Payment Type:</strong> ${isDeposit ? "Deposit (50%)" : "Balance Payment"}</p>
         <p><strong>Service:</strong> ${booking.serviceType}</p>
         <p><strong>Booking ID:</strong> ${booking.id}</p>
@@ -66136,11 +66161,28 @@ if (lemonSqueezyEnabled) {
 } else {
   console.warn("Lemon Squeezy disabled: missing required env vars.");
 }
+var LS_STORE_SLUG = "theconnectorphotography";
+function normalizeLsUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== `${LS_STORE_SLUG}.lemonsqueezy.com`) {
+      u.hostname = `${LS_STORE_SLUG}.lemonsqueezy.com`;
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
 var bookingWithAccountSchema = insertBookingSchema.extend({
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(1, "Please confirm your password"),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  confirmPassword: z.string().optional(),
   couponCode: z.string().optional()
-}).refine((data) => data.password === data.confirmPassword, {
+}).refine((data) => {
+  if (data.password !== void 0 || data.confirmPassword !== void 0) {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
   message: "Passwords don't match",
   path: ["confirmPassword"]
 });
@@ -66213,11 +66255,22 @@ var createSafeReviewDTO = (review) => ({
 });
 var normalizeEmail = (email) => email.toLowerCase().trim();
 async function registerRoutes(app2) {
-  app2.get("/api/version", (_req, res) => res.json({ v: 3, schema: "galleryDownloadEnabled" }));
+  app2.get("/api/version", (_req, res) => res.json({ v: 5, schema: "lsSlugFix" }));
   app2.use(getSession());
   app2.use(import_passport2.default.initialize());
   app2.use(import_passport2.default.session());
   setupPasswordAuth(app2);
+  app2.post("/api/upload-id-signature", (req, res) => {
+    const config = getCloudinarySignedConfig();
+    if (!config) {
+      return res.status(503).json({ error: "Image upload not configured." });
+    }
+    const timestamp2 = Math.round(Date.now() / 1e3);
+    const folder = "verification_docs";
+    const params = { folder, timestamp: timestamp2 };
+    const signature = generateSignature(params, config.apiSecret);
+    res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp: timestamp2, signature, folder });
+  });
   app2.get("/api/photographer/profile", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user?.id;
@@ -66386,6 +66439,9 @@ async function registerRoutes(app2) {
       const normalizedEmail = normalizeEmail(bookingData.email);
       let user = await storage.getUserByEmail(normalizedEmail);
       if (!user) {
+        if (!validatedPassword) {
+          return res.status(400).json({ error: "Password is required to create your account. Please fill in the password fields." });
+        }
         const hashedPassword = await hashPassword(validatedPassword);
         const [firstName, ...lastNameParts] = bookingData.clientName.split(" ");
         const lastName = lastNameParts.join(" ") || "";
@@ -66455,7 +66511,7 @@ async function registerRoutes(app2) {
         selectedImages: [],
         finalImages: []
       });
-      sendBookingConfirmation({
+      sendBookingReceived({
         clientName: booking.clientName,
         email: booking.email,
         serviceType: booking.serviceType,
@@ -66466,7 +66522,7 @@ async function registerRoutes(app2) {
         depositAmount: booking.depositAmount ?? Math.round(booking.totalPrice * 0.5),
         balanceDue: booking.balanceDue ?? booking.totalPrice - Math.round(booking.totalPrice * 0.5),
         id: booking.id
-      }, accessCode).catch((err) => console.error("Failed to send booking confirmation email:", err));
+      }, accessCode).catch((err) => console.error("Failed to send booking received email:", err));
       res.json({
         booking,
         accessCode,
@@ -66673,6 +66729,39 @@ async function registerRoutes(app2) {
       }
       console.error("Error updating booking status:", error);
       res.status(500).json({ error: "Failed to update booking status" });
+    }
+  });
+  app2.patch("/api/admin/bookings/:id/mark-paid", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentType } = z.object({ paymentType: z.enum(["deposit", "balance"]) }).parse(req.body);
+      const booking = await storage.updateBookingPaymentStatus(id, paymentType);
+      if (!booking) return res.status(404).json({ error: "Booking not found" });
+      if (paymentType === "deposit" && booking.status === "pending") {
+        await storage.updateBookingStatus(id, "confirmed");
+      }
+      if (paymentType === "deposit") {
+        const gallery = await storage.getGalleryByBookingId(id);
+        const accessCode = gallery?.accessCode ?? "";
+        sendBookingConfirmation({
+          clientName: booking.clientName,
+          email: booking.email,
+          serviceType: booking.serviceType,
+          shootDate: booking.shootDate,
+          shootTime: booking.shootTime ?? void 0,
+          location: booking.location ?? void 0,
+          totalPrice: booking.totalPrice,
+          depositAmount: booking.depositAmount ?? Math.round(booking.totalPrice * 0.5),
+          balanceDue: booking.balanceDue ?? booking.totalPrice - Math.round(booking.totalPrice * 0.5),
+          id: booking.id
+        }, accessCode).catch((err) => console.error("Failed to send booking confirmation email:", err));
+      }
+      const updatedBooking = await storage.getBooking(id);
+      res.json(updatedBooking);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid payment type" });
+      console.error("Error marking payment as paid:", error);
+      res.status(500).json({ error: "Failed to mark payment as paid" });
     }
   });
   app2.get("/api/admin/galleries", isAdmin, async (req, res) => {
@@ -67097,7 +67186,7 @@ async function registerRoutes(app2) {
       } else {
         await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkoutData.id, "balance");
       }
-      res.json({ checkoutUrl: checkoutData.attributes.url });
+      res.json({ checkoutUrl: normalizeLsUrl(checkoutData.attributes.url) });
     } catch (error) {
       console.error("Error creating checkout:", error);
       res.status(500).json({ error: "Error creating checkout: " + error.message });
@@ -67619,8 +67708,9 @@ async function registerRoutes(app2) {
       };
       const checkout = await Ot(storeId, variantId, newCheckout);
       if (checkout.error) return res.status(500).json({ error: "Failed to create checkout" });
-      const url = checkout.data?.data?.attributes?.url;
-      if (!url) return res.status(500).json({ error: "No checkout URL returned" });
+      const rawUrl = checkout.data?.data?.attributes?.url;
+      if (!rawUrl) return res.status(500).json({ error: "No checkout URL returned" });
+      const url = normalizeLsUrl(rawUrl);
       if (sendEmail2) {
         await sendAdminEmail(
           booking.email,
