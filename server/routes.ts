@@ -1200,7 +1200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           redirectUrl: `${process.env.APP_URL || (process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000')}/payment-success?booking=${bookingId}`,
         },
         checkoutOptions: {
-          embed: true,
+          embed: false,
           media: true,
           logo: true,
         },
@@ -1215,7 +1215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         },
       };
-      
+
       const checkout = await createCheckout(storeId, variantId, newCheckout);
 
       if (checkout.error) {
@@ -1235,7 +1235,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkoutData.id, 'balance');
       }
 
-      res.json({ checkoutUrl: checkoutData.attributes.url });
+      // Replace custom domain with native LS domain so the checkout URL
+      // points to LS servers (not our Vercel app which would 404)
+      const rawUrl = checkoutData.attributes.url as string;
+      const checkoutUrl = rawUrl.replace('connectagrapher.com', 'connectagrapherpayment.lemonsqueezy.com');
+      res.json({ checkoutUrl });
     } catch (error: any) {
       console.error('Error creating checkout:', error);
       res.status(500).json({ error: "Error creating checkout: " + error.message });
