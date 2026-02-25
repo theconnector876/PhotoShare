@@ -53,9 +53,9 @@ export async function sendBookingConfirmation(booking: {
         <p><strong>Date:</strong> ${booking.shootDate}</p>
         ${booking.shootTime ? `<p><strong>Time:</strong> ${booking.shootTime}</p>` : ""}
         ${booking.location ? `<p><strong>Location:</strong> ${booking.location}</p>` : ""}
-        <p><strong>Total Price:</strong> $${(booking.totalPrice / 100).toFixed(2)}</p>
-        <p><strong>Deposit (50%):</strong> $${(booking.depositAmount / 100).toFixed(2)}</p>
-        <p><strong>Balance Due:</strong> $${(booking.balanceDue / 100).toFixed(2)}</p>
+        <p><strong>Total Price:</strong> $${booking.totalPrice.toFixed(2)}</p>
+        <p><strong>Deposit (50%):</strong> $${booking.depositAmount.toFixed(2)}</p>
+        <p><strong>Balance Due:</strong> $${booking.balanceDue.toFixed(2)}</p>
       </div>
 
       <div style="background: #f0f7ff; padding: 16px; border-radius: 8px; margin: 20px 0;">
@@ -86,7 +86,7 @@ export async function sendPaymentConfirmation(booking: {
       <p>We've received your ${isDeposit ? "deposit" : "final balance"} payment.</p>
 
       <div style="background: #f0fff4; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <p><strong>Amount Paid:</strong> $${(amount / 100).toFixed(2)}</p>
+        <p><strong>Amount Paid:</strong> $${amount.toFixed(2)}</p>
         <p><strong>Payment Type:</strong> ${isDeposit ? "Deposit (50%)" : "Balance Payment"}</p>
         <p><strong>Service:</strong> ${booking.serviceType}</p>
         <p><strong>Booking ID:</strong> ${booking.id}</p>
