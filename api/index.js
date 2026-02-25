@@ -65415,9 +65415,9 @@ async function sendBookingConfirmation(booking, accessCode) {
         <p><strong>Date:</strong> ${booking.shootDate}</p>
         ${booking.shootTime ? `<p><strong>Time:</strong> ${booking.shootTime}</p>` : ""}
         ${booking.location ? `<p><strong>Location:</strong> ${booking.location}</p>` : ""}
-        <p><strong>Total Price:</strong> $${(booking.totalPrice / 100).toFixed(2)}</p>
-        <p><strong>Deposit (50%):</strong> $${(booking.depositAmount / 100).toFixed(2)}</p>
-        <p><strong>Balance Due:</strong> $${(booking.balanceDue / 100).toFixed(2)}</p>
+        <p><strong>Total Price:</strong> $${booking.totalPrice.toFixed(2)}</p>
+        <p><strong>Deposit (50%):</strong> $${booking.depositAmount.toFixed(2)}</p>
+        <p><strong>Balance Due:</strong> $${booking.balanceDue.toFixed(2)}</p>
       </div>
 
       <div style="background: #f0f7ff; padding: 16px; border-radius: 8px; margin: 20px 0;">
@@ -65441,7 +65441,7 @@ async function sendPaymentConfirmation(booking, paymentType, amount) {
       <p>We've received your ${isDeposit ? "deposit" : "final balance"} payment.</p>
 
       <div style="background: #f0fff4; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <p><strong>Amount Paid:</strong> $${(amount / 100).toFixed(2)}</p>
+        <p><strong>Amount Paid:</strong> $${amount.toFixed(2)}</p>
         <p><strong>Payment Type:</strong> ${isDeposit ? "Deposit (50%)" : "Balance Payment"}</p>
         <p><strong>Service:</strong> ${booking.serviceType}</p>
         <p><strong>Booking ID:</strong> ${booking.id}</p>
@@ -67003,19 +67003,24 @@ async function registerRoutes(app2) {
         return res.status(400).json({ error: "Missing signature header" });
       }
       const crypto6 = __require("crypto");
-      const body = JSON.stringify(req.body);
-      const expectedSignature = crypto6.createHmac("sha256", process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "").update(body).digest("hex");
+      const rawBody = req.body instanceof Buffer ? req.body.toString("utf-8") : JSON.stringify(req.body);
+      const expectedSignature = crypto6.createHmac("sha256", process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "").update(rawBody).digest("hex");
       if (signature !== expectedSignature) {
         console.log("Webhook signature verification failed");
         return res.status(401).json({ error: "Unauthorized" });
       }
-      const event = req.body;
+      const event = req.body instanceof Buffer ? JSON.parse(req.body.toString("utf-8")) : req.body;
       switch (event.meta.event_name) {
         case "order_created": {
           const order = event.data;
-          const customData = order.attributes.first_order_item?.product_options?.custom || {};
+          const customData = event.meta?.custom_data || order.attributes?.first_order_item?.product_options?.custom || {};
           const { booking_id, payment_type } = customData;
           if (booking_id && payment_type) {
+            const existingBooking = await storage.getBooking(booking_id);
+            if (existingBooking && (payment_type === "deposit" && existingBooking.depositPaid || payment_type === "balance" && existingBooking.balancePaid)) {
+              console.log(`Payment ${payment_type} already processed for booking ${booking_id}, skipping`);
+              break;
+            }
             await storage.updateBookingLemonSqueezyOrderId(booking_id, order.id, payment_type);
             await storage.updateBookingPaymentStatus(booking_id, payment_type);
             console.log(`Payment ${payment_type} successful for booking ${booking_id}`);
@@ -67043,7 +67048,7 @@ async function registerRoutes(app2) {
       res.json({ received: true });
     } catch (error) {
       console.error("Webhook error:", error);
-      res.status(500).json({ error: "Internal server error" });
+      res.status(200).json({ received: true, error: error.message });
     }
   });
   app2.patch("/api/admin/gallery/:id/images", isAdmin, async (req, res) => {
@@ -67329,9 +67334,9 @@ async function registerRoutes(app2) {
       const updatedBooking = await storage.updateBookingStatus(req.params.id, "cancelled");
       res.json({
         success: true,
-        message: "Refund processed successfully",
+        message: "Booking cancelled. Refund must be processed manually via the Lemon Squeezy dashboard.",
         booking: updatedBooking,
-        refundId: `refund_${Date.now()}`
+        refundRequiresManualProcessing: true
       });
     } catch (error) {
       console.error("Error processing refund:", error);

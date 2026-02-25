@@ -455,8 +455,8 @@ export function AdminBookings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/bookings"] });
       toast({
-        title: "Refund Processed",
-        description: "Refund has been initiated successfully.",
+        title: "Booking Cancelled",
+        description: "Refund must be processed manually via the Lemon Squeezy dashboard.",
       });
     },
     onError: () => {

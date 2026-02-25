@@ -1122,10 +1122,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify webhook signature
       const crypto = require('crypto');
-      const body = JSON.stringify(req.body);
+      const rawBody = req.body instanceof Buffer ? req.body.toString('utf-8') : JSON.stringify(req.body);
       const expectedSignature = crypto
         .createHmac('sha256', process.env.LEMONSQUEEZY_WEBHOOK_SECRET || '')
-        .update(body)
+        .update(rawBody)
         .digest('hex');
 
       if (signature !== expectedSignature) {
@@ -1133,16 +1133,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const event = req.body;
+      const event = req.body instanceof Buffer ? JSON.parse(req.body.toString('utf-8')) : req.body;
       
       // Handle different webhook events
       switch (event.meta.event_name) {
         case 'order_created': {
           const order = event.data;
-          const customData = order.attributes.first_order_item?.product_options?.custom || {};
+          const customData = event.meta?.custom_data || order.attributes?.first_order_item?.product_options?.custom || {};
           const { booking_id, payment_type } = customData;
           
           if (booking_id && payment_type) {
+            // Skip if this payment was already processed (idempotency for webhook retries)
+            const existingBooking = await storage.getBooking(booking_id);
+            if (existingBooking && (
+              (payment_type === 'deposit' && existingBooking.depositPaid) ||
+              (payment_type === 'balance' && existingBooking.balancePaid)
+            )) {
+              console.log(`Payment ${payment_type} already processed for booking ${booking_id}, skipping`);
+              break;
+            }
+
             // Store order ID on booking
             await storage.updateBookingLemonSqueezyOrderId(booking_id, order.id, payment_type);
             // Update payment status
@@ -1177,7 +1187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ received: true });
     } catch (error: any) {
       console.error('Webhook error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(200).json({ received: true, error: error.message });
     }
   });
 
@@ -1531,11 +1541,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // await storage.updateBookingPaymentStatus(req.params.id, 'deposit', false);
       // await storage.updateBookingPaymentStatus(req.params.id, 'balance', false);
       
-      res.json({ 
-        success: true, 
-        message: 'Refund processed successfully',
+      res.json({
+        success: true,
+        message: 'Booking cancelled. Refund must be processed manually via the Lemon Squeezy dashboard.',
         booking: updatedBooking,
-        refundId: `refund_${Date.now()}`
+        refundRequiresManualProcessing: true
       });
     } catch (error) {
       console.error('Error processing refund:', error);
