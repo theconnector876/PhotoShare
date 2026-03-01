@@ -2093,21 +2093,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== RESEND INBOUND EMAIL =====
 
-  // Public webhook — secured with a shared secret token in the query string.
-  // Configure this URL in Resend: https://connectagrapher.com/api/inbound/email?token=YOUR_SECRET
+  // Public webhook — verified using Svix signature (whsec_... secret from Resend dashboard).
+  // Set RESEND_INBOUND_SECRET env var to the signing secret shown in Resend.
   app.post('/api/inbound/email', async (req, res) => {
     const secret = process.env.RESEND_INBOUND_SECRET;
-    if (secret && req.query.token !== secret) {
-      return res.status(401).json({ error: 'Unauthorized' });
+
+    if (secret) {
+      try {
+        const { Webhook } = await import('svix');
+        const wh = new Webhook(secret);
+        const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
+        wh.verify(rawBody, {
+          'svix-id': req.headers['svix-id'] as string,
+          'svix-timestamp': req.headers['svix-timestamp'] as string,
+          'svix-signature': req.headers['svix-signature'] as string,
+        });
+      } catch (err) {
+        console.warn('[Inbound] Svix signature verification failed:', (err as Error).message);
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
     }
 
     try {
-      const body = req.body || {};
-      const from: string = body.from || '';
-      const to: string = Array.isArray(body.to) ? body.to.join(', ') : (body.to || '');
-      const subject: string = body.subject || '';
-      const textBody: string = body.text || body.plain || '';
-      const htmlBody: string = body.html || '';
+      const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : JSON.stringify(req.body);
+      const payload = JSON.parse(rawBody);
+
+      const from: string = payload.from || '';
+      const to: string = Array.isArray(payload.to) ? payload.to.join(', ') : (payload.to || '');
+      const subject: string = payload.subject || '';
+      const textBody: string = payload.text || payload.plain || '';
+      const htmlBody: string = payload.html || '';
 
       if (!from) {
         return res.status(400).json({ error: 'Missing from field' });
