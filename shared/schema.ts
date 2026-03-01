@@ -166,6 +166,7 @@ export const reviews = pgTable("reviews", {
 
 export const inboundEmails = pgTable("inbound_emails", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  resendEmailId: text("resend_email_id"), // Resend's email_id for API/dashboard lookup
   from: text("from").notNull(),
   to: text("to").notNull(),
   subject: text("subject"),

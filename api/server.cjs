@@ -62065,6 +62065,8 @@ var reviews = pgTable("reviews", {
 });
 var inboundEmails = pgTable("inbound_emails", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  resendEmailId: text("resend_email_id"),
+  // Resend's email_id for API/dashboard lookup
   from: text("from").notNull(),
   to: text("to").notNull(),
   subject: text("subject"),
@@ -75697,19 +75699,21 @@ Thank you!`
     try {
       const rawBody = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : JSON.stringify(req.body);
       const payload = JSON.parse(rawBody);
-      const from = payload.from || "";
-      const to2 = Array.isArray(payload.to) ? payload.to.join(", ") : payload.to || "";
-      const subject = payload.subject || "";
-      const textBody = payload.text || payload.plain || "";
-      const htmlBody = payload.html || "";
+      const emailData = payload.data || payload;
+      const resendEmailId = emailData.email_id || "";
+      const from = emailData.from || "";
+      const to2 = Array.isArray(emailData.to) ? emailData.to.join(", ") : emailData.to || "";
+      const subject = emailData.subject || "";
+      const textBody = emailData.text || emailData.plain || "";
+      const htmlBody = emailData.html || "";
       if (!from) {
         return res.status(400).json({ error: "Missing from field" });
       }
-      const saved = await storage.saveInboundEmail({ from, to: to2, subject, textBody, htmlBody });
-      console.log(`[Inbound] Email saved from ${from}: ${subject}`);
+      const saved = await storage.saveInboundEmail({ resendEmailId, from, to: to2, subject, textBody, htmlBody });
+      console.log(`[Inbound] Email saved from ${from}: ${subject} (resend_id: ${resendEmailId})`);
       const adminEmail = process.env.ADMIN_EMAIL;
       if (adminEmail) {
-        const preview = textBody.slice(0, 500) || "(no body)";
+        const preview = subject ? `Subject: ${subject}` : "(no subject)";
         sendInboundEmailNotification(adminEmail, from, to2, subject, preview).catch(
           (err) => console.error("[Inbound] Failed to send admin notification:", err)
         );

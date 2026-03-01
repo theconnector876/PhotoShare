@@ -127,7 +127,7 @@ export interface IStorage {
   incrementCouponUsage(id: string): Promise<void>;
 
   // Inbound email operations
-  saveInboundEmail(data: { from: string; to: string; subject?: string; textBody?: string; htmlBody?: string }): Promise<InboundEmail>;
+  saveInboundEmail(data: { resendEmailId?: string; from: string; to: string; subject?: string; textBody?: string; htmlBody?: string }): Promise<InboundEmail>;
   getAllInboundEmails(): Promise<InboundEmail[]>;
   markInboundEmailRead(id: string, isRead: boolean): Promise<InboundEmail | undefined>;
   updateInboundEmailStatus(id: string, status: string): Promise<InboundEmail | undefined>;
@@ -760,7 +760,7 @@ export class DatabaseStorage implements IStorage {
     await db.update(coupons).set({ usageCount: sql`${coupons.usageCount} + 1` }).where(eq(coupons.id, id));
   }
 
-  async saveInboundEmail(data: { from: string; to: string; subject?: string; textBody?: string; htmlBody?: string }): Promise<InboundEmail> {
+  async saveInboundEmail(data: { resendEmailId?: string; from: string; to: string; subject?: string; textBody?: string; htmlBody?: string }): Promise<InboundEmail> {
     const [email] = await db.insert(inboundEmails).values(data).returning();
     return email;
   }

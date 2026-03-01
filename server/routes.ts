@@ -2118,22 +2118,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : JSON.stringify(req.body);
       const payload = JSON.parse(rawBody);
 
-      const from: string = payload.from || '';
-      const to: string = Array.isArray(payload.to) ? payload.to.join(', ') : (payload.to || '');
-      const subject: string = payload.subject || '';
-      const textBody: string = payload.text || payload.plain || '';
-      const htmlBody: string = payload.html || '';
+      // Resend wraps inbound emails: { type: "email.received", data: { email_id, from, to, ... } }
+      // Fall back to flat format for direct/test calls
+      const emailData = payload.data || payload;
+      const resendEmailId: string = emailData.email_id || '';
+      const from: string = emailData.from || '';
+      const to: string = Array.isArray(emailData.to) ? emailData.to.join(', ') : (emailData.to || '');
+      const subject: string = emailData.subject || '';
+      // Body is not included in Resend webhook payload — metadata only
+      const textBody: string = emailData.text || emailData.plain || '';
+      const htmlBody: string = emailData.html || '';
 
       if (!from) {
         return res.status(400).json({ error: 'Missing from field' });
       }
 
-      const saved = await storage.saveInboundEmail({ from, to, subject, textBody, htmlBody });
-      console.log(`[Inbound] Email saved from ${from}: ${subject}`);
+      const saved = await storage.saveInboundEmail({ resendEmailId, from, to, subject, textBody, htmlBody });
+      console.log(`[Inbound] Email saved from ${from}: ${subject} (resend_id: ${resendEmailId})`);
 
       const adminEmail = process.env.ADMIN_EMAIL;
       if (adminEmail) {
-        const preview = textBody.slice(0, 500) || '(no body)';
+        const preview = subject ? `Subject: ${subject}` : '(no subject)';
         sendInboundEmailNotification(adminEmail, from, to, subject, preview).catch(err =>
           console.error('[Inbound] Failed to send admin notification:', err)
         );
