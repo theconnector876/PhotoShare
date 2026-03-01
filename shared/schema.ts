@@ -164,6 +164,17 @@ export const reviews = pgTable("reviews", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const inboundEmails = pgTable("inbound_emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  from: text("from").notNull(),
+  to: text("to").notNull(),
+  subject: text("subject"),
+  textBody: text("text_body"),
+  htmlBody: text("html_body"),
+  isRead: boolean("is_read").notNull().default(false),
+  receivedAt: timestamp("received_at").defaultNow(),
+});
+
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
@@ -251,6 +262,8 @@ export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+export type InboundEmail = typeof inboundEmails.$inferSelect;
 
 export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usageCount: true });
 export type Coupon = typeof coupons.$inferSelect;

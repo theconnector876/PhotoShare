@@ -21,7 +21,8 @@ import {
   Camera,
   DollarSignIcon,
   Settings,
-  Tag
+  Tag,
+  InboxIcon
 } from "lucide-react";
 import { AdminBookings } from "@/components/admin-bookings";
 import { AdminGalleries } from "@/components/admin-galleries";
@@ -33,6 +34,7 @@ import { AdminPhotographers } from "@/components/admin-photographers";
 import { AdminPricing } from "@/components/admin-pricing";
 import { AdminSite } from "@/components/admin-site";
 import { AdminCoupons } from "@/components/admin-coupons";
+import { AdminInboundEmails } from "@/components/admin-inbound-emails";
 
 export function AdminDashboard() {
   const { toast } = useToast();
@@ -77,6 +79,10 @@ export function AdminDashboard() {
     queryKey: ["/api/admin/photographers/pending"],
   });
 
+  const { data: inboundEmails } = useQuery<any[]>({
+    queryKey: ["/api/admin/inbound-emails"],
+  });
+
 
 
   const safeBookings = Array.isArray(bookings) ? bookings : [];
@@ -94,6 +100,7 @@ export function AdminDashboard() {
   const pendingReviews = safeReviews.filter((r: any) => !r.isApproved).length;
   const approvedReviews = safeReviews.filter((r: any) => r.isApproved).length;
   const pendingPhotographerCount = pendingPhotographers?.length || 0;
+  const unreadInbound = Array.isArray(inboundEmails) ? inboundEmails.filter((e: any) => !e.isRead).length : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 p-4">
@@ -265,6 +272,11 @@ export function AdminDashboard() {
                 <Tag className="w-4 h-4 shrink-0" />
                 <span>Coupons</span>
               </TabsTrigger>
+              <TabsTrigger value="inbox" data-testid="tab-inbox" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <InboxIcon className="w-4 h-4 shrink-0" />
+                <span>Inbox</span>
+                {unreadInbound > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">{unreadInbound}</Badge>}
+              </TabsTrigger>
               <TabsTrigger value="site" data-testid="tab-site" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
                 <Settings className="w-4 h-4 shrink-0" />
                 <span>Site</span>
@@ -305,6 +317,9 @@ export function AdminDashboard() {
           </TabsContent>
           <TabsContent value="coupons">
             <AdminCoupons />
+          </TabsContent>
+          <TabsContent value="inbox">
+            <AdminInboundEmails />
           </TabsContent>
           <TabsContent value="site">
             <AdminSite />

@@ -190,6 +190,27 @@ export async function sendPhotographerRejected(email: string, firstName: string)
   return sendEmail(email, "Photographer Application Update — ConnectAGrapher", html, FROM_TEAM);
 }
 
+export async function sendInboundEmailNotification(adminEmail: string, from: string, to: string, subject: string, preview: string) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h2 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">New Inbound Email Received</h2>
+      <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p><strong>From:</strong> ${from}</p>
+        <p><strong>To:</strong> ${to}</p>
+        <p><strong>Subject:</strong> ${subject || "(no subject)"}</p>
+      </div>
+      <div style="background: #fff; border: 1px solid #e5e5e5; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0; color: #555; font-size: 14px; white-space: pre-wrap;">${preview}</p>
+      </div>
+      <p style="color: #666; font-size: 13px; margin-top: 30px;">
+        <a href="${APP_URL}/admin?tab=inbox">View in Admin Dashboard</a>
+      </p>
+    </div>
+  `;
+
+  return sendEmail(adminEmail, `New email from ${from}: ${subject || "(no subject)"}`, html, FROM_SUPPORT);
+}
+
 export async function sendAdminEmail(to: string, clientName: string, subject: string, message: string) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">

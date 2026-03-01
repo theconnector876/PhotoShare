@@ -9,7 +9,7 @@ import { defaultPricingConfig } from "@shared/pricing";
 import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
 import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
-import { sendBookingReceived, sendBookingConfirmation, sendPaymentConfirmation, sendPasswordReset, sendPhotographerApproved, sendPhotographerRejected, sendAdminEmail } from "./email";
+import { sendBookingReceived, sendBookingConfirmation, sendPaymentConfirmation, sendPasswordReset, sendPhotographerApproved, sendPhotographerRejected, sendAdminEmail, sendInboundEmailNotification } from "./email";
 import { getCloudinarySignedConfig, generateSignature } from "./upload";
 
 const lemonSqueezyEnabled = Boolean(
@@ -2088,6 +2088,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error('Error assigning photographer:', error);
       res.status(500).json({ error: 'Failed to assign photographer' });
+    }
+  });
+
+  // ===== RESEND INBOUND EMAIL =====
+
+  // Public webhook — secured with a shared secret token in the query string.
+  // Configure this URL in Resend: https://connectagrapher.com/api/inbound/email?token=YOUR_SECRET
+  app.post('/api/inbound/email', async (req, res) => {
+    const secret = process.env.RESEND_INBOUND_SECRET;
+    if (secret && req.query.token !== secret) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      const body = req.body || {};
+      const from: string = body.from || '';
+      const to: string = Array.isArray(body.to) ? body.to.join(', ') : (body.to || '');
+      const subject: string = body.subject || '';
+      const textBody: string = body.text || body.plain || '';
+      const htmlBody: string = body.html || '';
+
+      if (!from) {
+        return res.status(400).json({ error: 'Missing from field' });
+      }
+
+      const saved = await storage.saveInboundEmail({ from, to, subject, textBody, htmlBody });
+      console.log(`[Inbound] Email saved from ${from}: ${subject}`);
+
+      const adminEmail = process.env.ADMIN_EMAIL;
+      if (adminEmail) {
+        const preview = textBody.slice(0, 500) || '(no body)';
+        sendInboundEmailNotification(adminEmail, from, to, subject, preview).catch(err =>
+          console.error('[Inbound] Failed to send admin notification:', err)
+        );
+      }
+
+      res.json({ received: true, id: saved.id });
+    } catch (error) {
+      console.error('[Inbound] Error processing inbound email:', error);
+      res.status(500).json({ error: 'Failed to process inbound email' });
+    }
+  });
+
+  app.get('/api/admin/inbound-emails', isAdmin, async (_req, res) => {
+    try {
+      const emails = await storage.getAllInboundEmails();
+      res.json(emails);
+    } catch (error) {
+      console.error('Error fetching inbound emails:', error);
+      res.status(500).json({ error: 'Failed to fetch inbound emails' });
+    }
+  });
+
+  app.patch('/api/admin/inbound-emails/:id/read', isAdmin, async (req, res) => {
+    try {
+      const { isRead } = z.object({ isRead: z.boolean() }).parse(req.body);
+      const email = await storage.markInboundEmailRead(req.params.id, isRead);
+      if (!email) return res.status(404).json({ error: 'Email not found' });
+      res.json(email);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid body' });
+      console.error('Error marking inbound email read:', error);
+      res.status(500).json({ error: 'Failed to update email' });
+    }
+  });
+
+  app.delete('/api/admin/inbound-emails/:id', isAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteInboundEmail(req.params.id);
+      if (!deleted) return res.status(404).json({ error: 'Email not found' });
+      res.json({ deleted: true });
+    } catch (error) {
+      console.error('Error deleting inbound email:', error);
+      res.status(500).json({ error: 'Failed to delete email' });
     }
   });
 

@@ -10,6 +10,7 @@ import {
   pricingConfigs,
   siteConfigs,
   coupons,
+  inboundEmails,
   type User,
   type UpsertUser,
   type Booking,
@@ -29,6 +30,7 @@ import {
   type SiteConfigRow,
   type Coupon,
   type InsertCoupon,
+  type InboundEmail,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql } from "drizzle-orm";
@@ -123,6 +125,12 @@ export interface IStorage {
   updateCoupon(id: string, data: Partial<Coupon>): Promise<Coupon | undefined>;
   deleteCoupon(id: string): Promise<boolean>;
   incrementCouponUsage(id: string): Promise<void>;
+
+  // Inbound email operations
+  saveInboundEmail(data: { from: string; to: string; subject?: string; textBody?: string; htmlBody?: string }): Promise<InboundEmail>;
+  getAllInboundEmails(): Promise<InboundEmail[]>;
+  markInboundEmailRead(id: string, isRead: boolean): Promise<InboundEmail | undefined>;
+  deleteInboundEmail(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -749,6 +757,25 @@ export class DatabaseStorage implements IStorage {
 
   async incrementCouponUsage(id: string): Promise<void> {
     await db.update(coupons).set({ usageCount: sql`${coupons.usageCount} + 1` }).where(eq(coupons.id, id));
+  }
+
+  async saveInboundEmail(data: { from: string; to: string; subject?: string; textBody?: string; htmlBody?: string }): Promise<InboundEmail> {
+    const [email] = await db.insert(inboundEmails).values(data).returning();
+    return email;
+  }
+
+  async getAllInboundEmails(): Promise<InboundEmail[]> {
+    return await db.select().from(inboundEmails).orderBy(inboundEmails.receivedAt);
+  }
+
+  async markInboundEmailRead(id: string, isRead: boolean): Promise<InboundEmail | undefined> {
+    const [email] = await db.update(inboundEmails).set({ isRead }).where(eq(inboundEmails.id, id)).returning();
+    return email;
+  }
+
+  async deleteInboundEmail(id: string): Promise<boolean> {
+    const result = await db.delete(inboundEmails).where(eq(inboundEmails.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

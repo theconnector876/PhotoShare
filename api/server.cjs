@@ -43422,6 +43422,7 @@ __export(schema_exports, {
   contactMessages: () => contactMessages,
   coupons: () => coupons,
   galleries: () => galleries,
+  inboundEmails: () => inboundEmails,
   insertBookingSchema: () => insertBookingSchema,
   insertCatalogueSchema: () => insertCatalogueSchema,
   insertContactMessageSchema: () => insertContactMessageSchema,
@@ -54325,6 +54326,16 @@ var reviews = pgTable("reviews", {
   // admin approval for display
   createdAt: timestamp("created_at").defaultNow()
 });
+var inboundEmails = pgTable("inbound_emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  from: text("from").notNull(),
+  to: text("to").notNull(),
+  subject: text("subject"),
+  textBody: text("text_body"),
+  htmlBody: text("html_body"),
+  isRead: boolean("is_read").notNull().default(false),
+  receivedAt: timestamp("received_at").defaultNow()
+});
 var passwordResetTokens = pgTable("password_reset_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
@@ -60665,6 +60676,21 @@ var DatabaseStorage = class {
   async incrementCouponUsage(id) {
     await db.update(coupons).set({ usageCount: sql`${coupons.usageCount} + 1` }).where(eq(coupons.id, id));
   }
+  async saveInboundEmail(data) {
+    const [email] = await db.insert(inboundEmails).values(data).returning();
+    return email;
+  }
+  async getAllInboundEmails() {
+    return await db.select().from(inboundEmails).orderBy(inboundEmails.receivedAt);
+  }
+  async markInboundEmailRead(id, isRead) {
+    const [email] = await db.update(inboundEmails).set({ isRead }).where(eq(inboundEmails.id, id)).returning();
+    return email;
+  }
+  async deleteInboundEmail(id) {
+    const result = await db.delete(inboundEmails).where(eq(inboundEmails.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
 };
 var storage = new DatabaseStorage();
 
@@ -65579,6 +65605,25 @@ async function sendPhotographerRejected(email, firstName) {
   `;
   return sendEmail(email, "Photographer Application Update \u2014 ConnectAGrapher", html, FROM_TEAM);
 }
+async function sendInboundEmailNotification(adminEmail, from, to2, subject, preview) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h2 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">New Inbound Email Received</h2>
+      <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p><strong>From:</strong> ${from}</p>
+        <p><strong>To:</strong> ${to2}</p>
+        <p><strong>Subject:</strong> ${subject || "(no subject)"}</p>
+      </div>
+      <div style="background: #fff; border: 1px solid #e5e5e5; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0; color: #555; font-size: 14px; white-space: pre-wrap;">${preview}</p>
+      </div>
+      <p style="color: #666; font-size: 13px; margin-top: 30px;">
+        <a href="${APP_URL}/admin?tab=inbox">View in Admin Dashboard</a>
+      </p>
+    </div>
+  `;
+  return sendEmail(adminEmail, `New email from ${from}: ${subject || "(no subject)"}`, html, FROM_SUPPORT);
+}
 async function sendAdminEmail(to2, clientName, subject, message) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
@@ -67885,6 +67930,67 @@ Thank you!`
       }
       console.error("Error assigning photographer:", error);
       res.status(500).json({ error: "Failed to assign photographer" });
+    }
+  });
+  app2.post("/api/inbound/email", async (req, res) => {
+    const secret = process.env.RESEND_INBOUND_SECRET;
+    if (secret && req.query.token !== secret) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const body = req.body || {};
+      const from = body.from || "";
+      const to2 = Array.isArray(body.to) ? body.to.join(", ") : body.to || "";
+      const subject = body.subject || "";
+      const textBody = body.text || body.plain || "";
+      const htmlBody = body.html || "";
+      if (!from) {
+        return res.status(400).json({ error: "Missing from field" });
+      }
+      const saved = await storage.saveInboundEmail({ from, to: to2, subject, textBody, htmlBody });
+      console.log(`[Inbound] Email saved from ${from}: ${subject}`);
+      const adminEmail = process.env.ADMIN_EMAIL;
+      if (adminEmail) {
+        const preview = textBody.slice(0, 500) || "(no body)";
+        sendInboundEmailNotification(adminEmail, from, to2, subject, preview).catch(
+          (err) => console.error("[Inbound] Failed to send admin notification:", err)
+        );
+      }
+      res.json({ received: true, id: saved.id });
+    } catch (error) {
+      console.error("[Inbound] Error processing inbound email:", error);
+      res.status(500).json({ error: "Failed to process inbound email" });
+    }
+  });
+  app2.get("/api/admin/inbound-emails", isAdmin, async (_req, res) => {
+    try {
+      const emails = await storage.getAllInboundEmails();
+      res.json(emails);
+    } catch (error) {
+      console.error("Error fetching inbound emails:", error);
+      res.status(500).json({ error: "Failed to fetch inbound emails" });
+    }
+  });
+  app2.patch("/api/admin/inbound-emails/:id/read", isAdmin, async (req, res) => {
+    try {
+      const { isRead } = z.object({ isRead: z.boolean() }).parse(req.body);
+      const email = await storage.markInboundEmailRead(req.params.id, isRead);
+      if (!email) return res.status(404).json({ error: "Email not found" });
+      res.json(email);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid body" });
+      console.error("Error marking inbound email read:", error);
+      res.status(500).json({ error: "Failed to update email" });
+    }
+  });
+  app2.delete("/api/admin/inbound-emails/:id", isAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteInboundEmail(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Email not found" });
+      res.json({ deleted: true });
+    } catch (error) {
+      console.error("Error deleting inbound email:", error);
+      res.status(500).json({ error: "Failed to delete email" });
     }
   });
   const httpServer = (0, import_http.createServer)(app2);
