@@ -172,6 +172,7 @@ export const inboundEmails = pgTable("inbound_emails", {
   textBody: text("text_body"),
   htmlBody: text("html_body"),
   isRead: boolean("is_read").notNull().default(false),
+  status: text("status").notNull().default("unread"), // unread, read, responded
   receivedAt: timestamp("received_at").defaultNow(),
 });
 

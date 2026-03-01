@@ -130,6 +130,7 @@ export interface IStorage {
   saveInboundEmail(data: { from: string; to: string; subject?: string; textBody?: string; htmlBody?: string }): Promise<InboundEmail>;
   getAllInboundEmails(): Promise<InboundEmail[]>;
   markInboundEmailRead(id: string, isRead: boolean): Promise<InboundEmail | undefined>;
+  updateInboundEmailStatus(id: string, status: string): Promise<InboundEmail | undefined>;
   deleteInboundEmail(id: string): Promise<boolean>;
 }
 
@@ -769,7 +770,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async markInboundEmailRead(id: string, isRead: boolean): Promise<InboundEmail | undefined> {
-    const [email] = await db.update(inboundEmails).set({ isRead }).where(eq(inboundEmails.id, id)).returning();
+    const status = isRead ? 'read' : 'unread';
+    const [email] = await db.update(inboundEmails).set({ isRead, status }).where(eq(inboundEmails.id, id)).returning();
+    return email;
+  }
+
+  async updateInboundEmailStatus(id: string, status: string): Promise<InboundEmail | undefined> {
+    const isRead = status !== 'unread';
+    const [email] = await db.update(inboundEmails).set({ status, isRead }).where(eq(inboundEmails.id, id)).returning();
     return email;
   }
 

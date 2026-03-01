@@ -2169,6 +2169,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/admin/inbound-emails/:id/status', isAdmin, async (req, res) => {
+    try {
+      const { status } = z.object({ status: z.enum(['unread', 'read', 'responded']) }).parse(req.body);
+      const email = await storage.updateInboundEmailStatus(req.params.id, status);
+      if (!email) return res.status(404).json({ error: 'Email not found' });
+      res.json(email);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid status' });
+      console.error('Error updating inbound email status:', error);
+      res.status(500).json({ error: 'Failed to update status' });
+    }
+  });
+
   app.delete('/api/admin/inbound-emails/:id', isAdmin, async (req, res) => {
     try {
       const deleted = await storage.deleteInboundEmail(req.params.id);

@@ -62071,6 +62071,8 @@ var inboundEmails = pgTable("inbound_emails", {
   textBody: text("text_body"),
   htmlBody: text("html_body"),
   isRead: boolean("is_read").notNull().default(false),
+  status: text("status").notNull().default("unread"),
+  // unread, read, responded
   receivedAt: timestamp("received_at").defaultNow()
 });
 var passwordResetTokens = pgTable("password_reset_tokens", {
@@ -68421,7 +68423,13 @@ var DatabaseStorage = class {
     return await db.select().from(inboundEmails).orderBy(inboundEmails.receivedAt);
   }
   async markInboundEmailRead(id, isRead) {
-    const [email] = await db.update(inboundEmails).set({ isRead }).where(eq(inboundEmails.id, id)).returning();
+    const status = isRead ? "read" : "unread";
+    const [email] = await db.update(inboundEmails).set({ isRead, status }).where(eq(inboundEmails.id, id)).returning();
+    return email;
+  }
+  async updateInboundEmailStatus(id, status) {
+    const isRead = status !== "unread";
+    const [email] = await db.update(inboundEmails).set({ status, isRead }).where(eq(inboundEmails.id, id)).returning();
     return email;
   }
   async deleteInboundEmail(id) {
@@ -75731,6 +75739,18 @@ Thank you!`
       if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid body" });
       console.error("Error marking inbound email read:", error);
       res.status(500).json({ error: "Failed to update email" });
+    }
+  });
+  app2.patch("/api/admin/inbound-emails/:id/status", isAdmin, async (req, res) => {
+    try {
+      const { status } = z.object({ status: z.enum(["unread", "read", "responded"]) }).parse(req.body);
+      const email = await storage.updateInboundEmailStatus(req.params.id, status);
+      if (!email) return res.status(404).json({ error: "Email not found" });
+      res.json(email);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid status" });
+      console.error("Error updating inbound email status:", error);
+      res.status(500).json({ error: "Failed to update status" });
     }
   });
   app2.delete("/api/admin/inbound-emails/:id", isAdmin, async (req, res) => {
