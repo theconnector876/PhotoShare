@@ -6,7 +6,7 @@ import { setupVite, serveStatic, log } from "./vite";
 const app = express();
 
 // Webhooks need raw body for signature verification
-app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/lemonsqueezy/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/inbound/email', express.raw({ type: '*/*' }));
 
 // Standard middleware for other routes
