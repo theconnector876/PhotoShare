@@ -2483,6 +2483,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/conversations/:id/messages/:msgId', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const isAdminUser = (req as any).user?.isAdmin;
+      const deleted = await storage.deleteMessage(req.params.msgId, userId, isAdminUser);
+      if (!deleted) return res.status(403).json({ error: 'Cannot delete this message' });
+      res.json({ ok: true });
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      res.status(500).json({ error: 'Failed to delete message' });
+    }
+  });
+
   app.post('/api/conversations/:id/read', isAuthenticated, async (req, res) => {
     try {
       const userId = (req as any).user?.id;

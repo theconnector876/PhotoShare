@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,12 +7,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  Send, Image as ImageIcon, Loader2, ArrowLeft, Eye,
+  Send, Loader2, ArrowLeft, Eye,
   Paperclip, Users, GalleryHorizontal as GalleryIcon, X, Share2, MapPin, MoreHorizontal,
-  Mic, Square, Film, FileText,
+  Mic, Square, Film, FileText, Copy, Reply, Trash2,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -514,10 +514,17 @@ export function ChatWindow({
   const [locationDraft, setLocationDraft] = useState<{ text: string } | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [uploadingVoice, setUploadingVoice] = useState(false);
+  const [audioDraft, setAudioDraft] = useState<Blob | null>(null);
+  const [replyTo, setReplyTo] = useState<MessageWithSender | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ msg: MessageWithSender; x: number; y: number } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchMoved = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const audioDraftUrl = useMemo(() => (audioDraft ? URL.createObjectURL(audioDraft) : null), [audioDraft]);
 
   const { data: messages = [], isLoading } = useQuery<MessageWithSender[]>({
     queryKey: [`/api/conversations/${conversationId}/messages`],
@@ -564,7 +571,11 @@ export function ChatWindow({
   const handleSend = () => {
     const trimmed = body.trim();
     if (!trimmed || sendMutation.isPending) return;
-    sendMutation.mutate({ msgBody: trimmed, messageType: "text" });
+    const prefix = replyTo
+      ? `↩ ${getSenderName(replyTo)}: "${replyTo.body.slice(0, 80)}"\n\n`
+      : "";
+    sendMutation.mutate({ msgBody: prefix + trimmed, messageType: "text" });
+    setReplyTo(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -633,18 +644,10 @@ export function ChatWindow({
       audioChunksRef.current = [];
       const mr = new MediaRecorder(stream);
       mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = async () => {
+      mr.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        setUploadingVoice(true);
-        try {
-          const url = await uploadToCloudinary(blob, "voice-note.webm");
-          sendMutation.mutate({ msgBody: "🎤 Voice note", messageType: "voice_note", imageUrl: url });
-        } catch {
-          toast({ title: "Failed to upload voice note", variant: "destructive" });
-        } finally {
-          setUploadingVoice(false);
-        }
+        setAudioDraft(blob);
       };
       mr.start();
       mediaRecorderRef.current = mr;
@@ -658,6 +661,78 @@ export function ChatWindow({
     mediaRecorderRef.current?.stop();
     mediaRecorderRef.current = null;
     setIsRecording(false);
+  };
+
+  const sendVoiceNote = async () => {
+    if (!audioDraft) return;
+    setUploadingVoice(true);
+    try {
+      const url = await uploadToCloudinary(audioDraft, "voice-note.webm");
+      sendMutation.mutate({ msgBody: "🎤 Voice note", messageType: "voice_note", imageUrl: url });
+      setAudioDraft(null);
+    } catch {
+      toast({ title: "Failed to upload voice note", variant: "destructive" });
+    } finally {
+      setUploadingVoice(false);
+    }
+  };
+
+  // Context menu handlers
+  const openContextMenu = (e: React.MouseEvent | React.TouchEvent, msg: MessageWithSender) => {
+    let x: number, y: number;
+    if ("clientX" in e) {
+      x = e.clientX;
+      y = e.clientY;
+    } else {
+      const t = (e as React.TouchEvent).touches[0];
+      x = t.clientX;
+      y = t.clientY;
+    }
+    setContextMenu({ msg, x, y });
+  };
+
+  const handleMsgContextMenu = (e: React.MouseEvent, msg: MessageWithSender) => {
+    e.preventDefault();
+    openContextMenu(e, msg);
+  };
+
+  const handleMsgTouchStart = (e: React.TouchEvent, msg: MessageWithSender) => {
+    touchMoved.current = false;
+    const touch = e.touches[0];
+    longPressTimer.current = setTimeout(() => {
+      if (!touchMoved.current) {
+        setContextMenu({ msg, x: touch.clientX, y: touch.clientY });
+      }
+    }, 600);
+  };
+
+  const handleMsgTouchMove = () => {
+    touchMoved.current = true;
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  };
+
+  const handleMsgTouchEnd = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  };
+
+  const copyMsg = async (msg: MessageWithSender) => {
+    try { await navigator.clipboard.writeText(msg.body); toast({ title: "Copied" }); }
+    catch { toast({ title: "Copy failed", variant: "destructive" }); }
+    setContextMenu(null);
+  };
+
+  const replyMsg = (msg: MessageWithSender) => { setReplyTo(msg); setContextMenu(null); };
+
+  const deleteMsg = async (msg: MessageWithSender) => {
+    try {
+      const res = await apiRequest("DELETE", `/api/conversations/${conversationId}/messages/${msg.id}`);
+      if (!res.ok) throw new Error("Failed");
+      queryClient.invalidateQueries({ queryKey: [`/api/conversations/${conversationId}/messages`] });
+      toast({ title: "Message deleted" });
+    } catch {
+      toast({ title: "Failed to delete", variant: "destructive" });
+    }
+    setContextMenu(null);
   };
 
   const handlePayBalance = async (bookingId: string, balanceDue: number) => {
@@ -708,11 +783,11 @@ export function ChatWindow({
             <p className="text-xs text-muted-foreground">{participants.length} members</p>
           )}
         </div>
-        {/* Share dropdown (share actions) */}
+        {/* Desktop: Share dropdown */}
         {hasShareOptions && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" title="Share">
+              <Button size="icon" variant="ghost" className="hidden sm:flex h-7 w-7 shrink-0" title="Share">
                 <Share2 className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -733,10 +808,9 @@ export function ChatWindow({
           </DropdownMenu>
         )}
 
-        {/* Desktop: individual Paperclip + Members buttons */}
+        {/* Desktop: Attachments + Members buttons */}
         <Button
-          size="icon"
-          variant="ghost"
+          size="icon" variant="ghost"
           className="hidden sm:flex h-7 w-7 shrink-0"
           onClick={() => setPanelView(v => v === "attachments" ? "none" : "attachments")}
           title="Attachments"
@@ -745,8 +819,7 @@ export function ChatWindow({
         </Button>
         {showMembersButton && (
           <Button
-            size="icon"
-            variant="ghost"
+            size="icon" variant="ghost"
             className="hidden sm:flex h-7 w-7 shrink-0"
             onClick={() => setPanelView(v => v === "members" ? "none" : "members")}
             title="Members"
@@ -755,14 +828,14 @@ export function ChatWindow({
           </Button>
         )}
 
-        {/* Mobile: collapsed ⋮ menu for Paperclip + Members */}
+        {/* Mobile: single ⋮ with everything */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="icon" variant="ghost" className="sm:hidden h-7 w-7 shrink-0">
               <MoreHorizontal className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="min-w-[180px]">
             <DropdownMenuItem onClick={() => setPanelView(v => v === "attachments" ? "none" : "attachments")}>
               📎 Attachments
             </DropdownMenuItem>
@@ -770,6 +843,19 @@ export function ChatWindow({
               <DropdownMenuItem onClick={() => setPanelView(v => v === "members" ? "none" : "members")}>
                 👥 Members
               </DropdownMenuItem>
+            )}
+            {hasShareOptions && <DropdownMenuSeparator />}
+            {canShareGallery && onShareGallery && (
+              <DropdownMenuItem onClick={onShareGallery}>📷 Share Gallery</DropdownMenuItem>
+            )}
+            {canSendBookingCard && onSendBookingCard && (
+              <DropdownMenuItem onClick={onSendBookingCard}>📋 Share Booking</DropdownMenuItem>
+            )}
+            {canSendPaymentRequest && onSendPaymentRequest && (
+              <DropdownMenuItem onClick={onSendPaymentRequest}>💳 Send Payment Request</DropdownMenuItem>
+            )}
+            {canSendReviewRequest && onSendReviewRequest && (
+              <DropdownMenuItem onClick={onSendReviewRequest}>⭐ Request Review</DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -792,11 +878,23 @@ export function ChatWindow({
         </div>
       )}
 
+      {/* Voice note preview banner */}
+      {audioDraft && audioDraftUrl && (
+        <div className="border-b px-4 py-2 bg-muted/30 flex items-center gap-2 flex-shrink-0">
+          <Mic className="w-4 h-4 text-primary shrink-0" />
+          <audio controls src={audioDraftUrl} className="flex-1 h-8" />
+          <Button size="sm" className="h-6 text-xs" onClick={sendVoiceNote} disabled={uploadingVoice}>
+            {uploadingVoice ? <Loader2 className="w-3 h-3 animate-spin" /> : "Send"}
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setAudioDraft(null)}>Discard</Button>
+        </div>
+      )}
+
       {/* Body: messages + optional side panel */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 relative">
         {/* Messages column */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-4">
             {isLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -873,7 +971,14 @@ export function ChatWindow({
                         }
 
                         return (
-                          <div key={msg.id} className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                          <div
+                            key={msg.id}
+                            className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                            onContextMenu={e => handleMsgContextMenu(e, msg)}
+                            onTouchStart={e => handleMsgTouchStart(e, msg)}
+                            onTouchMove={handleMsgTouchMove}
+                            onTouchEnd={handleMsgTouchEnd}
+                          >
                             {!isMe && (
                               <Avatar className="w-7 h-7 shrink-0">
                                 <AvatarImage src={msg.sender?.profileImageUrl ?? undefined} />
@@ -895,7 +1000,14 @@ export function ChatWindow({
 
                       // Default text / image message
                       return (
-                        <div key={msg.id} className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                        <div
+                          key={msg.id}
+                          className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                          onContextMenu={e => handleMsgContextMenu(e, msg)}
+                          onTouchStart={e => handleMsgTouchStart(e, msg)}
+                          onTouchMove={handleMsgTouchMove}
+                          onTouchEnd={handleMsgTouchEnd}
+                        >
                           {!isMe && (
                             <Avatar className="w-7 h-7 shrink-0">
                               <AvatarImage src={msg.sender?.profileImageUrl ?? undefined} />
@@ -945,6 +1057,20 @@ export function ChatWindow({
               <span className="text-xs text-muted-foreground italic">View only – supervision mode</span>
             </div>
           ) : (
+            <div className="flex-shrink-0">
+            {/* Reply banner */}
+            {replyTo && (
+              <div className="border-t px-3 py-1.5 bg-muted/40 flex items-start gap-2">
+                <Reply className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-semibold text-primary">{getSenderName(replyTo)}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{replyTo.body.slice(0, 80)}</p>
+                </div>
+                <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => setReplyTo(null)}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            )}
             <div className="border-t px-4 py-3 flex items-end gap-2">
               <input
                 ref={fileInputRef}
@@ -1005,12 +1131,13 @@ export function ChatWindow({
                 {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </Button>
             </div>
+            </div>
           )}
         </div>
 
-        {/* Side panel */}
+        {/* Side panel — overlays on mobile, sidebar on desktop */}
         {panelView !== "none" && (
-          <div className="w-64 border-l flex flex-col flex-shrink-0 overflow-y-auto">
+          <div className="absolute sm:relative right-0 top-0 bottom-0 sm:top-auto sm:bottom-auto w-72 sm:w-64 bg-background border-l flex flex-col flex-shrink-0 overflow-y-auto shadow-lg sm:shadow-none z-10">
             {panelView === "members" && (
               <div className="p-3 space-y-2">
                 <div className="flex items-center justify-between">
@@ -1094,6 +1221,43 @@ export function ChatWindow({
 
       {/* User Profile Sheet */}
       <UserProfileSheet userId={profileUserId} onClose={() => setProfileUserId(null)} />
+
+      {/* Context menu overlay */}
+      {contextMenu && (
+        <div className="fixed inset-0 z-50" onClick={() => setContextMenu(null)}>
+          <div
+            className="absolute bg-background border rounded-xl shadow-xl overflow-hidden py-1 min-w-[160px]"
+            style={{
+              left: Math.min(contextMenu.x, (typeof window !== "undefined" ? window.innerWidth : 400) - 180),
+              top: Math.min(contextMenu.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 140),
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {contextMenu.msg.messageType === "text" && (
+              <button
+                className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
+                onClick={() => copyMsg(contextMenu.msg)}
+              >
+                <Copy className="w-4 h-4" /> Copy
+              </button>
+            )}
+            <button
+              className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2"
+              onClick={() => replyMsg(contextMenu.msg)}
+            >
+              <Reply className="w-4 h-4" /> Reply
+            </button>
+            {(contextMenu.msg.senderId === currentUserId || isCurrentUserAdmin) && (
+              <button
+                className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-2 text-destructive"
+                onClick={() => deleteMsg(contextMenu.msg)}
+              >
+                <Trash2 className="w-4 h-4" /> Delete
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

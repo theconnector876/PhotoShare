@@ -160,6 +160,7 @@ export interface IStorage {
   findDirectConversation(adminId: string, otherUserId: string): Promise<Conversation | undefined>;
   getMessages(conversationId: string): Promise<MessageWithSender[]>;
   createMessage(data: { conversationId: string; senderId: string | null; messageType: string; body: string; imageUrl?: string }): Promise<Message>;
+  deleteMessage(messageId: string, requesterId: string, isAdmin: boolean): Promise<boolean>;
   markConversationRead(conversationId: string, userId: string): Promise<void>;
   getTotalUnreadCount(userId: string): Promise<number>;
 }
@@ -1123,6 +1124,14 @@ export class DatabaseStorage implements IStorage {
     // Update conversation updatedAt
     await db.update(conversations).set({ updatedAt: new Date() }).where(eq(conversations.id, data.conversationId));
     return msg;
+  }
+
+  async deleteMessage(messageId: string, requesterId: string, isAdmin: boolean): Promise<boolean> {
+    const [msg] = await db.select().from(messages).where(eq(messages.id, messageId));
+    if (!msg) return false;
+    if (!isAdmin && msg.senderId !== requesterId) return false;
+    await db.delete(messages).where(eq(messages.id, messageId));
+    return true;
   }
 
   async markConversationRead(conversationId: string, userId: string): Promise<void> {

@@ -68672,6 +68672,13 @@ var DatabaseStorage = class {
     await db.update(conversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.id, data.conversationId));
     return msg;
   }
+  async deleteMessage(messageId, requesterId, isAdmin2) {
+    const [msg] = await db.select().from(messages).where(eq(messages.id, messageId));
+    if (!msg) return false;
+    if (!isAdmin2 && msg.senderId !== requesterId) return false;
+    await db.delete(messages).where(eq(messages.id, messageId));
+    return true;
+  }
   async markConversationRead(conversationId, userId) {
     await db.update(conversationParticipants).set({ lastReadAt: /* @__PURE__ */ new Date() }).where(and(
       eq(conversationParticipants.conversationId, conversationId),
@@ -76274,6 +76281,18 @@ Thank you!`
       if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: error.errors });
       console.error("Error creating message:", error);
       res.status(500).json({ error: "Failed to create message" });
+    }
+  });
+  app2.delete("/api/conversations/:id/messages/:msgId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const isAdminUser = req.user?.isAdmin;
+      const deleted = await storage.deleteMessage(req.params.msgId, userId, isAdminUser);
+      if (!deleted) return res.status(403).json({ error: "Cannot delete this message" });
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      res.status(500).json({ error: "Failed to delete message" });
     }
   });
   app2.post("/api/conversations/:id/read", isAuthenticated, async (req, res) => {
