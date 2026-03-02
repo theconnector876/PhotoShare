@@ -534,9 +534,9 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
 
             {/* Main Image */}
             {selectedImage && (
-              <div className="w-full h-full flex items-center justify-center">
-                {/* Left Panel - Image */}
-                <div className="flex-1 h-full flex items-center justify-center p-8">
+              <div className="w-full h-full flex flex-col sm:flex-row overflow-hidden">
+                {/* Image Panel */}
+                <div className="flex-1 min-h-0 flex items-center justify-center p-4 sm:p-8">
                   <img
                     src={selectedImage.src}
                     alt={selectedImage.alt}
@@ -545,9 +545,9 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                   />
                 </div>
 
-                {/* Right Panel - Details (hidden on mobile so image fills screen) */}
+                {/* Details Panel - below image on mobile, sidebar on desktop */}
                 {selectedImage.catalogueId && (
-                  <div className="hidden sm:block w-80 h-full bg-black/60 backdrop-blur-sm p-6 overflow-y-auto">
+                  <div className="sm:w-80 sm:h-full h-48 shrink-0 bg-black/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto border-t sm:border-t-0 sm:border-l border-white/10">
                     {(() => {
                       const catalogue = getCurrentCatalogue(selectedImage.catalogueId);
                       const reviews = catalogueReviews[selectedImage.catalogueId] || [];

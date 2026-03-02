@@ -1358,26 +1358,15 @@ export default function PhotographerDashboard() {
           )}
 
           {/* ── PRICING ── */}
-          {activeTab === "pricing" && (() => {
-            const pf = pricingForm;
-            const tiers = ["bronze", "silver", "gold", "platinum"] as const;
-            const savePricing = () => updatePricingMutation.mutate(pricingForm);
-            const resetPricing = () => { setPricingForm(defaultPricingConfig); toast({ title: "Reset to defaults" }); };
-            const SaveBtn = () => (
-              <Button size="sm" onClick={savePricing} disabled={updatePricingMutation.isPending}>
-                <Save className="w-4 h-4 mr-1.5" />
-                {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
-              </Button>
-            );
-            return (
+          {activeTab === "pricing" && (
               <div className="max-w-3xl space-y-5">
                 {/* Quick stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
-                    { label: "Photoshoot Bronze", value: `$${pf.packages.photoshoot.photography.bronze.price}` },
-                    { label: "Photoshoot Platinum", value: `$${pf.packages.photoshoot.photography.platinum.price}` },
-                    { label: "Wedding Bronze", value: `$${pf.packages.wedding.photography.bronze}` },
-                    { label: "Wedding Platinum", value: `$${pf.packages.wedding.photography.platinum}` },
+                    { label: "Photoshoot Bronze", value: `$${pricingForm.packages.photoshoot.photography.bronze.price}` },
+                    { label: "Photoshoot Platinum", value: `$${pricingForm.packages.photoshoot.photography.platinum.price}` },
+                    { label: "Wedding Bronze", value: `$${pricingForm.packages.wedding.photography.bronze}` },
+                    { label: "Wedding Platinum", value: `$${pricingForm.packages.wedding.photography.platinum}` },
                   ].map(({ label, value }) => (
                     <Card key={label}>
                       <CardContent className="p-4 text-center">
@@ -1389,8 +1378,11 @@ export default function PhotographerDashboard() {
                 </div>
 
                 <div className="flex gap-2 justify-end">
-                  <Button variant="outline" size="sm" onClick={resetPricing}>Reset Defaults</Button>
-                  <SaveBtn />
+                  <Button variant="outline" size="sm" onClick={() => { setPricingForm(defaultPricingConfig); toast({ title: "Reset to defaults" }); }}>Reset Defaults</Button>
+                  <Button size="sm" onClick={() => updatePricingMutation.mutate(pricingForm)} disabled={updatePricingMutation.isPending}>
+                    <Save className="w-4 h-4 mr-1.5" />
+                    {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
+                  </Button>
                 </div>
 
                 {/* Photoshoot Photography */}
@@ -1399,8 +1391,8 @@ export default function PhotographerDashboard() {
                     <CardTitle className="text-sm font-semibold">Photoshoot – Photography</CardTitle>
                   </CardHeader>
                   <CardContent className="p-0">
-                    {tiers.map(tier => {
-                      const pkg = pf.packages.photoshoot.photography[tier];
+                    {(["bronze", "silver", "gold", "platinum"] as const).map(tier => {
+                      const pkg = pricingForm.packages.photoshoot.photography[tier];
                       return (
                         <div key={tier} className="px-4 py-3 border-b last:border-0">
                           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 capitalize">{tier}</p>
@@ -1433,13 +1425,13 @@ export default function PhotographerDashboard() {
                     <CardTitle className="text-sm font-semibold">Photoshoot – Videography</CardTitle>
                   </CardHeader>
                   <CardContent className="divide-y p-0">
-                    {tiers.map(tier => (
+                    {(["bronze", "silver", "gold", "platinum"] as const).map(tier => (
                       <div key={tier} className="flex items-center justify-between px-4 py-3">
                         <p className="text-sm capitalize">{tier}</p>
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm text-muted-foreground">$</span>
                           <Input
-                            type="number" min={0} value={pf.packages.photoshoot.videography[tier]}
+                            type="number" min={0} value={pricingForm.packages.photoshoot.videography[tier]}
                             onChange={e => updPricing(d => { d.packages.photoshoot.videography[tier] = +e.target.value || 0; })}
                             className="w-24 h-8 text-sm text-right"
                           />
@@ -1455,13 +1447,13 @@ export default function PhotographerDashboard() {
                     <CardTitle className="text-sm font-semibold">Wedding – Photography</CardTitle>
                   </CardHeader>
                   <CardContent className="divide-y p-0">
-                    {tiers.map(tier => (
+                    {(["bronze", "silver", "gold", "platinum"] as const).map(tier => (
                       <div key={tier} className="flex items-center justify-between px-4 py-3">
                         <p className="text-sm capitalize">{tier}</p>
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm text-muted-foreground">$</span>
                           <Input
-                            type="number" min={0} value={pf.packages.wedding.photography[tier]}
+                            type="number" min={0} value={pricingForm.packages.wedding.photography[tier]}
                             onChange={e => updPricing(d => { d.packages.wedding.photography[tier] = +e.target.value || 0; })}
                             className="w-24 h-8 text-sm text-right"
                           />
@@ -1477,13 +1469,13 @@ export default function PhotographerDashboard() {
                     <CardTitle className="text-sm font-semibold">Wedding – Videography</CardTitle>
                   </CardHeader>
                   <CardContent className="divide-y p-0">
-                    {tiers.map(tier => (
+                    {(["bronze", "silver", "gold", "platinum"] as const).map(tier => (
                       <div key={tier} className="flex items-center justify-between px-4 py-3">
                         <p className="text-sm capitalize">{tier}</p>
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm text-muted-foreground">$</span>
                           <Input
-                            type="number" min={0} value={pf.packages.wedding.videography[tier]}
+                            type="number" min={0} value={pricingForm.packages.wedding.videography[tier]}
                             onChange={e => updPricing(d => { d.packages.wedding.videography[tier] = +e.target.value || 0; })}
                             className="w-24 h-8 text-sm text-right"
                           />
@@ -1506,7 +1498,7 @@ export default function PhotographerDashboard() {
                           <div>
                             <Label className="text-[10px] text-muted-foreground">Base Rate ($/hr)</Label>
                             <Input
-                              type="number" min={0} value={pf.packages.event[type].baseRate}
+                              type="number" min={0} value={pricingForm.packages.event[type].baseRate}
                               onChange={e => updPricing(d => { d.packages.event[type].baseRate = +e.target.value || 0; })}
                               className="h-8 text-sm mt-1"
                             />
@@ -1514,7 +1506,7 @@ export default function PhotographerDashboard() {
                           <div>
                             <Label className="text-[10px] text-muted-foreground">Minimum Hours</Label>
                             <Input
-                              type="number" min={1} value={pf.packages.event[type].minimumHours}
+                              type="number" min={1} value={pricingForm.packages.event[type].minimumHours}
                               onChange={e => updPricing(d => { d.packages.event[type].minimumHours = +e.target.value || 1; })}
                               className="h-8 text-sm mt-1"
                             />
@@ -1548,7 +1540,7 @@ export default function PhotographerDashboard() {
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm text-muted-foreground">$</span>
                           <Input
-                            type="number" min={0} value={pf.addons[key]}
+                            type="number" min={0} value={pricingForm.addons[key]}
                             onChange={e => updPricing(d => { d.addons[key] = +e.target.value || 0; })}
                             className="w-24 h-8 text-sm text-right"
                           />
@@ -1569,7 +1561,7 @@ export default function PhotographerDashboard() {
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm text-muted-foreground">$</span>
                         <Input
-                          type="number" min={0} value={pf.fees.additionalPerson}
+                          type="number" min={0} value={pricingForm.fees.additionalPerson}
                           onChange={e => updPricing(d => { d.fees.additionalPerson = +e.target.value || 0; })}
                           className="w-24 h-8 text-sm text-right"
                         />
@@ -1585,7 +1577,7 @@ export default function PhotographerDashboard() {
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm text-muted-foreground">$</span>
                           <Input
-                            type="number" min={0} value={pf.fees.transportation[key]}
+                            type="number" min={0} value={pricingForm.fees.transportation[key]}
                             onChange={e => updPricing(d => { d.fees.transportation[key] = +e.target.value || 0; })}
                             className="w-24 h-8 text-sm text-right"
                           />
@@ -1596,12 +1588,14 @@ export default function PhotographerDashboard() {
                 </Card>
 
                 <div className="flex gap-2 justify-end pb-4">
-                  <Button variant="outline" size="sm" onClick={resetPricing}>Reset Defaults</Button>
-                  <SaveBtn />
+                  <Button variant="outline" size="sm" onClick={() => { setPricingForm(defaultPricingConfig); toast({ title: "Reset to defaults" }); }}>Reset Defaults</Button>
+                  <Button size="sm" onClick={() => updatePricingMutation.mutate(pricingForm)} disabled={updatePricingMutation.isPending}>
+                    <Save className="w-4 h-4 mr-1.5" />
+                    {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
+                  </Button>
                 </div>
               </div>
-            );
-          })()}
+          )}
 
           {/* ── CHAT ── */}
           {activeTab === "chat" && <ChatPanel />}

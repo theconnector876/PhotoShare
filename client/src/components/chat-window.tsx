@@ -12,6 +12,7 @@ import {
 import {
   Send, Image as ImageIcon, Loader2, ArrowLeft, Eye,
   Paperclip, Users, GalleryHorizontal as GalleryIcon, X, Share2, MapPin, MoreHorizontal,
+  Mic, Square, Film, FileText,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -401,27 +402,84 @@ function PaymentRequestWidget({ msg, currentUserId }: {
 
 // ── Widget: Location ──────────────────────────────────────────────────────────
 function LocationWidget({ msg }: { msg: MessageWithSender }) {
-  let data: { lat: number; lng: number; label?: string } | null = null;
+  let data: { text?: string; lat?: number; lng?: number; label?: string } | null = null;
   try { data = JSON.parse(msg.body); } catch { /* ignore */ }
   if (!data) return <p className="text-sm">Location</p>;
+
+  const locationText = data.text || data.label || (data.lat != null && data.lng != null ? `${data.lat.toFixed(5)}, ${data.lng.toFixed(5)}` : "");
+  const mapsUrl = data.lat != null && data.lng != null
+    ? `https://maps.google.com/?q=${data.lat},${data.lng}`
+    : `https://maps.google.com/?q=${encodeURIComponent(locationText)}`;
 
   return (
     <div className="rounded-xl border w-[220px] bg-background shadow-sm overflow-hidden">
       <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2">
         <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
-        <span className="text-xs font-semibold truncate">{data.label || "Shared Location"}</span>
+        <span className="text-xs font-semibold">📍 Shoot Location</span>
       </div>
       <div className="p-3 space-y-2">
-        <p className="text-xs text-muted-foreground">
-          {data.lat.toFixed(5)}, {data.lng.toFixed(5)}
-        </p>
+        <p className="text-xs">{locationText}</p>
         <button
-          onClick={() => window.open(`https://maps.google.com/?q=${data!.lat},${data!.lng}`, "_blank")}
+          onClick={() => window.open(mapsUrl, "_blank")}
           className="w-full text-center bg-primary text-primary-foreground text-xs rounded-lg px-3 py-1.5 hover:bg-primary/90 transition-colors"
         >
-          Open in Maps
+          Search in Maps
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── Widget: Voice Note ────────────────────────────────────────────────────────
+function VoiceNoteWidget({ msg }: { msg: MessageWithSender }) {
+  return (
+    <div className="rounded-xl border w-[240px] bg-background shadow-sm overflow-hidden">
+      <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2">
+        <Mic className="w-3.5 h-3.5 text-primary shrink-0" />
+        <span className="text-xs font-semibold">Voice Note</span>
+      </div>
+      <div className="p-3">
+        {msg.imageUrl ? (
+          <audio controls src={msg.imageUrl} className="w-full h-10" />
+        ) : (
+          <p className="text-xs text-muted-foreground">Audio not available</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Widget: Video ─────────────────────────────────────────────────────────────
+function VideoWidget({ msg }: { msg: MessageWithSender }) {
+  return (
+    <div className="rounded-xl overflow-hidden border w-[260px] bg-background shadow-sm">
+      {msg.imageUrl && (
+        <video controls src={msg.imageUrl} className="w-full max-h-48 object-contain bg-black" />
+      )}
+    </div>
+  );
+}
+
+// ── Widget: File ──────────────────────────────────────────────────────────────
+function FileWidget({ msg }: { msg: MessageWithSender }) {
+  return (
+    <div className="rounded-xl border w-[220px] bg-background shadow-sm overflow-hidden">
+      <div className="px-3 py-2 bg-muted/40 border-b flex items-center gap-2">
+        <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+        <span className="text-xs font-semibold truncate">{msg.body || "File"}</span>
+      </div>
+      {msg.imageUrl && (
+        <div className="p-3">
+          <a
+            href={msg.imageUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-primary hover:underline"
+          >
+            Download file
+          </a>
+        </div>
+      )}
     </div>
   );
 }
@@ -453,8 +511,11 @@ export function ChatWindow({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [panelView, setPanelView] = useState<"none" | "members" | "attachments">("none");
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [locationDraft, setLocationDraft] = useState<{ lat: number; lng: number; label: string } | null>(null);
+  const [locationDraft, setLocationDraft] = useState<{ text: string } | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [uploadingVoice, setUploadingVoice] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -513,56 +574,90 @@ export function ChatWindow({
     }
   };
 
-  const handleImageUpload = async (file: File) => {
+  const uploadToCloudinary = async (file: File | Blob, filename?: string) => {
+    const sigRes = await apiRequest("POST", "/api/user/upload-signature");
+    const { cloudName, apiKey, signature, timestamp, folder } = await sigRes.json();
+    const formData = new FormData();
+    formData.append("file", file, filename);
+    formData.append("api_key", apiKey);
+    formData.append("timestamp", String(timestamp));
+    formData.append("signature", signature);
+    if (folder) formData.append("folder", folder);
+    const isVideo = file instanceof File && file.type.startsWith("video/");
+    const isImage = file instanceof File && file.type.startsWith("image/");
+    const endpoint = isImage
+      ? `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`
+      : isVideo
+      ? `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`
+      : `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`; // audio + raw both use video endpoint
+    const res = await fetch(endpoint, { method: "POST", body: formData });
+    const data = await res.json();
+    if (!data.secure_url) throw new Error("Upload failed");
+    return data.secure_url as string;
+  };
+
+  const handleFileUpload = async (file: File) => {
     setUploadingImage(true);
     try {
-      const sigRes = await apiRequest("POST", "/api/user/upload-signature");
-      const { cloudName, apiKey, signature, timestamp, folder, uploadPreset } = await sigRes.json();
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("api_key", apiKey);
-      formData.append("timestamp", String(timestamp));
-      formData.append("signature", signature);
-      if (folder) formData.append("folder", folder);
-      if (uploadPreset) formData.append("upload_preset", uploadPreset);
-
-      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const uploadData = await uploadRes.json();
-      const url = uploadData.secure_url;
-      sendMutation.mutate({ msgBody: "📷 Image", messageType: "image", imageUrl: url });
+      const url = await uploadToCloudinary(file, file.name);
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      if (isImage) {
+        sendMutation.mutate({ msgBody: "📷 Image", messageType: "image", imageUrl: url });
+      } else if (isVideo) {
+        sendMutation.mutate({ msgBody: "🎥 Video", messageType: "video", imageUrl: url });
+      } else {
+        sendMutation.mutate({ msgBody: file.name, messageType: "file", imageUrl: url });
+      }
     } catch {
-      toast({ title: "Upload failed", description: "Failed to upload image.", variant: "destructive" });
+      toast({ title: "Upload failed", variant: "destructive" });
     } finally {
       setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   const handleShareLocation = () => {
-    if (!navigator.geolocation) {
-      toast({ title: "Geolocation not supported" });
-      return;
-    }
-    setLocationLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        setLocationLoading(false);
-        setLocationDraft({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: "" });
-      },
-      () => {
-        setLocationLoading(false);
-        toast({ title: "Could not get location", variant: "destructive" });
-      }
-    );
+    setLocationDraft({ text: "" });
   };
 
   const sendLocation = () => {
-    if (!locationDraft) return;
-    sendMutation.mutate({ msgBody: JSON.stringify(locationDraft), messageType: "location" });
+    if (!locationDraft || !locationDraft.text.trim()) return;
+    sendMutation.mutate({ msgBody: JSON.stringify({ text: locationDraft.text }), messageType: "location" });
     setLocationDraft(null);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setUploadingVoice(true);
+        try {
+          const url = await uploadToCloudinary(blob, "voice-note.webm");
+          sendMutation.mutate({ msgBody: "🎤 Voice note", messageType: "voice_note", imageUrl: url });
+        } catch {
+          toast({ title: "Failed to upload voice note", variant: "destructive" });
+        } finally {
+          setUploadingVoice(false);
+        }
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setIsRecording(true);
+    } catch {
+      toast({ title: "Microphone not available", variant: "destructive" });
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
   };
 
   const handlePayBalance = async (bookingId: string, balanceDue: number) => {
@@ -592,8 +687,8 @@ export function ChatWindow({
     }
   }
 
-  // Attachments: image messages only
-  const attachments = messages.filter(m => m.messageType === "image" && m.imageUrl);
+  // Attachments: image + video messages
+  const attachments = messages.filter(m => ["image", "video"].includes(m.messageType) && m.imageUrl);
 
   const showMembersButton = conversationType === "group" || conversationType === "direct" || conversationType === "booking";
   const hasShareOptions = canShareGallery || canSendBookingCard || canSendPaymentRequest || canSendReviewRequest;
@@ -685,12 +780,14 @@ export function ChatWindow({
         <div className="border-b px-4 py-2 bg-muted/30 flex items-center gap-2 flex-shrink-0">
           <MapPin className="w-4 h-4 text-primary shrink-0" />
           <input
+            autoFocus
             className="flex-1 text-xs bg-transparent outline-none"
-            placeholder="Add a label (optional)…"
-            value={locationDraft.label}
-            onChange={e => setLocationDraft(d => d ? { ...d, label: e.target.value } : d)}
+            placeholder="Desired shoot location (e.g. Kingston, Jamaica)…"
+            value={locationDraft.text}
+            onChange={e => setLocationDraft({ text: e.target.value })}
+            onKeyDown={e => { if (e.key === "Enter") sendLocation(); }}
           />
-          <Button size="sm" className="h-6 text-xs" onClick={sendLocation}>Send</Button>
+          <Button size="sm" className="h-6 text-xs" onClick={sendLocation} disabled={!locationDraft.text.trim()}>Send</Button>
           <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setLocationDraft(null)}>Cancel</Button>
         </div>
       )}
@@ -730,7 +827,7 @@ export function ChatWindow({
                       const isMe = msg.senderId === currentUserId;
 
                       // Widget messages rendered in a neutral centered container
-                      if (["gallery", "booking_card", "review_request", "payment_request", "location"].includes(msg.messageType)) {
+                      if (["gallery", "booking_card", "review_request", "payment_request", "location", "voice_note", "video", "file"].includes(msg.messageType)) {
                         let widget: React.ReactNode;
 
                         if (msg.messageType === "gallery") {
@@ -765,8 +862,14 @@ export function ChatWindow({
                           widget = <ReviewRequestWidget msg={msg} currentUserId={currentUserId} />;
                         } else if (msg.messageType === "payment_request") {
                           widget = <PaymentRequestWidget msg={msg} currentUserId={currentUserId} />;
-                        } else {
+                        } else if (msg.messageType === "location") {
                           widget = <LocationWidget msg={msg} />;
+                        } else if (msg.messageType === "voice_note") {
+                          widget = <VoiceNoteWidget msg={msg} />;
+                        } else if (msg.messageType === "video") {
+                          widget = <VideoWidget msg={msg} />;
+                        } else {
+                          widget = <FileWidget msg={msg} />;
                         }
 
                         return (
@@ -846,30 +949,44 @@ export function ChatWindow({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.zip,.txt"
                 className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }}
               />
+              {/* Image/file picker */}
               <Button
                 size="icon"
                 variant="ghost"
                 className="shrink-0 h-9 w-9"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingImage || sendMutation.isPending}
+                disabled={uploadingImage || uploadingVoice || sendMutation.isPending}
+                title="Attach image, video, or file"
                 type="button"
               >
-                {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
               </Button>
+              {/* Location */}
               <Button
                 size="icon"
                 variant="ghost"
                 className="shrink-0 h-9 w-9"
                 onClick={handleShareLocation}
-                disabled={locationLoading}
-                title="Share Location"
+                title="Share shoot location"
                 type="button"
               >
-                {locationLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                <MapPin className="w-4 h-4" />
+              </Button>
+              {/* Voice note */}
+              <Button
+                size="icon"
+                variant={isRecording ? "destructive" : "ghost"}
+                className="shrink-0 h-9 w-9"
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={uploadingVoice || uploadingImage || sendMutation.isPending}
+                title={isRecording ? "Stop recording" : "Record voice note"}
+                type="button"
+              >
+                {uploadingVoice ? <Loader2 className="w-4 h-4 animate-spin" /> : isRecording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </Button>
               <Textarea
                 value={body}
@@ -941,13 +1058,20 @@ export function ChatWindow({
                 ) : (
                   <div className="grid grid-cols-3 gap-1">
                     {attachments.map(m => (
-                      <img
-                        key={m.id}
-                        src={m.imageUrl!}
-                        className="aspect-square object-cover rounded cursor-pointer"
-                        onClick={() => setLightboxUrl(m.imageUrl!)}
-                        alt="attachment"
-                      />
+                      m.messageType === "video" ? (
+                        <div key={m.id} className="relative aspect-square bg-black rounded overflow-hidden cursor-pointer" onClick={() => setLightboxUrl(m.imageUrl!)}>
+                          <video src={m.imageUrl!} className="w-full h-full object-cover opacity-80" />
+                          <Film className="absolute inset-0 m-auto w-5 h-5 text-white drop-shadow" />
+                        </div>
+                      ) : (
+                        <img
+                          key={m.id}
+                          src={m.imageUrl!}
+                          className="aspect-square object-cover rounded cursor-pointer"
+                          onClick={() => setLightboxUrl(m.imageUrl!)}
+                          alt="attachment"
+                        />
+                      )
                     ))}
                   </div>
                 )}
@@ -960,7 +1084,11 @@ export function ChatWindow({
       {/* Lightbox */}
       <Dialog open={!!lightboxUrl} onOpenChange={open => !open && setLightboxUrl(null)}>
         <DialogContent className="max-w-3xl p-2">
-          {lightboxUrl && <img src={lightboxUrl} alt="full size" className="w-full rounded" />}
+          {lightboxUrl && (
+            lightboxUrl.match(/\.(mp4|webm|mov|avi|mkv)/i)
+              ? <video controls src={lightboxUrl} className="w-full rounded max-h-[80vh]" />
+              : <img src={lightboxUrl} alt="full size" className="w-full rounded" />
+          )}
         </DialogContent>
       </Dialog>
 
