@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Send, Image as ImageIcon, Loader2, ArrowLeft, Eye,
-  Paperclip, Users, GalleryHorizontal as GalleryIcon, X, Share2, MapPin,
+  Paperclip, Users, GalleryHorizontal as GalleryIcon, X, Share2, MapPin, MoreHorizontal,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -613,7 +613,7 @@ export function ChatWindow({
             <p className="text-xs text-muted-foreground">{participants.length} members</p>
           )}
         </div>
-        {/* Share dropdown */}
+        {/* Share dropdown (share actions) */}
         {hasShareOptions && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -637,10 +637,12 @@ export function ChatWindow({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+
+        {/* Desktop: individual Paperclip + Members buttons */}
         <Button
           size="icon"
           variant="ghost"
-          className="h-7 w-7 shrink-0"
+          className="hidden sm:flex h-7 w-7 shrink-0"
           onClick={() => setPanelView(v => v === "attachments" ? "none" : "attachments")}
           title="Attachments"
         >
@@ -650,13 +652,32 @@ export function ChatWindow({
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 shrink-0"
+            className="hidden sm:flex h-7 w-7 shrink-0"
             onClick={() => setPanelView(v => v === "members" ? "none" : "members")}
             title="Members"
           >
             <Users className="w-4 h-4" />
           </Button>
         )}
+
+        {/* Mobile: collapsed ⋮ menu for Paperclip + Members */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" className="sm:hidden h-7 w-7 shrink-0">
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setPanelView(v => v === "attachments" ? "none" : "attachments")}>
+              📎 Attachments
+            </DropdownMenuItem>
+            {showMembersButton && (
+              <DropdownMenuItem onClick={() => setPanelView(v => v === "members" ? "none" : "members")}>
+                👥 Members
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Location draft banner */}

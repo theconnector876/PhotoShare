@@ -21,8 +21,14 @@ import {
   Camera, Calendar, User, Clock, CheckCircle, Upload, Phone, Mail,
   MapPin, DollarSign, Users, GripVertical, X, Eye, Loader2, CheckCircle2,
   AlertCircle, Copy, MessageSquare, LayoutDashboard, LogOut,
-  Link as LinkIcon, Plus, Image as GalleryIcon, ChevronRight, Tag, Save,
+  Link as LinkIcon, Plus, Image as GalleryIcon, ChevronRight, ChevronDown, Tag, Save,
 } from "lucide-react";
+import {
+  DropdownMenu as GalleryDropdownMenu,
+  DropdownMenuContent as GalleryDropdownMenuContent,
+  DropdownMenuItem as GalleryDropdownMenuItem,
+  DropdownMenuTrigger as GalleryDropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -217,6 +223,7 @@ export default function PhotographerDashboard() {
   const [galDragSrc, setGalDragSrc] = useState<{ galleryId: string; type: GalleryImageType; index: number } | null>(null);
   const [galDragOver, setGalDragOver] = useState<{ galleryId: string; type: GalleryImageType; index: number } | null>(null);
   const [galPreview, setGalPreview] = useState<string | null>(null);
+  const [galSectionOpen, setGalSectionOpen] = useState<Record<string, Record<string, boolean>>>({});
   const [galUploadItems, setGalUploadItems] = useState<UploadFileItem[]>([]);
   const [showGalUploadPanel, setShowGalUploadPanel] = useState(false);
 
@@ -399,6 +406,25 @@ export default function PhotographerDashboard() {
       : gallery.finalImages || [];
     updateGalleryImagesMutation.mutate({ galleryId: gallery.id, images: images.filter((u) => u !== url), type });
   }, [updateGalleryImagesMutation]);
+
+  const toggleGalSection = useCallback((galleryId: string, type: string) => {
+    setGalSectionOpen(prev => ({
+      ...prev,
+      [galleryId]: { ...(prev[galleryId] ?? {}), [type]: !(prev[galleryId]?.[type] ?? false) },
+    }));
+  }, []);
+
+  const { toast: copyToast } = useToast();
+  const copyImageNames = useCallback((images: string[], withCommas: boolean) => {
+    const names = images.map(url => {
+      const file = url.split("/").pop()?.split("?")[0] ?? url;
+      return file.replace(/\.[^.]+$/, "");
+    });
+    const text = withCommas ? names.join(", ") : names.join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      copyToast({ title: withCommas ? "Copied with commas ✓" : "Copied as lines ✓" });
+    });
+  }, [copyToast]);
 
   // ── Gallery upload ─────────────────────────────────────────────────────────
 
@@ -1140,69 +1166,105 @@ export default function PhotographerDashboard() {
                           ))}
                         </div>
 
-                        {/* Image sections */}
+                        {/* Image sections — collapsible */}
                         {(["gallery", "selected", "final"] as GalleryImageType[]).map(type => {
                           const images = type === "gallery" ? gallery.galleryImages || []
                             : type === "selected" ? gallery.selectedImages || []
                             : gallery.finalImages || [];
                           const fileInputId = `ph-${gallery.id}-${type}`;
+                          const isOpen = galSectionOpen[gallery.id]?.[type] ?? false;
                           return (
-                            <div key={type} className="mb-5 last:mb-0">
-                              <div className="flex items-center justify-between mb-2">
-                                <h5 className="text-sm font-medium capitalize text-foreground">
-                                  {type} <span className="text-muted-foreground font-normal">({images.length})</span>
+                            <div key={type} className="mb-3 last:mb-0 border rounded-lg overflow-hidden">
+                              {/* Section header — click to toggle */}
+                              <div
+                                className="flex items-center justify-between px-3 py-2 bg-muted/30 cursor-pointer select-none"
+                                onClick={() => toggleGalSection(gallery.id, type)}
+                              >
+                                <h5 className="text-sm font-medium capitalize text-foreground flex items-center gap-1.5">
+                                  {isOpen
+                                    ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                                    : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+                                  {type}
+                                  <span className="text-muted-foreground font-normal text-xs">({images.length})</span>
                                 </h5>
-                                <Button size="sm" variant="outline" asChild className="h-6 text-xs px-2">
-                                  <label htmlFor={fileInputId} className="cursor-pointer">
-                                    <Upload className="w-3 h-3 mr-1" /> Upload
-                                  </label>
-                                </Button>
+                                <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                  {/* Copy names (selected only) */}
+                                  {type === "selected" && images.length > 0 && (
+                                    <GalleryDropdownMenu>
+                                      <GalleryDropdownMenuTrigger asChild>
+                                        <Button size="sm" variant="ghost" className="h-6 text-xs px-2">
+                                          <Copy className="w-3 h-3 mr-1" /> Copy Names
+                                        </Button>
+                                      </GalleryDropdownMenuTrigger>
+                                      <GalleryDropdownMenuContent align="end">
+                                        <GalleryDropdownMenuItem onClick={() => copyImageNames(images, false)}>
+                                          Copy as lines (one per line)
+                                        </GalleryDropdownMenuItem>
+                                        <GalleryDropdownMenuItem onClick={() => copyImageNames(images, true)}>
+                                          Copy with commas
+                                        </GalleryDropdownMenuItem>
+                                      </GalleryDropdownMenuContent>
+                                    </GalleryDropdownMenu>
+                                  )}
+                                  <Button size="sm" variant="outline" asChild className="h-6 text-xs px-2">
+                                    <label htmlFor={fileInputId} className="cursor-pointer">
+                                      <Upload className="w-3 h-3 mr-1" /> Upload
+                                    </label>
+                                  </Button>
+                                </div>
                               </div>
+
                               <input id={fileInputId} type="file" accept="image/*" multiple className="sr-only"
                                 onChange={e => { if (e.target.files?.length) { handleGalFilesSelected(Array.from(e.target.files), gallery, type); e.target.value = ""; } }} />
-                              {images.length === 0 ? (
-                                <label htmlFor={fileInputId}
-                                  className="flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-muted py-6 text-sm text-muted-foreground hover:border-primary/40 hover:bg-muted/30 transition-colors cursor-pointer">
-                                  <Upload className="w-5 h-5 opacity-40" />
-                                  Tap to upload
-                                </label>
-                              ) : (
-                                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-                                  {images.map((url, i) => {
-                                    const dragging = galDragSrc?.galleryId === gallery.id && galDragSrc?.type === type && galDragSrc?.index === i;
-                                    const over     = galDragOver?.galleryId === gallery.id && galDragOver?.type === type && galDragOver?.index === i;
-                                    return (
-                                      <div key={`${url}-${i}`} draggable
-                                        onDragStart={() => handleGalDragStart(gallery.id, type, i)}
-                                        onDragOver={e => handleGalDragOver(e, gallery.id, type, i)}
-                                        onDrop={() => handleGalDrop(gallery, type, i)}
-                                        onDragEnd={handleGalDragEnd}
-                                        className={`relative group aspect-square rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing transition-all ${
-                                          dragging ? "opacity-40 scale-95 border-primary/60"
-                                          : over    ? "border-primary scale-[1.03] shadow-md"
-                                          : "border-muted bg-muted/30"
-                                        }`}
-                                      >
-                                        <img src={url} alt="" className="w-full h-full object-cover" />
-                                        <div className="absolute top-0.5 left-0.5 opacity-0 group-hover:opacity-100 pointer-events-none">
-                                          <GripVertical className="w-3 h-3 text-white drop-shadow" />
-                                        </div>
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
-                                          <button onClick={() => setGalPreview(url)} className="p-1 bg-white/90 rounded-full shadow">
-                                            <Eye className="w-2.5 h-2.5 text-gray-700" />
-                                          </button>
-                                          <button onClick={() => handleGalRemove(gallery, type, url)} className="p-1 bg-white/90 rounded-full shadow">
-                                            <X className="w-2.5 h-2.5 text-red-500" />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                  <label htmlFor={fileInputId}
-                                    className="aspect-square rounded-lg border-2 border-dashed border-muted flex flex-col items-center justify-center text-muted-foreground hover:border-primary/40 hover:bg-muted/20 cursor-pointer transition-colors">
-                                    <Upload className="w-3.5 h-3.5 mb-0.5" />
-                                    <span className="text-[9px]">Add</span>
-                                  </label>
+
+                              {/* Content — only when open */}
+                              {isOpen && (
+                                <div className="p-3">
+                                  {images.length === 0 ? (
+                                    <label htmlFor={fileInputId}
+                                      className="flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-muted py-6 text-sm text-muted-foreground hover:border-primary/40 hover:bg-muted/30 transition-colors cursor-pointer">
+                                      <Upload className="w-5 h-5 opacity-40" />
+                                      Tap to upload
+                                    </label>
+                                  ) : (
+                                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                                      {images.map((url, i) => {
+                                        const dragging = galDragSrc?.galleryId === gallery.id && galDragSrc?.type === type && galDragSrc?.index === i;
+                                        const over     = galDragOver?.galleryId === gallery.id && galDragOver?.type === type && galDragOver?.index === i;
+                                        return (
+                                          <div key={`${url}-${i}`} draggable
+                                            onDragStart={() => handleGalDragStart(gallery.id, type, i)}
+                                            onDragOver={e => handleGalDragOver(e, gallery.id, type, i)}
+                                            onDrop={() => handleGalDrop(gallery, type, i)}
+                                            onDragEnd={handleGalDragEnd}
+                                            onClick={() => setGalPreview(url)}
+                                            className={`relative group aspect-square rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${
+                                              dragging ? "opacity-40 scale-95 border-primary/60"
+                                              : over    ? "border-primary scale-[1.03] shadow-md"
+                                              : "border-muted bg-muted/30"
+                                            }`}
+                                          >
+                                            <img src={url} alt="" className="w-full h-full object-cover" />
+                                            <div className="absolute top-0.5 left-0.5 opacity-0 group-hover:opacity-100 pointer-events-none">
+                                              <GripVertical className="w-3 h-3 text-white drop-shadow" />
+                                            </div>
+                                            {/* Delete button — always visible on mobile via touch, hover on desktop */}
+                                            <button
+                                              onClick={e => { e.stopPropagation(); handleGalRemove(gallery, type, url); }}
+                                              className="absolute top-0.5 right-0.5 p-1 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 sm:opacity-0 active:opacity-100"
+                                            >
+                                              <X className="w-2.5 h-2.5 text-red-500" />
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                      <label htmlFor={fileInputId}
+                                        className="aspect-square rounded-lg border-2 border-dashed border-muted flex flex-col items-center justify-center text-muted-foreground hover:border-primary/40 hover:bg-muted/20 cursor-pointer transition-colors">
+                                        <Upload className="w-3.5 h-3.5 mb-0.5" />
+                                        <span className="text-[9px]">Add</span>
+                                      </label>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
