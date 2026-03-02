@@ -2091,29 +2091,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ===== TEMP SMTP DIAGNOSTIC =====
-  app.get('/api/debug/smtp-test', isAdmin, async (_req, res) => {
-    const net = await import('net');
-    const host = 'inbound-smtp.us-east-1.amazonaws.com';
-    const port = 25;
-    const result: any = { host, port, timestamp: new Date().toISOString() };
-    await new Promise<void>((resolve) => {
-      const socket = new net.Socket();
-      socket.setTimeout(8000);
-      socket.connect(port, host, () => {
-        result.connected = true;
-        socket.once('data', (d) => {
-          result.banner = d.toString().trim().slice(0, 200);
-          socket.destroy();
-          resolve();
-        });
-      });
-      socket.on('timeout', () => { result.error = 'timeout'; socket.destroy(); resolve(); });
-      socket.on('error', (e) => { result.error = e.message; resolve(); });
-    });
-    res.json(result);
-  });
-
   // ===== RESEND INBOUND EMAIL =====
 
   // Public webhook — verified using Svix signature (whsec_... secret from Resend dashboard).

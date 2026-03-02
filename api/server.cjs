@@ -75679,34 +75679,6 @@ Thank you!`
       res.status(500).json({ error: "Failed to assign photographer" });
     }
   });
-  app2.get("/api/debug/smtp-test", isAdmin, async (_req, res) => {
-    const net = await import("net");
-    const host2 = "inbound-smtp.us-east-1.amazonaws.com";
-    const port = 25;
-    const result = { host: host2, port, timestamp: (/* @__PURE__ */ new Date()).toISOString() };
-    await new Promise((resolve) => {
-      const socket = new net.Socket();
-      socket.setTimeout(8e3);
-      socket.connect(port, host2, () => {
-        result.connected = true;
-        socket.once("data", (d) => {
-          result.banner = d.toString().trim().slice(0, 200);
-          socket.destroy();
-          resolve();
-        });
-      });
-      socket.on("timeout", () => {
-        result.error = "timeout";
-        socket.destroy();
-        resolve();
-      });
-      socket.on("error", (e) => {
-        result.error = e.message;
-        resolve();
-      });
-    });
-    res.json(result);
-  });
   app2.post("/api/inbound/email", async (req, res) => {
     const secret = process.env.RESEND_INBOUND_SECRET;
     if (secret) {
