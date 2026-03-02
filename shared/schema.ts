@@ -176,6 +176,11 @@ export const inboundEmails = pgTable("inbound_emails", {
   isRead: boolean("is_read").notNull().default(false),
   status: text("status").notNull().default("unread"), // unread, read, responded
   receivedAt: timestamp("received_at").defaultNow(),
+  threadId: varchar("thread_id"),
+  direction: text("direction").notNull().default("inbound"), // "inbound" | "outbound"
+  inReplyToHeader: text("in_reply_to_header"),
+  messageIdHeader: text("message_id_header"),
+  senderName: text("sender_name"),
 });
 
 export const conversations = pgTable("conversations", {
@@ -316,4 +321,13 @@ export type ConversationWithMeta = Conversation & {
   lastMessage?: Message | null;
   unreadCount: number;
   participants: User[];
+};
+
+export type EmailThread = {
+  threadId: string;
+  subject: string | null;
+  from: { name: string; email: string };
+  status: string;
+  lastActivity: string;
+  messages: InboundEmail[];
 };

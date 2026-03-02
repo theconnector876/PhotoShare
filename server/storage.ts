@@ -38,6 +38,7 @@ import {
   type Message,
   type MessageWithSender,
   type ConversationWithMeta,
+  type EmailThread,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql, desc, lt, gt, isNull, or } from "drizzle-orm";
@@ -134,8 +135,10 @@ export interface IStorage {
   incrementCouponUsage(id: string): Promise<void>;
 
   // Inbound email operations
-  saveInboundEmail(data: { resendEmailId?: string; from: string; to: string; subject?: string; textBody?: string; htmlBody?: string }): Promise<InboundEmail>;
+  saveInboundEmail(data: { resendEmailId?: string; from: string; to: string; subject?: string; textBody?: string; htmlBody?: string; inReplyToHeader?: string; messageIdHeader?: string; senderName?: string }): Promise<InboundEmail>;
+  saveOutboundEmail(data: { threadId: string; to: string; subject: string; body: string; senderName: string }): Promise<InboundEmail>;
   getAllInboundEmails(): Promise<InboundEmail[]>;
+  getEmailThreads(): Promise<EmailThread[]>;
   markInboundEmailRead(id: string, isRead: boolean): Promise<InboundEmail | undefined>;
   updateInboundEmailStatus(id: string, status: string): Promise<InboundEmail | undefined>;
   deleteInboundEmail(id: string): Promise<boolean>;
@@ -144,6 +147,7 @@ export interface IStorage {
   updateUserProfile(userId: string, data: { firstName?: string; lastName?: string; phone?: string; profileImageUrl?: string }): Promise<User | undefined>;
 
   // Conversation operations
+  getOrCreateSupportConversation(userId: string): Promise<Conversation>;
   createConversation(data: { type: string; bookingId?: string; title?: string; participantIds: string[] }): Promise<Conversation>;
   getConversationsForUser(userId: string, isAdmin?: boolean): Promise<ConversationWithMeta[]>;
   getConversation(id: string): Promise<Conversation | undefined>;
@@ -782,13 +786,103 @@ export class DatabaseStorage implements IStorage {
     await db.update(coupons).set({ usageCount: sql`${coupons.usageCount} + 1` }).where(eq(coupons.id, id));
   }
 
-  async saveInboundEmail(data: { resendEmailId?: string; from: string; to: string; subject?: string; textBody?: string; htmlBody?: string }): Promise<InboundEmail> {
-    const [email] = await db.insert(inboundEmails).values(data).returning();
+  async saveInboundEmail(data: { resendEmailId?: string; from: string; to: string; subject?: string; textBody?: string; htmlBody?: string; inReplyToHeader?: string; messageIdHeader?: string; senderName?: string }): Promise<InboundEmail> {
+    // Determine threadId: if In-Reply-To header matches a known Message-ID, join that thread
+    let threadId: string | null = null;
+    if (data.inReplyToHeader) {
+      const [parent] = await db
+        .select()
+        .from(inboundEmails)
+        .where(eq(inboundEmails.messageIdHeader, data.inReplyToHeader))
+        .limit(1);
+      if (parent?.threadId) threadId = parent.threadId;
+    }
+
+    const [email] = await db
+      .insert(inboundEmails)
+      .values({ ...data, threadId })
+      .returning();
+
+    // If no thread found, use the email's own id as the thread root
+    if (!email.threadId) {
+      const [updated] = await db
+        .update(inboundEmails)
+        .set({ threadId: email.id })
+        .where(eq(inboundEmails.id, email.id))
+        .returning();
+      return updated;
+    }
+    return email;
+  }
+
+  async saveOutboundEmail(data: { threadId: string; to: string; subject: string; body: string; senderName: string }): Promise<InboundEmail> {
+    const [email] = await db
+      .insert(inboundEmails)
+      .values({
+        from: `${data.senderName} <admin@connectagrapher.com>`,
+        to: data.to,
+        subject: data.subject,
+        textBody: data.body,
+        direction: 'outbound',
+        threadId: data.threadId,
+        senderName: data.senderName,
+        isRead: true,
+        status: 'responded',
+      })
+      .returning();
     return email;
   }
 
   async getAllInboundEmails(): Promise<InboundEmail[]> {
     return await db.select().from(inboundEmails).orderBy(inboundEmails.receivedAt);
+  }
+
+  async getEmailThreads(): Promise<EmailThread[]> {
+    const allEmails = await db
+      .select()
+      .from(inboundEmails)
+      .orderBy(inboundEmails.receivedAt);
+
+    // Group by threadId
+    const threadMap = new Map<string, InboundEmail[]>();
+    for (const email of allEmails) {
+      const tid = email.threadId ?? email.id;
+      if (!threadMap.has(tid)) threadMap.set(tid, []);
+      threadMap.get(tid)!.push(email);
+    }
+
+    // Build EmailThread array
+    const threads: EmailThread[] = [];
+    for (const [threadId, msgs] of threadMap.entries()) {
+      // Root message is the first inbound one
+      const root = msgs.find(m => m.direction === 'inbound') ?? msgs[0];
+      const lastMsg = msgs[msgs.length - 1];
+
+      // Parse from field
+      const fromStr = root.from || '';
+      const match = fromStr.match(/^(.*?)\s*<(.+)>$/);
+      const fromParsed = match
+        ? { name: match[1].trim() || match[2].trim(), email: match[2].trim() }
+        : { name: fromStr, email: fromStr };
+
+      // Thread status: unread if any inbound message is unread
+      const hasUnread = msgs.some(m => m.direction === 'inbound' && m.status === 'unread');
+      const allResponded = msgs.some(m => m.direction === 'outbound');
+      const status = hasUnread ? 'unread' : allResponded ? 'responded' : 'read';
+
+      threads.push({
+        threadId,
+        subject: root.subject ?? null,
+        from: fromParsed,
+        status,
+        lastActivity: (lastMsg.receivedAt ?? new Date()).toISOString(),
+        messages: msgs,
+      });
+    }
+
+    // Sort by lastActivity descending
+    threads.sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
+    return threads;
   }
 
   async markInboundEmailRead(id: string, isRead: boolean): Promise<InboundEmail | undefined> {
@@ -815,6 +909,24 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  async getOrCreateSupportConversation(userId: string): Promise<Conversation> {
+    // Check if user already has a support conversation
+    const rows = await db.execute(sql`
+      SELECT c.* FROM conversations c
+      INNER JOIN conversation_participants cp ON cp.conversation_id = c.id
+      WHERE c.type = 'support' AND cp.user_id = ${userId}
+      LIMIT 1
+    `);
+    const existing = rows.rows[0] as Conversation | undefined;
+    if (existing) return existing;
+
+    // Create new support conversation with all admins
+    const allUsers = await this.getAllUsers();
+    const adminIds = allUsers.filter(u => u.isAdmin).map(u => u.id);
+    const participantIds = Array.from(new Set([userId, ...adminIds]));
+    return this.createConversation({ type: 'support', title: 'Support', participantIds });
   }
 
   async createConversation(data: { type: string; bookingId?: string; title?: string; participantIds: string[] }): Promise<Conversation> {

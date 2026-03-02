@@ -1,5 +1,4 @@
-import { MessageSquare, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { MessageSquare } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import type { ConversationWithMeta } from "@shared/schema";
@@ -9,7 +8,6 @@ interface ConversationListProps {
   selectedId?: string;
   currentUserId: string;
   onSelect: (id: string) => void;
-  onNewConversation?: () => void;
   loading?: boolean;
 }
 
@@ -40,42 +38,43 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
+function sortConversations(convs: ConversationWithMeta[]): ConversationWithMeta[] {
+  return [...convs].sort((a, b) => {
+    // Support conversations pinned to top
+    if (a.type === "support" && b.type !== "support") return -1;
+    if (b.type === "support" && a.type !== "support") return 1;
+    // Then sort by updatedAt descending
+    return new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime();
+  });
+}
+
 export function ConversationList({
   conversations,
   selectedId,
   currentUserId,
   onSelect,
-  onNewConversation,
   loading,
 }: ConversationListProps) {
+  const sorted = sortConversations(conversations);
+
   return (
     <div className="flex flex-col h-full border-r">
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <h2 className="font-semibold text-sm">Messages</h2>
-        {onNewConversation && (
-          <Button size="sm" variant="ghost" onClick={onNewConversation} className="h-7 px-2">
-            <Plus className="w-4 h-4" />
-          </Button>
-        )}
       </div>
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
           Loading...
         </div>
-      ) : conversations.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-2 text-muted-foreground px-4 text-center">
           <MessageSquare className="w-8 h-8 opacity-30" />
           <p className="text-sm">No conversations yet</p>
-          {onNewConversation && (
-            <Button size="sm" variant="outline" onClick={onNewConversation}>
-              Start a conversation
-            </Button>
-          )}
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          {conversations.map(conv => {
+          {sorted.map(conv => {
             const title = getConversationTitle(conv, currentUserId);
             const preview = conv.lastMessage?.body ?? "";
             const truncated = preview.length > 60 ? preview.slice(0, 60) + "…" : preview;
@@ -94,7 +93,15 @@ export function ConversationList({
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="font-medium text-sm truncate">{title}</span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-medium text-sm truncate">{title}</span>
+                      {conv.type === "support" && (
+                        <Badge className="bg-green-500 text-white text-[9px] px-1.5 py-0 h-4 shrink-0">Support</Badge>
+                      )}
+                      {conv.type === "booking" && (
+                        <Badge className="bg-blue-500 text-white text-[9px] px-1.5 py-0 h-4 shrink-0">Booking</Badge>
+                      )}
+                    </div>
                     <span className="text-[10px] text-muted-foreground shrink-0">
                       {formatTime(conv.lastMessage?.createdAt)}
                     </span>

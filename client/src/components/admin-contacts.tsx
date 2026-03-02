@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { MessageSquareIcon, MailIcon, UserIcon, Trash2, CheckCheck, Mail, Eye } from "lucide-react";
+import { MessageSquareIcon, MailIcon, UserIcon, Trash2, CheckCheck, Mail, ChevronDown, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -21,7 +21,7 @@ interface ContactMessage {
   createdAt: string;
 }
 
-interface InboundEmail {
+interface EmailMessage {
   id: string;
   resendEmailId: string | null;
   from: string;
@@ -32,193 +32,287 @@ interface InboundEmail {
   isRead: boolean;
   status: string;
   receivedAt: string;
+  threadId: string | null;
+  direction: string;
+  senderName: string | null;
 }
 
-type Source = "contact" | "inbound";
-
-interface UnifiedMessage {
-  id: string;
-  source: Source;
-  name: string;
-  email: string;
+interface EmailThread {
+  threadId: string;
   subject: string | null;
-  body: string;
-  htmlBody?: string | null;
-  resendEmailId?: string | null;
+  from: { name: string; email: string };
   status: string;
-  date: string;
+  lastActivity: string;
+  messages: EmailMessage[];
 }
 
-function parseFrom(from: string): { name: string; email: string } {
-  const match = from.match(/^(.*?)\s*<(.+)>$/);
-  if (match) {
-    const name = match[1].trim();
-    const email = match[2].trim();
-    return { name: name || email, email };
-  }
-  return { name: from, email: from };
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString("en-US", {
+    year: "numeric", month: "short", day: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 }
+
+const statusColor = (s: string) =>
+  s === "unread" ? "bg-red-500" : s === "read" ? "bg-blue-500" : s === "responded" ? "bg-green-500" : "bg-gray-500";
+
+// ─── Thread Card ──────────────────────────────────────────────────────────────
+
+interface ThreadCardProps {
+  thread: EmailThread;
+  onReply: (thread: EmailThread) => void;
+  onDelete: (threadId: string) => void;
+  onStatusChange: (threadId: string, status: string) => void;
+}
+
+function ThreadCard({ thread, onReply, onDelete, onStatusChange }: ThreadCardProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card className={thread.status === "unread" ? "border-blue-200 bg-blue-50/20" : ""}>
+      <CardContent className="p-5">
+        {/* Thread header */}
+        <div className="flex justify-between items-start gap-3 mb-3">
+          <button
+            className="flex-1 text-left min-w-0"
+            onClick={() => setExpanded(e => !e)}
+          >
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <UserIcon className="w-4 h-4 text-gray-500 shrink-0" />
+              <h3 className={`text-sm ${thread.status === "unread" ? "font-bold" : "font-semibold"}`}>
+                {thread.from.name}
+              </h3>
+              <Badge
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 bg-sky-50 text-sky-700 border-sky-200"
+              >
+                Email
+              </Badge>
+              <Badge className={`${statusColor(thread.status)} text-white text-[10px] px-1.5 py-0`}>
+                {thread.status.toUpperCase()}
+              </Badge>
+              {thread.messages.length > 1 && (
+                <span className="text-xs text-muted-foreground">↳ {thread.messages.length} messages</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mb-1">
+              <MailIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <a
+                href={`mailto:${thread.from.email}`}
+                className="text-sm text-blue-600 hover:underline truncate"
+                onClick={e => e.stopPropagation()}
+              >
+                {thread.from.email}
+              </a>
+            </div>
+            {thread.subject && (
+              <p className="text-sm font-medium text-gray-800 truncate">{thread.subject}</p>
+            )}
+            {!expanded && thread.messages[0]?.textBody && (
+              <p className="text-sm text-gray-600 line-clamp-2 mt-0.5">{thread.messages[0].textBody}</p>
+            )}
+          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(thread.lastActivity)}</span>
+            <button onClick={() => setExpanded(e => !e)} className="text-muted-foreground">
+              {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Expanded messages */}
+        {expanded && (
+          <div className="space-y-3 mb-3 border-t pt-3">
+            {thread.messages.map(msg => (
+              <div
+                key={msg.id}
+                className={`rounded-lg p-3 text-sm ${
+                  msg.direction === "outbound"
+                    ? "bg-primary/5 border border-primary/20 ml-6"
+                    : "bg-gray-50 border border-gray-200"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5 gap-2">
+                  <span className="font-medium text-xs text-muted-foreground">
+                    {msg.direction === "outbound" ? "You (Admin)" : (msg.senderName || thread.from.name)}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground shrink-0">
+                    {formatDate(msg.receivedAt)}
+                  </span>
+                </div>
+                {msg.htmlBody ? (
+                  <div
+                    className="prose prose-sm max-w-none overflow-auto"
+                    dangerouslySetInnerHTML={{ __html: msg.htmlBody }}
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap text-gray-700">{msg.textBody || "(no body)"}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-2 pt-3 border-t">
+          <Button size="sm" variant="outline" onClick={() => onReply(thread)}>
+            <Mail className="w-3.5 h-3.5 mr-1.5" /> Reply
+          </Button>
+          {thread.status !== "responded" && (
+            <Button
+              size="sm" variant="outline"
+              onClick={() => onStatusChange(thread.threadId, thread.status === "unread" ? "read" : "unread")}
+            >
+              <CheckCheck className="w-3.5 h-3.5 mr-1.5" />
+              {thread.status === "unread" ? "Mark Read" : "Mark Unread"}
+            </Button>
+          )}
+          {thread.status === "read" && (
+            <Button
+              size="sm" variant="outline"
+              className="text-green-700 border-green-200 hover:bg-green-50"
+              onClick={() => onStatusChange(thread.threadId, "responded")}
+            >
+              <CheckCheck className="w-3.5 h-3.5 mr-1.5" /> Mark Responded
+            </Button>
+          )}
+          <Button
+            size="sm" variant="outline"
+            className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
+            onClick={() => onDelete(thread.threadId)}
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AdminContacts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
-  const [replyTarget, setReplyTarget] = useState<UnifiedMessage | null>(null);
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [replyThread, setReplyThread] = useState<EmailThread | null>(null);
   const [replySubject, setReplySubject] = useState("");
   const [replyMessage, setReplyMessage] = useState("");
-  const [viewTarget, setViewTarget] = useState<UnifiedMessage | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<UnifiedMessage | null>(null);
+  const [deleteThreadId, setDeleteThreadId] = useState<string | null>(null);
 
   const { data: contacts, isLoading: loadingContacts } = useQuery<ContactMessage[]>({
     queryKey: ["/api/admin/contacts"],
     retry: false,
   });
 
-  const { data: inboundEmails, isLoading: loadingInbound } = useQuery<InboundEmail[]>({
-    queryKey: ["/api/admin/inbound-emails"],
+  const { data: emailThreads, isLoading: loadingThreads } = useQuery<EmailThread[]>({
+    queryKey: ["/api/admin/email-threads"],
     retry: false,
   });
 
-  const isLoading = loadingContacts || loadingInbound;
+  const isLoading = loadingContacts || loadingThreads;
 
-  const allMessages = useMemo<UnifiedMessage[]>(() => {
-    const contactItems: UnifiedMessage[] = (Array.isArray(contacts) ? contacts : []).map((c) => ({
-      id: c.id,
-      source: "contact",
-      name: c.name,
-      email: c.email,
-      subject: null,
-      body: c.message,
-      status: c.status || "unread",
-      date: c.createdAt,
-    }));
+  const threadList = Array.isArray(emailThreads) ? emailThreads : [];
+  const contactList = Array.isArray(contacts) ? contacts : [];
 
-    const inboundItems: UnifiedMessage[] = (Array.isArray(inboundEmails) ? inboundEmails : []).map((e) => {
-      const { name, email } = parseFrom(e.from);
-      return {
-        id: e.id,
-        source: "inbound",
-        name,
-        email,
-        subject: e.subject,
-        body: e.textBody || "",
-        htmlBody: e.htmlBody,
-        resendEmailId: e.resendEmailId,
-        status: e.status || (e.isRead ? "read" : "unread"),
-        date: e.receivedAt,
-      };
-    });
+  // Update status for a thread (marks the root email)
+  const updateThreadStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiRequest("PATCH", `/api/admin/inbound-emails/${id}/status`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/email-threads"] }),
+  });
 
-    return [...contactItems, ...inboundItems].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-  }, [contacts, inboundEmails]);
-
-  // Status mutations
   const updateContactStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       apiRequest("PATCH", `/api/admin/contacts/${id}/status`, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/contacts"] }),
   });
 
-  const updateInboundStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      apiRequest("PATCH", `/api/admin/inbound-emails/${id}/status`, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/inbound-emails"] }),
+  // Delete thread: delete all messages whose threadId matches
+  const deleteThread = useMutation({
+    mutationFn: async (threadId: string) => {
+      const thread = threadList.find(t => t.threadId === threadId);
+      if (!thread) return;
+      await Promise.all(thread.messages.map(m => apiRequest("DELETE", `/api/admin/inbound-emails/${m.id}`, {})));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-threads"] });
+      setDeleteThreadId(null);
+      toast({ title: "Thread deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete", variant: "destructive" }),
   });
 
-  const updateStatus = (msg: UnifiedMessage, status: string) => {
-    if (msg.source === "contact") updateContactStatus.mutate({ id: msg.id, status });
-    else updateInboundStatus.mutate({ id: msg.id, status });
-  };
-
-  // Delete mutations
   const deleteContact = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/contacts/${id}`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/contacts"] });
-      setDeleteTarget(null);
       toast({ title: "Message deleted" });
     },
     onError: () => toast({ title: "Failed to delete", variant: "destructive" }),
   });
 
-  const deleteInbound = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/inbound-emails/${id}`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbound-emails"] });
-      setDeleteTarget(null);
-      toast({ title: "Email deleted" });
-    },
-    onError: () => toast({ title: "Failed to delete", variant: "destructive" }),
-  });
-
-  const handleDelete = (msg: UnifiedMessage) => {
-    if (msg.source === "contact") deleteContact.mutate(msg.id);
-    else deleteInbound.mutate(msg.id);
-  };
-
-  // Reply mutation
+  // Reply
   const sendReply = useMutation({
-    mutationFn: (data: { email: string; clientName: string; subject: string; message: string }) =>
+    mutationFn: (data: { email: string; clientName: string; subject: string; message: string; threadId?: string }) =>
       apiRequest("POST", "/api/admin/send-email", data),
     onSuccess: () => {
-      if (replyTarget) updateStatus(replyTarget, "responded");
       toast({ title: "Reply sent" });
-      setReplyTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/email-threads"] });
+      setReplyThread(null);
       setReplySubject("");
       setReplyMessage("");
     },
     onError: () => toast({ title: "Failed to send reply", variant: "destructive" }),
   });
 
-  const openReply = (msg: UnifiedMessage) => {
-    setReplyTarget(msg);
-    setReplySubject(
-      msg.source === "inbound" && msg.subject ? `Re: ${msg.subject}` : `Re: Message from ${msg.name}`
-    );
+  const openReply = (thread: EmailThread) => {
+    setReplyThread(thread);
+    setReplySubject(thread.subject ? `Re: ${thread.subject}` : `Re: Message from ${thread.from.name}`);
     setReplyMessage("");
-    if (msg.status === "unread") updateStatus(msg, "read");
-  };
-
-  const openView = (msg: UnifiedMessage) => {
-    setViewTarget(msg);
-    if (msg.status === "unread") updateStatus(msg, "read");
-  };
-
-  // Counts for filter labels
-  const contactCount = (Array.isArray(contacts) ? contacts : []).length;
-  const inboundCount = (Array.isArray(inboundEmails) ? inboundEmails : []).length;
-  const unreadCount = allMessages.filter((m) => m.status === "unread").length;
-
-  const filtered = allMessages.filter((msg) => {
-    if (sourceFilter !== "all" && msg.source !== sourceFilter) return false;
-    if (statusFilter !== "all" && msg.status !== statusFilter) return false;
-    if (dateFilter === "today" && new Date().toDateString() !== new Date(msg.date).toDateString()) return false;
-    if (search) {
-      const s = search.toLowerCase();
-      if (
-        !msg.name.toLowerCase().includes(s) &&
-        !msg.email.toLowerCase().includes(s) &&
-        !msg.body.toLowerCase().includes(s) &&
-        !(msg.subject || "").toLowerCase().includes(s)
-      )
-        return false;
+    // Mark as read if unread
+    if (thread.status === "unread") {
+      updateThreadStatus.mutate({ id: thread.threadId, status: "read" });
     }
-    return true;
-  });
+  };
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("en-US", {
-      year: "numeric", month: "short", day: "numeric",
-      hour: "2-digit", minute: "2-digit",
+  // Filter threads
+  const filteredThreads = useMemo(() => {
+    return threadList.filter(t => {
+      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      if (search) {
+        const s = search.toLowerCase();
+        if (
+          !t.from.name.toLowerCase().includes(s) &&
+          !t.from.email.toLowerCase().includes(s) &&
+          !(t.subject || "").toLowerCase().includes(s) &&
+          !t.messages.some(m => (m.textBody || "").toLowerCase().includes(s))
+        ) return false;
+      }
+      return true;
     });
+  }, [threadList, statusFilter, search]);
 
-  const statusColor = (s: string) =>
-    s === "unread" ? "bg-red-500" : s === "read" ? "bg-blue-500" : s === "responded" ? "bg-green-500" : "bg-gray-500";
+  const filteredContacts = useMemo(() => {
+    return contactList.filter(c => {
+      if (statusFilter !== "all" && c.status !== statusFilter) return false;
+      if (search) {
+        const s = search.toLowerCase();
+        if (
+          !c.name.toLowerCase().includes(s) &&
+          !c.email.toLowerCase().includes(s) &&
+          !c.message.toLowerCase().includes(s)
+        ) return false;
+      }
+      return true;
+    });
+  }, [contactList, statusFilter, search]);
+
+  const unreadThreads = threadList.filter(t => t.status === "unread").length;
+  const unreadContacts = contactList.filter(c => c.status === "unread").length;
+  const totalUnread = unreadThreads + unreadContacts;
 
   if (isLoading) {
     return (
@@ -235,18 +329,18 @@ export function AdminContacts() {
           <CardTitle className="flex items-center gap-2">
             <MessageSquareIcon className="w-5 h-5" />
             Messages
-            {unreadCount > 0 && (
-              <Badge className="bg-red-500 text-white text-xs ml-1">{unreadCount} unread</Badge>
+            {totalUnread > 0 && (
+              <Badge className="bg-red-500 text-white text-xs ml-1">{totalUnread} unread</Badge>
             )}
           </CardTitle>
           <CardDescription>
-            Contact form submissions and inbound emails in one place.
+            Contact form submissions and inbound email threads.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {/* Filters */}
           <div className="mb-6 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="md:col-span-2">
                 <Input
                   placeholder="Search name, email, subject, message…"
@@ -257,9 +351,9 @@ export function AdminContacts() {
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
                 <SelectTrigger><SelectValue placeholder="All Sources" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Sources ({allMessages.length})</SelectItem>
-                  <SelectItem value="contact">Contact Form ({contactCount})</SelectItem>
-                  <SelectItem value="inbound">Inbound Email ({inboundCount})</SelectItem>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="contact">Contact Form ({contactList.length})</SelectItem>
+                  <SelectItem value="email">Email Threads ({threadList.length})</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -271,166 +365,132 @@ export function AdminContacts() {
                   <SelectItem value="responded">Responded</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger><SelectValue placeholder="All Dates" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Dates</SelectItem>
-                  <SelectItem value="today">Today Only</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">
-                Showing {filtered.length} of {allMessages.length} messages
+                {filteredThreads.length + filteredContacts.length} messages shown
               </span>
               <Button
                 variant="outline" size="sm"
-                onClick={() => { setSearch(""); setSourceFilter("all"); setStatusFilter("all"); setDateFilter("all"); }}
+                onClick={() => { setSearch(""); setSourceFilter("all"); setStatusFilter("all"); }}
               >
                 Clear Filters
               </Button>
             </div>
           </div>
 
-          <div className="grid gap-4">
-            {filtered.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                {allMessages.length === 0 ? "No messages yet." : "No messages match your filters."}
+          {/* Email Threads Section */}
+          {sourceFilter !== "contact" && (
+            <div className="mb-6">
+              {filteredThreads.length > 0 && (
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  Email Threads ({filteredThreads.length})
+                </h3>
+              )}
+              <div className="grid gap-4">
+                {filteredThreads.map(thread => (
+                  <ThreadCard
+                    key={thread.threadId}
+                    thread={thread}
+                    onReply={openReply}
+                    onDelete={id => setDeleteThreadId(id)}
+                    onStatusChange={(id, status) => updateThreadStatus.mutate({ id, status })}
+                  />
+                ))}
+                {filteredThreads.length === 0 && sourceFilter === "email" && (
+                  <div className="text-center py-6 text-gray-500 text-sm">No email threads found.</div>
+                )}
               </div>
-            ) : (
-              filtered.map((msg) => (
-                <Card
-                  key={`${msg.source}-${msg.id}`}
-                  className={msg.status === "unread" ? "border-blue-200 bg-blue-50/20" : ""}
-                >
-                  <CardContent className="p-5">
-                    <div className="flex justify-between items-start gap-3 mb-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <UserIcon className="w-4 h-4 text-gray-500 shrink-0" />
-                          <h3 className={`text-sm ${msg.status === "unread" ? "font-bold" : "font-semibold"}`}>
-                            {msg.name}
-                          </h3>
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] px-1.5 py-0 ${
-                              msg.source === "contact"
-                                ? "bg-purple-50 text-purple-700 border-purple-200"
-                                : "bg-sky-50 text-sky-700 border-sky-200"
-                            }`}
-                          >
-                            {msg.source === "contact" ? "Contact Form" : "Email"}
-                          </Badge>
-                          <Badge className={`${statusColor(msg.status)} text-white text-[10px] px-1.5 py-0`}>
-                            {msg.status.toUpperCase()}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <MailIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <a href={`mailto:${msg.email}`} className="text-sm text-blue-600 hover:underline truncate">
-                            {msg.email}
-                          </a>
-                        </div>
-                        {msg.subject && (
-                          <p className="text-sm font-medium text-gray-800 mb-1 truncate">{msg.subject}</p>
-                        )}
-                        <p className="text-sm text-gray-600 line-clamp-2">{msg.body || "(no body)"}</p>
-                      </div>
-                      <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">
-                        {formatDate(msg.date)}
-                      </span>
-                    </div>
+            </div>
+          )}
 
-                    <div className="flex flex-wrap gap-2 pt-3 border-t">
-                      {msg.source === "inbound" && (msg.htmlBody || msg.body) && (
-                        <Button size="sm" variant="outline" onClick={() => openView(msg)}>
-                          <Eye className="w-3.5 h-3.5 mr-1.5" /> View
-                        </Button>
-                      )}
-                      <Button size="sm" variant="outline" onClick={() => openReply(msg)}>
-                        <Mail className="w-3.5 h-3.5 mr-1.5" /> Reply
-                      </Button>
-                      {msg.status !== "responded" && (
+          {/* Contact Form Section */}
+          {sourceFilter !== "email" && (
+            <div>
+              {filteredContacts.length > 0 && (
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  Contact Form ({filteredContacts.length})
+                </h3>
+              )}
+              <div className="grid gap-4">
+                {filteredContacts.map(c => (
+                  <Card key={c.id} className={c.status === "unread" ? "border-blue-200 bg-blue-50/20" : ""}>
+                    <CardContent className="p-5">
+                      <div className="flex justify-between items-start gap-3 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <UserIcon className="w-4 h-4 text-gray-500 shrink-0" />
+                            <h3 className={`text-sm ${c.status === "unread" ? "font-bold" : "font-semibold"}`}>{c.name}</h3>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-50 text-purple-700 border-purple-200">
+                              Contact Form
+                            </Badge>
+                            <Badge className={`${statusColor(c.status)} text-white text-[10px] px-1.5 py-0`}>
+                              {c.status.toUpperCase()}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <MailIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <a href={`mailto:${c.email}`} className="text-sm text-blue-600 hover:underline truncate">{c.email}</a>
+                          </div>
+                          <p className="text-sm text-gray-600 line-clamp-2">{c.message}</p>
+                        </div>
+                        <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">{formatDate(c.createdAt)}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pt-3 border-t">
+                        {c.status !== "responded" && (
+                          <Button
+                            size="sm" variant="outline"
+                            onClick={() => updateContactStatus.mutate({ id: c.id, status: c.status === "unread" ? "read" : "unread" })}
+                          >
+                            <CheckCheck className="w-3.5 h-3.5 mr-1.5" />
+                            {c.status === "unread" ? "Mark Read" : "Mark Unread"}
+                          </Button>
+                        )}
+                        {c.status === "read" && (
+                          <Button
+                            size="sm" variant="outline"
+                            className="text-green-700 border-green-200 hover:bg-green-50"
+                            onClick={() => updateContactStatus.mutate({ id: c.id, status: "responded" })}
+                          >
+                            <CheckCheck className="w-3.5 h-3.5 mr-1.5" /> Mark Responded
+                          </Button>
+                        )}
                         <Button
                           size="sm" variant="outline"
-                          onClick={() => updateStatus(msg, msg.status === "unread" ? "read" : "unread")}
+                          className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
+                          onClick={() => deleteContact.mutate(c.id)}
                         >
-                          <CheckCheck className="w-3.5 h-3.5 mr-1.5" />
-                          {msg.status === "unread" ? "Mark Read" : "Mark Unread"}
+                          <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
                         </Button>
-                      )}
-                      {msg.status === "read" && (
-                        <Button
-                          size="sm" variant="outline"
-                          className="text-green-700 border-green-200 hover:bg-green-50"
-                          onClick={() => updateStatus(msg, "responded")}
-                        >
-                          <CheckCheck className="w-3.5 h-3.5 mr-1.5" /> Mark Responded
-                        </Button>
-                      )}
-                      <Button
-                        size="sm" variant="outline"
-                        className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
-                        onClick={() => setDeleteTarget(msg)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {filteredContacts.length === 0 && sourceFilter === "contact" && (
+                  <div className="text-center py-6 text-gray-500 text-sm">No contact form submissions found.</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {filteredThreads.length === 0 && filteredContacts.length === 0 && sourceFilter === "all" && (
+            <div className="text-center py-8 text-gray-500">
+              {threadList.length === 0 && contactList.length === 0 ? "No messages yet." : "No messages match your filters."}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* View Email Dialog */}
-      <Dialog open={!!viewTarget} onOpenChange={(open) => !open && setViewTarget(null)}>
-        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{viewTarget?.subject || `Message from ${viewTarget?.name}`}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <div className="bg-gray-50 rounded p-3 space-y-1">
-              <p><span className="font-medium">From:</span> {viewTarget?.name} &lt;{viewTarget?.email}&gt;</p>
-              {viewTarget?.date && (
-                <p><span className="font-medium">Received:</span> {formatDate(viewTarget.date)}</p>
-              )}
-            </div>
-            {viewTarget?.htmlBody ? (
-              <div
-                className="border rounded p-3 prose prose-sm max-w-none overflow-auto"
-                dangerouslySetInnerHTML={{ __html: viewTarget.htmlBody }}
-              />
-            ) : (
-              <div className="border rounded p-3 whitespace-pre-wrap text-gray-700">
-                {viewTarget?.body || "(no body)"}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewTarget(null)}>Close</Button>
-            <Button
-              onClick={() => {
-                if (viewTarget) { setViewTarget(null); openReply(viewTarget); }
-              }}
-            >
-              <Mail className="w-3.5 h-3.5 mr-1.5" /> Reply
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Reply Dialog */}
-      <Dialog open={!!replyTarget} onOpenChange={(open) => !open && setReplyTarget(null)}>
+      <Dialog open={!!replyThread} onOpenChange={(open) => !open && setReplyThread(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Reply to {replyTarget?.name}</DialogTitle>
+            <DialogTitle>Reply to {replyThread?.from.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <Label>To</Label>
-              <p className="text-sm text-muted-foreground mt-1">{replyTarget?.email}</p>
+              <p className="text-sm text-muted-foreground mt-1">{replyThread?.from.email}</p>
             </div>
             <div>
               <Label htmlFor="reply-subject">Subject</Label>
@@ -453,16 +513,17 @@ export function AdminContacts() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReplyTarget(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setReplyThread(null)}>Cancel</Button>
             <Button
               disabled={!replySubject || !replyMessage || sendReply.isPending}
               onClick={() => {
-                if (!replyTarget) return;
+                if (!replyThread) return;
                 sendReply.mutate({
-                  email: replyTarget.email,
-                  clientName: replyTarget.name,
+                  email: replyThread.from.email,
+                  clientName: replyThread.from.name,
                   subject: replySubject,
                   message: replyMessage,
+                  threadId: replyThread.threadId,
                 });
               }}
             >
@@ -473,22 +534,22 @@ export function AdminContacts() {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <Dialog open={!!deleteThreadId} onOpenChange={(open) => !open && setDeleteThreadId(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete Message</DialogTitle>
+            <DialogTitle>Delete Thread</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600 py-2">
-            Delete the message from <strong>{deleteTarget?.name}</strong>? This cannot be undone.
+            Delete this entire email thread? This cannot be undone.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDeleteThreadId(null)}>Cancel</Button>
             <Button
               variant="destructive"
-              disabled={deleteContact.isPending || deleteInbound.isPending}
-              onClick={() => deleteTarget && handleDelete(deleteTarget)}
+              disabled={deleteThread.isPending}
+              onClick={() => deleteThreadId && deleteThread.mutate(deleteThreadId)}
             >
-              {deleteContact.isPending || deleteInbound.isPending ? "Deleting…" : "Delete"}
+              {deleteThread.isPending ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -197,7 +197,12 @@ export function setupPasswordAuth(app: Express) {
       
       req.login(safeUser, (err) => {
         if (err) return next(err);
-        
+
+        // Fire-and-forget: auto-create support chat for new user
+        storage.getOrCreateSupportConversation(user.id).catch(err =>
+          console.error('[Register] Failed to create support chat:', err)
+        );
+
         const userResponse = {
           id: user.id,
           email: user.email || '',
@@ -207,7 +212,7 @@ export function setupPasswordAuth(app: Express) {
           role: user.role,
           photographerStatus: user.photographerStatus,
         };
-        
+
         res.status(201).json(userResponse);
       });
     } catch (error) {

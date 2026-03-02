@@ -1804,11 +1804,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientName: z.string().min(1, "Client name is required"),
         subject: z.string().min(1, "Subject is required"),
         message: z.string().min(1, "Message is required"),
+        threadId: z.string().optional(),
       });
 
       const emailData = emailSchema.parse(req.body);
 
       await sendAdminEmail(emailData.email, emailData.clientName, emailData.subject, emailData.message);
+
+      // Save outbound reply to DB for threading
+      if (emailData.threadId) {
+        await storage.saveOutboundEmail({
+          threadId: emailData.threadId,
+          to: emailData.email,
+          subject: emailData.subject,
+          body: emailData.message,
+          senderName: 'Admin',
+        });
+        // Mark thread root as responded
+        await storage.updateInboundEmailStatus(emailData.threadId, 'responded');
+      }
 
       res.json({
         success: true,
@@ -2190,11 +2204,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const textBody: string = emailData.text || emailData.plain || '';
       const htmlBody: string = emailData.html || '';
 
+      // Extract threading headers
+      const headers: { name: string; value: string }[] = emailData.headers || [];
+      const messageIdHeader = headers.find(h => h.name === 'Message-ID')?.value || '';
+      const inReplyToHeader = headers.find(h => h.name === 'In-Reply-To')?.value || '';
+
+      // Parse sender name from from field
+      const fromMatch = from.match(/^(.*?)\s*<(.+)>$/);
+      const senderName = fromMatch ? fromMatch[1].trim() || fromMatch[2].trim() : from;
+
       if (!from) {
         return res.status(400).json({ error: 'Missing from field' });
       }
 
-      const saved = await storage.saveInboundEmail({ resendEmailId, from, to, subject, textBody, htmlBody });
+      const saved = await storage.saveInboundEmail({
+        resendEmailId, from, to, subject, textBody, htmlBody,
+        messageIdHeader: messageIdHeader || undefined,
+        inReplyToHeader: inReplyToHeader || undefined,
+        senderName: senderName || undefined,
+      });
       console.log(`[Inbound] Email saved from ${from}: ${subject} (resend_id: ${resendEmailId})`);
 
       const adminEmail = process.env.ADMIN_EMAIL;
@@ -2209,6 +2237,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('[Inbound] Error processing inbound email:', error);
       res.status(500).json({ error: 'Failed to process inbound email' });
+    }
+  });
+
+  app.get('/api/admin/email-threads', isAdmin, async (_req, res) => {
+    try {
+      const threads = await storage.getEmailThreads();
+      res.json(threads);
+    } catch (error) {
+      console.error('Error fetching email threads:', error);
+      res.status(500).json({ error: 'Failed to fetch email threads' });
     }
   });
 
@@ -2284,7 +2322,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/user/upload-signature', isAuthenticated, async (req, res) => {
     try {
       const config = getCloudinarySignedConfig();
-      res.json(config);
+      if (!config) return res.status(503).json({ error: 'Upload not configured' });
+      const timestamp = Math.round(Date.now() / 1000);
+      const folder = 'chat-attachments';
+      const params = { folder, timestamp };
+      const signature = generateSignature(params, config.apiSecret);
+      res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp, signature, folder });
     } catch (error) {
       console.error('Error generating upload signature:', error);
       res.status(500).json({ error: 'Failed to generate upload signature' });
@@ -2301,6 +2344,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error getting unread count:', error);
       res.status(500).json({ error: 'Failed to get unread count' });
+    }
+  });
+
+  app.get('/api/conversations/support', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const conv = await storage.getOrCreateSupportConversation(userId);
+      res.json(conv);
+    } catch (error) {
+      console.error('Error getting support conversation:', error);
+      res.status(500).json({ error: 'Failed to get support conversation' });
     }
   });
 
@@ -2324,13 +2378,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: z.string().optional(),
       });
       const data = convSchema.parse(req.body);
-      let participantIds = data.participantIds ?? [];
-      // For support conversations, automatically include all admin users
+      // Dedup support conversations: return existing one if found
       if (data.type === 'support') {
-        const allUsers = await storage.getAllUsers();
-        const adminIds = allUsers.filter(u => u.isAdmin).map(u => u.id);
-        participantIds = Array.from(new Set([...participantIds, ...adminIds]));
+        const conv = await storage.getOrCreateSupportConversation(userId);
+        return res.json(conv);
       }
+      let participantIds = data.participantIds ?? [];
       // Ensure creator is included
       const allParticipants = Array.from(new Set([userId, ...participantIds]));
       const conv = await storage.createConversation({ ...data, participantIds: allParticipants });

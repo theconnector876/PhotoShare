@@ -62082,7 +62082,13 @@ var inboundEmails = pgTable("inbound_emails", {
   isRead: boolean("is_read").notNull().default(false),
   status: text("status").notNull().default("unread"),
   // unread, read, responded
-  receivedAt: timestamp("received_at").defaultNow()
+  receivedAt: timestamp("received_at").defaultNow(),
+  threadId: varchar("thread_id"),
+  direction: text("direction").notNull().default("inbound"),
+  // "inbound" | "outbound"
+  inReplyToHeader: text("in_reply_to_header"),
+  messageIdHeader: text("message_id_header"),
+  senderName: text("sender_name")
 });
 var conversations = pgTable("conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -68452,11 +68458,64 @@ var DatabaseStorage = class {
     await db.update(coupons).set({ usageCount: sql`${coupons.usageCount} + 1` }).where(eq(coupons.id, id));
   }
   async saveInboundEmail(data) {
-    const [email] = await db.insert(inboundEmails).values(data).returning();
+    let threadId = null;
+    if (data.inReplyToHeader) {
+      const [parent] = await db.select().from(inboundEmails).where(eq(inboundEmails.messageIdHeader, data.inReplyToHeader)).limit(1);
+      if (parent?.threadId) threadId = parent.threadId;
+    }
+    const [email] = await db.insert(inboundEmails).values({ ...data, threadId }).returning();
+    if (!email.threadId) {
+      const [updated] = await db.update(inboundEmails).set({ threadId: email.id }).where(eq(inboundEmails.id, email.id)).returning();
+      return updated;
+    }
+    return email;
+  }
+  async saveOutboundEmail(data) {
+    const [email] = await db.insert(inboundEmails).values({
+      from: `${data.senderName} <admin@connectagrapher.com>`,
+      to: data.to,
+      subject: data.subject,
+      textBody: data.body,
+      direction: "outbound",
+      threadId: data.threadId,
+      senderName: data.senderName,
+      isRead: true,
+      status: "responded"
+    }).returning();
     return email;
   }
   async getAllInboundEmails() {
     return await db.select().from(inboundEmails).orderBy(inboundEmails.receivedAt);
+  }
+  async getEmailThreads() {
+    const allEmails = await db.select().from(inboundEmails).orderBy(inboundEmails.receivedAt);
+    const threadMap = /* @__PURE__ */ new Map();
+    for (const email of allEmails) {
+      const tid = email.threadId ?? email.id;
+      if (!threadMap.has(tid)) threadMap.set(tid, []);
+      threadMap.get(tid).push(email);
+    }
+    const threads = [];
+    for (const [threadId, msgs] of threadMap.entries()) {
+      const root = msgs.find((m2) => m2.direction === "inbound") ?? msgs[0];
+      const lastMsg = msgs[msgs.length - 1];
+      const fromStr = root.from || "";
+      const match = fromStr.match(/^(.*?)\s*<(.+)>$/);
+      const fromParsed = match ? { name: match[1].trim() || match[2].trim(), email: match[2].trim() } : { name: fromStr, email: fromStr };
+      const hasUnread = msgs.some((m2) => m2.direction === "inbound" && m2.status === "unread");
+      const allResponded = msgs.some((m2) => m2.direction === "outbound");
+      const status = hasUnread ? "unread" : allResponded ? "responded" : "read";
+      threads.push({
+        threadId,
+        subject: root.subject ?? null,
+        from: fromParsed,
+        status,
+        lastActivity: (lastMsg.receivedAt ?? /* @__PURE__ */ new Date()).toISOString(),
+        messages: msgs
+      });
+    }
+    threads.sort((a2, b) => new Date(b.lastActivity).getTime() - new Date(a2.lastActivity).getTime());
+    return threads;
   }
   async markInboundEmailRead(id, isRead) {
     const status = isRead ? "read" : "unread";
@@ -68475,6 +68534,20 @@ var DatabaseStorage = class {
   async updateUserProfile(userId, data) {
     const [user] = await db.update(users).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId)).returning();
     return user;
+  }
+  async getOrCreateSupportConversation(userId) {
+    const rows = await db.execute(sql`
+      SELECT c.* FROM conversations c
+      INNER JOIN conversation_participants cp ON cp.conversation_id = c.id
+      WHERE c.type = 'support' AND cp.user_id = ${userId}
+      LIMIT 1
+    `);
+    const existing = rows.rows[0];
+    if (existing) return existing;
+    const allUsers = await this.getAllUsers();
+    const adminIds = allUsers.filter((u) => u.isAdmin).map((u) => u.id);
+    const participantIds = Array.from(/* @__PURE__ */ new Set([userId, ...adminIds]));
+    return this.createConversation({ type: "support", title: "Support", participantIds });
   }
   async createConversation(data) {
     const [conv] = await db.insert(conversations).values({ type: data.type, bookingId: data.bookingId, title: data.title }).returning();
@@ -73678,6 +73751,9 @@ function setupPasswordAuth(app2) {
       };
       req.login(safeUser, (err) => {
         if (err) return next(err);
+        storage.getOrCreateSupportConversation(user.id).catch(
+          (err2) => console.error("[Register] Failed to create support chat:", err2)
+        );
         const userResponse = {
           id: user.id,
           email: user.email || "",
@@ -75570,10 +75646,21 @@ async function registerRoutes(app2) {
         email: z.string().email("Valid email is required"),
         clientName: z.string().min(1, "Client name is required"),
         subject: z.string().min(1, "Subject is required"),
-        message: z.string().min(1, "Message is required")
+        message: z.string().min(1, "Message is required"),
+        threadId: z.string().optional()
       });
       const emailData = emailSchema.parse(req.body);
       await sendAdminEmail(emailData.email, emailData.clientName, emailData.subject, emailData.message);
+      if (emailData.threadId) {
+        await storage.saveOutboundEmail({
+          threadId: emailData.threadId,
+          to: emailData.email,
+          subject: emailData.subject,
+          body: emailData.message,
+          senderName: "Admin"
+        });
+        await storage.updateInboundEmailStatus(emailData.threadId, "responded");
+      }
       res.json({
         success: true,
         message: "Email sent successfully",
@@ -75903,10 +75990,25 @@ Thank you!`
       const subject = emailData.subject || "";
       const textBody = emailData.text || emailData.plain || "";
       const htmlBody = emailData.html || "";
+      const headers = emailData.headers || [];
+      const messageIdHeader = headers.find((h) => h.name === "Message-ID")?.value || "";
+      const inReplyToHeader = headers.find((h) => h.name === "In-Reply-To")?.value || "";
+      const fromMatch = from.match(/^(.*?)\s*<(.+)>$/);
+      const senderName = fromMatch ? fromMatch[1].trim() || fromMatch[2].trim() : from;
       if (!from) {
         return res.status(400).json({ error: "Missing from field" });
       }
-      const saved = await storage.saveInboundEmail({ resendEmailId, from, to: to2, subject, textBody, htmlBody });
+      const saved = await storage.saveInboundEmail({
+        resendEmailId,
+        from,
+        to: to2,
+        subject,
+        textBody,
+        htmlBody,
+        messageIdHeader: messageIdHeader || void 0,
+        inReplyToHeader: inReplyToHeader || void 0,
+        senderName: senderName || void 0
+      });
       console.log(`[Inbound] Email saved from ${from}: ${subject} (resend_id: ${resendEmailId})`);
       const adminEmail = process.env.ADMIN_EMAIL;
       if (adminEmail) {
@@ -75919,6 +76021,15 @@ Thank you!`
     } catch (error) {
       console.error("[Inbound] Error processing inbound email:", error);
       res.status(500).json({ error: "Failed to process inbound email" });
+    }
+  });
+  app2.get("/api/admin/email-threads", isAdmin, async (_req, res) => {
+    try {
+      const threads = await storage.getEmailThreads();
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching email threads:", error);
+      res.status(500).json({ error: "Failed to fetch email threads" });
     }
   });
   app2.get("/api/admin/inbound-emails", isAdmin, async (_req, res) => {
@@ -75986,7 +76097,12 @@ Thank you!`
   app2.post("/api/user/upload-signature", isAuthenticated, async (req, res) => {
     try {
       const config = getCloudinarySignedConfig();
-      res.json(config);
+      if (!config) return res.status(503).json({ error: "Upload not configured" });
+      const timestamp2 = Math.round(Date.now() / 1e3);
+      const folder = "chat-attachments";
+      const params = { folder, timestamp: timestamp2 };
+      const signature = generateSignature(params, config.apiSecret);
+      res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp: timestamp2, signature, folder });
     } catch (error) {
       console.error("Error generating upload signature:", error);
       res.status(500).json({ error: "Failed to generate upload signature" });
@@ -76000,6 +76116,16 @@ Thank you!`
     } catch (error) {
       console.error("Error getting unread count:", error);
       res.status(500).json({ error: "Failed to get unread count" });
+    }
+  });
+  app2.get("/api/conversations/support", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const conv = await storage.getOrCreateSupportConversation(userId);
+      res.json(conv);
+    } catch (error) {
+      console.error("Error getting support conversation:", error);
+      res.status(500).json({ error: "Failed to get support conversation" });
     }
   });
   app2.get("/api/conversations", isAuthenticated, async (req, res) => {
@@ -76021,12 +76147,11 @@ Thank you!`
         title: z.string().optional()
       });
       const data = convSchema.parse(req.body);
-      let participantIds = data.participantIds ?? [];
       if (data.type === "support") {
-        const allUsers = await storage.getAllUsers();
-        const adminIds = allUsers.filter((u) => u.isAdmin).map((u) => u.id);
-        participantIds = Array.from(/* @__PURE__ */ new Set([...participantIds, ...adminIds]));
+        const conv2 = await storage.getOrCreateSupportConversation(userId);
+        return res.json(conv2);
       }
+      let participantIds = data.participantIds ?? [];
       const allParticipants = Array.from(/* @__PURE__ */ new Set([userId, ...participantIds]));
       const conv = await storage.createConversation({ ...data, participantIds: allParticipants });
       res.json(conv);

@@ -1,11 +1,9 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ConversationList } from "./conversation-list";
 import { ChatWindow } from "./chat-window";
-import { Button } from "@/components/ui/button";
-import { MessageSquare, Loader2 } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import type { ConversationWithMeta } from "@shared/schema";
 
@@ -15,7 +13,6 @@ interface ChatPanelProps {
 
 export function ChatPanel({ isAdmin }: ChatPanelProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | undefined>();
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
@@ -32,23 +29,20 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
     enabled: !!user,
   });
 
-  const startChatMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/conversations", {
-        type: "support",
-        title: "Support Chat",
-      });
-      return res.json();
-    },
-    onSuccess: (conv) => {
-      queryClient.invalidateQueries({ queryKey: [conversationsKey] });
-      setSelectedId(conv.id);
-      setMobileView("chat");
-    },
-    onError: () => {
-      toast({ title: "Failed to start chat", variant: "destructive" });
-    },
-  });
+  // For non-admin: ensure support chat exists on mount
+  useEffect(() => {
+    if (!user || isAdmin) return;
+    apiRequest("GET", "/api/conversations/support")
+      .then(() => queryClient.invalidateQueries({ queryKey: [conversationsKey] }))
+      .catch(() => {});
+  }, [user, isAdmin]);
+
+  // Auto-select support chat when conversations load (non-admin only)
+  useEffect(() => {
+    if (isAdmin || selectedId || conversations.length === 0) return;
+    const support = conversations.find(c => c.type === "support");
+    if (support) setSelectedId(support.id);
+  }, [conversations, isAdmin, selectedId]);
 
   const handleSelect = (id: string) => {
     setSelectedId(id);
@@ -57,12 +51,6 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
 
   const handleBack = () => {
     setMobileView("list");
-  };
-
-  const handleNewConversation = () => {
-    if (!isAdmin) {
-      startChatMutation.mutate();
-    }
   };
 
   const currentUserId = user?.id ?? "";
@@ -82,14 +70,8 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
             selectedId={selectedId}
             currentUserId={currentUserId}
             onSelect={handleSelect}
-            onNewConversation={!isAdmin ? handleNewConversation : undefined}
             loading={isLoading}
           />
-          {!isAdmin && startChatMutation.isPending && (
-            <div className="flex justify-center p-4">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          )}
         </div>
 
         {/* Chat window */}
@@ -104,20 +86,6 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
               <MessageSquare className="w-12 h-12 opacity-20" />
               <p className="text-sm">Select a conversation to start messaging</p>
-              {!isAdmin && conversations.length === 0 && (
-                <Button
-                  onClick={handleNewConversation}
-                  disabled={startChatMutation.isPending}
-                  variant="outline"
-                  size="sm"
-                >
-                  {startChatMutation.isPending ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Starting chat...</>
-                  ) : (
-                    "Start Support Chat"
-                  )}
-                </Button>
-              )}
             </div>
           )}
         </div>
