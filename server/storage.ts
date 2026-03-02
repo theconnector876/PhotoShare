@@ -148,12 +148,14 @@ export interface IStorage {
 
   // Conversation operations
   getOrCreateSupportConversation(userId: string): Promise<Conversation>;
-  createConversation(data: { type: string; bookingId?: string; title?: string; participantIds: string[] }): Promise<Conversation>;
+  createConversation(data: { type: string; bookingId?: string; title?: string; participantIds: string[]; observerIds?: string[] }): Promise<Conversation>;
   getConversationsForUser(userId: string, isAdmin?: boolean): Promise<ConversationWithMeta[]>;
   getConversation(id: string): Promise<Conversation | undefined>;
   getConversationByBookingId(bookingId: string): Promise<Conversation | undefined>;
   isParticipant(conversationId: string, userId: string): Promise<boolean>;
-  addParticipant(conversationId: string, userId: string): Promise<void>;
+  addParticipant(conversationId: string, userId: string, role?: string): Promise<void>;
+  getUserRoleInConversation(conversationId: string, userId: string): Promise<'member' | 'observer' | null>;
+  findDirectConversation(adminId: string, otherUserId: string): Promise<Conversation | undefined>;
   getMessages(conversationId: string): Promise<MessageWithSender[]>;
   createMessage(data: { conversationId: string; senderId: string | null; messageType: string; body: string; imageUrl?: string }): Promise<Message>;
   markConversationRead(conversationId: string, userId: string): Promise<void>;
@@ -929,13 +931,18 @@ export class DatabaseStorage implements IStorage {
     return this.createConversation({ type: 'support', title: 'Support', participantIds });
   }
 
-  async createConversation(data: { type: string; bookingId?: string; title?: string; participantIds: string[] }): Promise<Conversation> {
+  async createConversation(data: { type: string; bookingId?: string; title?: string; participantIds: string[]; observerIds?: string[] }): Promise<Conversation> {
     const [conv] = await db
       .insert(conversations)
       .values({ type: data.type, bookingId: data.bookingId, title: data.title })
       .returning();
     for (const uid of data.participantIds) {
-      await db.insert(conversationParticipants).values({ conversationId: conv.id, userId: uid }).onConflictDoNothing();
+      await db.insert(conversationParticipants).values({ conversationId: conv.id, userId: uid, role: 'member' }).onConflictDoNothing();
+    }
+    for (const uid of data.observerIds ?? []) {
+      if (!data.participantIds.includes(uid)) {
+        await db.insert(conversationParticipants).values({ conversationId: conv.id, userId: uid, role: 'observer' }).onConflictDoNothing();
+      }
     }
     return conv;
   }
@@ -1006,11 +1013,17 @@ export class DatabaseStorage implements IStorage {
         .innerJoin(conversationParticipants, eq(conversationParticipants.userId, users.id))
         .where(eq(conversationParticipants.conversationId, conv.id));
 
+      // Determine current user's role in this conversation
+      const currentUserRole: 'member' | 'observer' = myParticipant
+        ? ((myParticipant.role ?? 'member') as 'member' | 'observer')
+        : 'observer';
+
       result.push({
         ...conv,
         lastMessage: lastMsg ?? null,
         unreadCount,
         participants: participantRows.map(r => r.user),
+        currentUserRole,
       });
     }
     return result;
@@ -1034,11 +1047,35 @@ export class DatabaseStorage implements IStorage {
     return !!row;
   }
 
-  async addParticipant(conversationId: string, userId: string): Promise<void> {
+  async addParticipant(conversationId: string, userId: string, role: string = 'member'): Promise<void> {
     await db
       .insert(conversationParticipants)
-      .values({ conversationId, userId })
+      .values({ conversationId, userId, role })
       .onConflictDoNothing();
+  }
+
+  async getUserRoleInConversation(conversationId: string, userId: string): Promise<'member' | 'observer' | null> {
+    const [row] = await db
+      .select({ role: conversationParticipants.role })
+      .from(conversationParticipants)
+      .where(and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.userId, userId)
+      ));
+    if (!row) return null;
+    return (row.role ?? 'member') as 'member' | 'observer';
+  }
+
+  async findDirectConversation(adminId: string, otherUserId: string): Promise<Conversation | undefined> {
+    const rows = await db.execute(sql`
+      SELECT c.* FROM conversations c
+      WHERE c.type = 'direct'
+        AND EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = c.id AND user_id = ${adminId})
+        AND EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = c.id AND user_id = ${otherUserId})
+        AND (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = c.id) = 2
+      LIMIT 1
+    `);
+    return rows.rows[0] as Conversation | undefined;
   }
 
   async getMessages(conversationId: string): Promise<MessageWithSender[]> {

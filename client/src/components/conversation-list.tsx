@@ -1,4 +1,4 @@
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Eye } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import type { ConversationWithMeta } from "@shared/schema";
@@ -100,6 +100,12 @@ export function ConversationList({
                       )}
                       {conv.type === "booking" && (
                         <Badge className="bg-blue-500 text-white text-[9px] px-1.5 py-0 h-4 shrink-0">Booking</Badge>
+                      )}
+                      {conv.type === "group" && (
+                        <Badge className="bg-purple-500 text-white text-[9px] px-1.5 py-0 h-4 shrink-0">Group</Badge>
+                      )}
+                      {conv.currentUserRole === 'observer' && (
+                        <Eye className="w-3 h-3 text-muted-foreground shrink-0" title="View only" />
                       )}
                     </div>
                     <span className="text-[10px] text-muted-foreground shrink-0">

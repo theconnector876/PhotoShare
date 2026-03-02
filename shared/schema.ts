@@ -196,6 +196,7 @@ export const conversationParticipants = pgTable("conversation_participants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 20 }).notNull().default("member"),
   lastReadAt: timestamp("last_read_at"),
   joinedAt: timestamp("joined_at").defaultNow(),
 }, (t) => [index("idx_cp_conv").on(t.conversationId), index("idx_cp_user").on(t.userId)]);
@@ -321,6 +322,7 @@ export type ConversationWithMeta = Conversation & {
   lastMessage?: Message | null;
   unreadCount: number;
   participants: User[];
+  currentUserRole?: 'member' | 'observer';
 };
 
 export type EmailThread = {

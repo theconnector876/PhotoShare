@@ -553,6 +553,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalImages: [],
       });
 
+      // Auto-create booking conversation when photographer is selected at booking time
+      if (bookingData.photographerId && user) {
+        try {
+          const allUsers = await storage.getAllUsers();
+          const adminIds = allUsers.filter(u => u.isAdmin).map(u => u.id);
+          const memberIds = [...new Set([user.id, bookingData.photographerId])];
+          const conv = await storage.createConversation({
+            type: 'booking',
+            bookingId: booking.id,
+            title: `Booking: ${booking.clientName} – ${booking.serviceType}`,
+            participantIds: memberIds,
+            observerIds: adminIds,
+          });
+          await storage.createMessage({
+            conversationId: conv.id,
+            senderId: null,
+            messageType: 'system',
+            body: `Your booking is confirmed. Use this chat to coordinate details with your photographer.`,
+          });
+        } catch (convErr) {
+          console.error('Failed to auto-create booking conversation:', convErr);
+        }
+      }
+
       // Send "booking received, awaiting deposit" email (non-blocking)
       sendBookingReceived({
         clientName: booking.clientName,
@@ -2134,7 +2158,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const participantIds = [...new Set([
               ...(clientUser ? [clientUser.id] : []),
               photographerId,
-              ...adminIds,
             ])];
             const photographer = await storage.getUser(photographerId);
             const conv = await storage.createConversation({
@@ -2142,6 +2165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               bookingId: booking.id,
               title: `Booking: ${booking.clientName} – ${booking.serviceType}`,
               participantIds,
+              observerIds: adminIds,
             });
             const photographerName = photographer ? `${photographer.firstName || ''} ${photographer.lastName || ''}`.trim() : 'a photographer';
             await storage.createMessage({
@@ -2417,15 +2441,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/conversations/:id/messages', isAuthenticated, async (req, res) => {
     try {
       const userId = (req as any).user?.id;
-      const isAdmin = (req as any).user?.isAdmin;
+      const isAdminUser = (req as any).user?.isAdmin;
       const { id } = req.params;
-      if (!isAdmin) {
-        const ok = await storage.isParticipant(id, userId);
-        if (!ok) return res.status(403).json({ error: 'Not a participant' });
-      } else {
-        // Auto-add admin as participant if not already
-        await storage.addParticipant(id, userId);
+
+      const role = await storage.getUserRoleInConversation(id, userId);
+      if (role === 'observer') {
+        return res.status(403).json({ error: 'View-only mode for this conversation.' });
       }
+      if (!role && !isAdminUser) {
+        return res.status(403).json({ error: 'Not a participant' });
+      }
+      // role === null && isAdminUser → allow (backward compat for old support convs)
+
       const msgSchema = z.object({
         body: z.string().min(1),
         messageType: z.string().default('text'),
@@ -2460,6 +2487,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching admin conversations:', error);
       res.status(500).json({ error: 'Failed to fetch conversations' });
+    }
+  });
+
+  app.post('/api/admin/conversations', isAdmin, async (req, res) => {
+    try {
+      const adminId = (req as any).user?.id;
+      const schema = z.object({
+        userIds: z.array(z.string().min(1)).min(1),
+        title: z.string().optional(),
+      });
+      const { userIds, title } = schema.parse(req.body);
+      const otherIds = [...new Set(userIds.filter((id: string) => id !== adminId))];
+
+      if (otherIds.length === 1) {
+        const existing = await storage.findDirectConversation(adminId, otherIds[0]);
+        if (existing) return res.json(existing);
+        const conv = await storage.createConversation({
+          type: 'direct',
+          participantIds: [adminId, otherIds[0]],
+        });
+        return res.json(conv);
+      }
+
+      if (!title?.trim()) {
+        return res.status(400).json({ error: 'Title required for group chats.' });
+      }
+      const conv = await storage.createConversation({
+        type: 'group',
+        title: title.trim(),
+        participantIds: [adminId, ...otherIds],
+      });
+      res.json(conv);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: error.errors });
+      console.error('Error creating admin conversation:', error);
+      res.status(500).json({ error: 'Failed to create conversation' });
     }
   });
 

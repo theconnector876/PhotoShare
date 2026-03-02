@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Send, Image as ImageIcon, Loader2, ArrowLeft } from "lucide-react";
+import { Send, Image as ImageIcon, Loader2, ArrowLeft, Eye } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { MessageWithSender } from "@shared/schema";
@@ -13,6 +13,7 @@ interface ChatWindowProps {
   conversationId: string;
   currentUserId: string;
   onBack?: () => void;
+  isReadOnly?: boolean;
 }
 
 function formatTime(dateStr: string | Date | null | undefined): string {
@@ -36,7 +37,7 @@ function getInitials(msg: MessageWithSender): string {
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
-export function ChatWindow({ conversationId, currentUserId, onBack }: ChatWindowProps) {
+export function ChatWindow({ conversationId, currentUserId, onBack, isReadOnly }: ChatWindowProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [body, setBody] = useState("");
@@ -225,42 +226,49 @@ export function ChatWindow({ conversationId, currentUserId, onBack }: ChatWindow
         <div ref={bottomRef} />
       </div>
 
-      {/* Composer */}
-      <div className="border-t px-4 py-3 flex items-end gap-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }}
-        />
-        <Button
-          size="icon"
-          variant="ghost"
-          className="shrink-0 h-9 w-9"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploadingImage || sendMutation.isPending}
-          type="button"
-        >
-          {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-        </Button>
-        <Textarea
-          value={body}
-          onChange={e => setBody(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Type a message… (Enter to send)"
-          rows={1}
-          className="flex-1 resize-none min-h-[36px] max-h-32 py-2"
-        />
-        <Button
-          size="icon"
-          className="shrink-0 h-9 w-9"
-          onClick={handleSend}
-          disabled={!body.trim() || sendMutation.isPending}
-        >
-          {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        </Button>
-      </div>
+      {/* Composer or Read-Only banner */}
+      {isReadOnly ? (
+        <div className="border-t px-4 py-3 flex items-center justify-center gap-2 bg-muted/30">
+          <Eye className="w-4 h-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground italic">View only – supervision mode</span>
+        </div>
+      ) : (
+        <div className="border-t px-4 py-3 flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }}
+          />
+          <Button
+            size="icon"
+            variant="ghost"
+            className="shrink-0 h-9 w-9"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImage || sendMutation.isPending}
+            type="button"
+          >
+            {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+          </Button>
+          <Textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message… (Enter to send)"
+            rows={1}
+            className="flex-1 resize-none min-h-[36px] max-h-32 py-2"
+          />
+          <Button
+            size="icon"
+            className="shrink-0 h-9 w-9"
+            onClick={handleSend}
+            disabled={!body.trim() || sendMutation.isPending}
+          >
+            {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </Button>
+        </div>
+      )}
 
       {/* Lightbox */}
       <Dialog open={!!lightboxUrl} onOpenChange={open => !open && setLightboxUrl(null)}>

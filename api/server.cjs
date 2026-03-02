@@ -62102,6 +62102,7 @@ var conversationParticipants = pgTable("conversation_participants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 20 }).notNull().default("member"),
   lastReadAt: timestamp("last_read_at"),
   joinedAt: timestamp("joined_at").defaultNow()
 }, (t) => [index("idx_cp_conv").on(t.conversationId), index("idx_cp_user").on(t.userId)]);
@@ -68552,7 +68553,12 @@ var DatabaseStorage = class {
   async createConversation(data) {
     const [conv] = await db.insert(conversations).values({ type: data.type, bookingId: data.bookingId, title: data.title }).returning();
     for (const uid of data.participantIds) {
-      await db.insert(conversationParticipants).values({ conversationId: conv.id, userId: uid }).onConflictDoNothing();
+      await db.insert(conversationParticipants).values({ conversationId: conv.id, userId: uid, role: "member" }).onConflictDoNothing();
+    }
+    for (const uid of data.observerIds ?? []) {
+      if (!data.participantIds.includes(uid)) {
+        await db.insert(conversationParticipants).values({ conversationId: conv.id, userId: uid, role: "observer" }).onConflictDoNothing();
+      }
     }
     return conv;
   }
@@ -68590,11 +68596,13 @@ var DatabaseStorage = class {
         }
       }
       const participantRows = await db.select({ user: users }).from(users).innerJoin(conversationParticipants, eq(conversationParticipants.userId, users.id)).where(eq(conversationParticipants.conversationId, conv.id));
+      const currentUserRole = myParticipant ? myParticipant.role ?? "member" : "observer";
       result.push({
         ...conv,
         lastMessage: lastMsg ?? null,
         unreadCount,
-        participants: participantRows.map((r2) => r2.user)
+        participants: participantRows.map((r2) => r2.user),
+        currentUserRole
       });
     }
     return result;
@@ -68611,8 +68619,27 @@ var DatabaseStorage = class {
     const [row] = await db.select().from(conversationParticipants).where(and(eq(conversationParticipants.conversationId, conversationId), eq(conversationParticipants.userId, userId)));
     return !!row;
   }
-  async addParticipant(conversationId, userId) {
-    await db.insert(conversationParticipants).values({ conversationId, userId }).onConflictDoNothing();
+  async addParticipant(conversationId, userId, role = "member") {
+    await db.insert(conversationParticipants).values({ conversationId, userId, role }).onConflictDoNothing();
+  }
+  async getUserRoleInConversation(conversationId, userId) {
+    const [row] = await db.select({ role: conversationParticipants.role }).from(conversationParticipants).where(and(
+      eq(conversationParticipants.conversationId, conversationId),
+      eq(conversationParticipants.userId, userId)
+    ));
+    if (!row) return null;
+    return row.role ?? "member";
+  }
+  async findDirectConversation(adminId, otherUserId) {
+    const rows = await db.execute(sql`
+      SELECT c.* FROM conversations c
+      WHERE c.type = 'direct'
+        AND EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = c.id AND user_id = ${adminId})
+        AND EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = c.id AND user_id = ${otherUserId})
+        AND (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = c.id) = 2
+      LIMIT 1
+    `);
+    return rows.rows[0];
   }
   async getMessages(conversationId) {
     const rows = await db.select({
@@ -74587,6 +74614,28 @@ async function registerRoutes(app2) {
         selectedImages: [],
         finalImages: []
       });
+      if (bookingData.photographerId && user) {
+        try {
+          const allUsers = await storage.getAllUsers();
+          const adminIds = allUsers.filter((u) => u.isAdmin).map((u) => u.id);
+          const memberIds = [.../* @__PURE__ */ new Set([user.id, bookingData.photographerId])];
+          const conv = await storage.createConversation({
+            type: "booking",
+            bookingId: booking.id,
+            title: `Booking: ${booking.clientName} \u2013 ${booking.serviceType}`,
+            participantIds: memberIds,
+            observerIds: adminIds
+          });
+          await storage.createMessage({
+            conversationId: conv.id,
+            senderId: null,
+            messageType: "system",
+            body: `Your booking is confirmed. Use this chat to coordinate details with your photographer.`
+          });
+        } catch (convErr) {
+          console.error("Failed to auto-create booking conversation:", convErr);
+        }
+      }
       sendBookingReceived({
         clientName: booking.clientName,
         email: booking.email,
@@ -75932,15 +75981,15 @@ Thank you!`
             const adminIds = allUsers.filter((u) => u.isAdmin).map((u) => u.id);
             const participantIds = [.../* @__PURE__ */ new Set([
               ...clientUser ? [clientUser.id] : [],
-              photographerId,
-              ...adminIds
+              photographerId
             ])];
             const photographer = await storage.getUser(photographerId);
             const conv = await storage.createConversation({
               type: "booking",
               bookingId: booking.id,
               title: `Booking: ${booking.clientName} \u2013 ${booking.serviceType}`,
-              participantIds
+              participantIds,
+              observerIds: adminIds
             });
             const photographerName = photographer ? `${photographer.firstName || ""} ${photographer.lastName || ""}`.trim() : "a photographer";
             await storage.createMessage({
@@ -76181,13 +76230,14 @@ Thank you!`
   app2.post("/api/conversations/:id/messages", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user?.id;
-      const isAdmin2 = req.user?.isAdmin;
+      const isAdminUser = req.user?.isAdmin;
       const { id } = req.params;
-      if (!isAdmin2) {
-        const ok = await storage.isParticipant(id, userId);
-        if (!ok) return res.status(403).json({ error: "Not a participant" });
-      } else {
-        await storage.addParticipant(id, userId);
+      const role = await storage.getUserRoleInConversation(id, userId);
+      if (role === "observer") {
+        return res.status(403).json({ error: "View-only mode for this conversation." });
+      }
+      if (!role && !isAdminUser) {
+        return res.status(403).json({ error: "Not a participant" });
       }
       const msgSchema = z.object({
         body: z.string().min(1),
@@ -76221,6 +76271,39 @@ Thank you!`
     } catch (error) {
       console.error("Error fetching admin conversations:", error);
       res.status(500).json({ error: "Failed to fetch conversations" });
+    }
+  });
+  app2.post("/api/admin/conversations", isAdmin, async (req, res) => {
+    try {
+      const adminId = req.user?.id;
+      const schema = z.object({
+        userIds: z.array(z.string().min(1)).min(1),
+        title: z.string().optional()
+      });
+      const { userIds, title } = schema.parse(req.body);
+      const otherIds = [...new Set(userIds.filter((id) => id !== adminId))];
+      if (otherIds.length === 1) {
+        const existing = await storage.findDirectConversation(adminId, otherIds[0]);
+        if (existing) return res.json(existing);
+        const conv2 = await storage.createConversation({
+          type: "direct",
+          participantIds: [adminId, otherIds[0]]
+        });
+        return res.json(conv2);
+      }
+      if (!title?.trim()) {
+        return res.status(400).json({ error: "Title required for group chats." });
+      }
+      const conv = await storage.createConversation({
+        type: "group",
+        title: title.trim(),
+        participantIds: [adminId, ...otherIds]
+      });
+      res.json(conv);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: error.errors });
+      console.error("Error creating admin conversation:", error);
+      res.status(500).json({ error: "Failed to create conversation" });
     }
   });
   const httpServer = (0, import_http.createServer)(app2);
