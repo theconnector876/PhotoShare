@@ -156,6 +156,7 @@ export const catalogues = pgTable("catalogues", {
 export const reviews = pgTable("reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   catalogueId: varchar("catalogue_id").references(() => catalogues.id), // null for general reviews
+  bookingId: varchar("booking_id").references(() => bookings.id),
   clientName: text("client_name").notNull(),
   clientEmail: text("client_email").notNull(),
   rating: integer("rating").notNull(), // 1-5 stars

@@ -63,6 +63,15 @@ interface UserGallery {
   createdAt: string;
 }
 
+interface UserCatalogue {
+  id: string;
+  title: string;
+  coverImage: string;
+  isPublished: boolean;
+  serviceType: string;
+  createdAt: string;
+}
+
 type GalleryImageType = "gallery" | "selected" | "final";
 
 interface SignedConfig {
@@ -237,6 +246,12 @@ export default function PhotographerDashboard() {
 
   const { data: userGalleries } = useQuery<UserGallery[]>({
     queryKey: ["/api/photographer/galleries"],
+    enabled: !!user,
+    retry: false,
+  });
+
+  const { data: myCatalogues = [] } = useQuery<UserCatalogue[]>({
+    queryKey: ["/api/photographer/catalogues"],
     enabled: !!user,
     retry: false,
   });
@@ -902,6 +917,57 @@ export default function PhotographerDashboard() {
                   </div>
                 </div>
               </Card>
+
+              {/* ── My Work ── */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calendar className="w-4 h-4" /> Assigned Bookings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {upcomingBookings.length === 0
+                    ? <p className="text-sm text-muted-foreground">No bookings assigned yet.</p>
+                    : upcomingBookings.slice(0, 5).map(b => (
+                        <div key={b.id} className="flex items-center gap-3 py-2 border-b last:border-0">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{b.clientName}</p>
+                            <p className="text-xs text-muted-foreground">{b.serviceType} · {b.shootDate}</p>
+                          </div>
+                          <Badge variant={b.status === "completed" ? "default" : b.status === "confirmed" ? "secondary" : "outline"} className="shrink-0 text-[10px]">
+                            {b.status}
+                          </Badge>
+                        </div>
+                      ))
+                  }
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <GalleryIcon className="w-4 h-4" /> My Catalogues
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {myCatalogues.length === 0
+                    ? <p className="text-sm text-muted-foreground">No catalogues uploaded yet.</p>
+                    : <div className="grid grid-cols-2 gap-3">
+                        {myCatalogues.map(c => (
+                          <div key={c.id} className="rounded-lg overflow-hidden border">
+                            {c.coverImage
+                              ? <img src={c.coverImage} alt={c.title} className="w-full h-20 object-cover" />
+                              : <div className="w-full h-20 bg-muted" />}
+                            <div className="p-2">
+                              <p className="text-xs font-medium truncate">{c.title}</p>
+                              <p className="text-[10px] text-muted-foreground">{c.isPublished ? "Published" : "Draft"}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                  }
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -1252,7 +1318,23 @@ export default function PhotographerDashboard() {
                     <p>• <strong>addons</strong>: drone, express delivery, highlight reel, etc.</p>
                     <p>• <strong>fees</strong>: additional person + transportation by parish</p>
                   </div>
-                  <Textarea rows={22} value={pricingRaw} onChange={e => setPricingRaw(e.target.value)} className="font-mono text-xs" />
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        try {
+                          const parsed = JSON.parse(pricingRaw) as PricingConfig;
+                          updatePricingMutation.mutate(parsed);
+                        } catch {
+                          toast({ title: "Invalid JSON", description: "Fix JSON formatting before saving.", variant: "destructive" });
+                        }
+                      }}
+                      disabled={updatePricingMutation.isPending}
+                    >
+                      {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
+                    </Button>
+                  </div>
+                  <Textarea rows={14} value={pricingRaw} onChange={e => setPricingRaw(e.target.value)} className="font-mono text-xs" />
                   <div className="flex gap-2 flex-wrap">
                     <Button
                       onClick={() => {

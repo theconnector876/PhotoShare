@@ -104,6 +104,7 @@ export interface IStorage {
   getAllCatalogues(): Promise<Catalogue[]>;
   getPublishedCatalogues(): Promise<Catalogue[]>;
   getCataloguesByServiceType(serviceType: string): Promise<Catalogue[]>;
+  getCataloguesByPhotographerId(photographerId: string): Promise<Catalogue[]>;
   publishCatalogue(id: string): Promise<Catalogue | undefined>;
   unpublishCatalogue(id: string): Promise<Catalogue | undefined>;
   updateCatalogue(id: string, data: Partial<Catalogue>): Promise<Catalogue | undefined>;
@@ -154,6 +155,7 @@ export interface IStorage {
   getConversationByBookingId(bookingId: string): Promise<Conversation | undefined>;
   isParticipant(conversationId: string, userId: string): Promise<boolean>;
   addParticipant(conversationId: string, userId: string, role?: string): Promise<void>;
+  removeParticipant(conversationId: string, userId: string): Promise<void>;
   getUserRoleInConversation(conversationId: string, userId: string): Promise<'member' | 'observer' | null>;
   findDirectConversation(adminId: string, otherUserId: string): Promise<Conversation | undefined>;
   getMessages(conversationId: string): Promise<MessageWithSender[]>;
@@ -620,6 +622,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(catalogues.sortOrder, catalogues.publishedAt);
   }
 
+  async getCataloguesByPhotographerId(photographerId: string): Promise<Catalogue[]> {
+    return await db.select().from(catalogues)
+      .where(eq(catalogues.photographerId, photographerId))
+      .orderBy(catalogues.sortOrder, catalogues.createdAt);
+  }
+
   async publishCatalogue(id: string): Promise<Catalogue | undefined> {
     const [catalogue] = await db
       .update(catalogues)
@@ -1052,6 +1060,15 @@ export class DatabaseStorage implements IStorage {
       .insert(conversationParticipants)
       .values({ conversationId, userId, role })
       .onConflictDoNothing();
+  }
+
+  async removeParticipant(conversationId: string, userId: string): Promise<void> {
+    await db
+      .delete(conversationParticipants)
+      .where(and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.userId, userId)
+      ));
   }
 
   async getUserRoleInConversation(conversationId: string, userId: string): Promise<'member' | 'observer' | null> {

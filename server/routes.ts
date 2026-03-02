@@ -818,6 +818,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               messageType: 'system',
               body: `Your booking has been marked as ${statusText}.`,
             });
+            // Auto-post review request widget when booking is completed
+            if (validatedData.status === 'completed' && booking) {
+              await storage.createMessage({
+                conversationId: conv.id,
+                senderId: null,
+                messageType: 'review_request',
+                body: JSON.stringify({
+                  bookingId: id,
+                  title: `${booking.clientName} – ${booking.serviceType}`,
+                }),
+              });
+            }
           }
         } catch (msgErr) {
           console.error('Failed to post status system message:', msgErr);
@@ -1281,8 +1293,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(501).json({ error: "Payments not configured" });
       }
 
-      const { bookingId, paymentType } = req.body;
-      
+      const { bookingId, paymentType, tipAmount } = req.body;
+
       if (!bookingId || !paymentType || !['deposit', 'balance'].includes(paymentType)) {
         return res.status(400).json({ error: 'Missing or invalid payment data' });
       }
@@ -1323,13 +1335,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const variantId = process.env.LEMONSQUEEZY_VARIANT_ID!;
       
       // Convert amount to cents (Lemon Squeezy requires cents)
-      const customPriceInCents = Math.round(amount * 100);
-      
+      const tipCents = (paymentType === 'balance' && tipAmount > 0)
+        ? Math.round(Number(tipAmount) * 100) : 0;
+      const customPriceInCents = Math.round(amount * 100) + tipCents;
+
       const newCheckout = {
         customPrice: customPriceInCents,
         productOptions: {
-          name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment`,
-          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}`,
+          name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment${tipCents > 0 ? ' + Tip' : ''}`,
+          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}${tipCents > 0 ? ` (includes $${(tipCents / 100).toFixed(2)} tip)` : ''}`,
           redirectUrl: `https://www.connectagrapher.com/payment-success?booking=${bookingId}&type=${paymentType}`,
         },
         checkoutOptions: {
@@ -1344,7 +1358,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             booking_id: bookingId,
             payment_type: paymentType,
             service_type: booking.serviceType,
-            total_amount: String(booking.totalPrice)
+            total_amount: String(booking.totalPrice),
+            tip_amount: String(tipCents / 100),
           }
         },
       };
@@ -2479,6 +2494,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add participant to conversation (admin only)
+  app.post('/api/conversations/:id/participants', isAdmin, async (req, res) => {
+    try {
+      const { userId: targetId } = z.object({ userId: z.string() }).parse(req.body);
+      await storage.addParticipant(req.params.id, targetId, 'member');
+      res.json({ ok: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data' });
+      console.error('Error adding participant:', error);
+      res.status(500).json({ error: 'Failed to add participant' });
+    }
+  });
+
+  // Remove participant from conversation (admin only)
+  app.delete('/api/conversations/:id/participants/:userId', isAdmin, async (req, res) => {
+    try {
+      await storage.removeParticipant(req.params.id, req.params.userId);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error('Error removing participant:', error);
+      res.status(500).json({ error: 'Failed to remove participant' });
+    }
+  });
+
+  // Get gallery info linked to a conversation (for sharing widget)
+  app.get('/api/conversations/:id/gallery', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const isUserAdmin = (req as any).user?.isAdmin;
+      const convId = req.params.id;
+      const isParticipant = await storage.isParticipant(convId, userId);
+      if (!isParticipant && !isUserAdmin) return res.status(403).json({ error: 'Forbidden' });
+      const conv = await storage.getConversation(convId);
+      if (!conv?.bookingId) return res.status(404).json({ error: 'No gallery linked' });
+      const gallery = await storage.getGalleryByBookingId(conv.bookingId);
+      if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
+      const booking = await storage.getBooking(conv.bookingId);
+      res.json({
+        galleryId: gallery.id,
+        accessCode: gallery.accessCode,
+        clientEmail: gallery.clientEmail,
+        title: booking ? `${booking.clientName} – ${booking.serviceType}` : 'Gallery',
+        coverUrl: (gallery.finalImages?.[0] || gallery.galleryImages?.[0]) ?? null,
+        imageCount: (gallery.finalImages?.length || gallery.galleryImages?.length) ?? 0,
+        accessLink: `/gallery?email=${encodeURIComponent(gallery.clientEmail)}&code=${gallery.accessCode}`,
+      });
+    } catch (error) {
+      console.error('Error fetching conversation gallery:', error);
+      res.status(500).json({ error: 'Failed to fetch gallery' });
+    }
+  });
+
   app.get('/api/admin/conversations', isAdmin, async (req, res) => {
     try {
       const userId = (req as any).user?.id;
@@ -2523,6 +2590,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: error.errors });
       console.error('Error creating admin conversation:', error);
       res.status(500).json({ error: 'Failed to create conversation' });
+    }
+  });
+
+  // ===== USER PROFILE CARD =====
+  app.get('/api/users/:id/profile-card', isAuthenticated, async (req, res) => {
+    try {
+      const targetId = req.params.id;
+      const callerId = (req as any).user?.id;
+      const isCallerAdmin = (req as any).user?.isAdmin;
+      const target = await storage.getUser(targetId);
+      if (!target) return res.status(404).json({ error: 'User not found' });
+      const base = {
+        id: target.id, firstName: target.firstName, lastName: target.lastName,
+        email: target.email, role: target.role, profileImageUrl: target.profileImageUrl,
+        isAdmin: target.isAdmin, createdAt: target.createdAt,
+      };
+      if (isCallerAdmin || callerId === targetId) {
+        const bookings = target.role === 'photographer'
+          ? await storage.getPhotographerBookings(targetId)
+          : await storage.getUserBookings(target.email ?? '');
+        const galleries = await storage.getUserGalleries(target.email ?? '');
+        const catalogues = target.role === 'photographer'
+          ? await storage.getCataloguesByPhotographerId(targetId) : [];
+        return res.json({ ...base, bookings, galleries, catalogues });
+      }
+      const caller = await storage.getUser(callerId);
+      if (caller?.role === 'photographer') {
+        const allBookings = await storage.getPhotographerBookings(callerId);
+        const sharedBookings = allBookings.filter((b: any) => b.email === target.email);
+        const galleries = (await Promise.all(sharedBookings.map((b: any) => storage.getGalleryByBookingId(b.id)))).filter(Boolean);
+        return res.json({ ...base, bookings: sharedBookings, galleries, catalogues: [] });
+      } else {
+        const catalogues = (await storage.getCataloguesByPhotographerId(targetId)).filter((c: any) => c.isPublished);
+        const allBookings = await storage.getUserBookings(caller?.email ?? '');
+        const sharedBookings = allBookings.filter((b: any) => b.photographerId === targetId);
+        return res.json({ ...base, bookings: sharedBookings, galleries: [], catalogues });
+      }
+    } catch (error) {
+      console.error('Error fetching user profile card:', error);
+      res.status(500).json({ error: 'Failed to fetch profile card' });
+    }
+  });
+
+  // ===== CONVERSATION BOOKING CARD =====
+  app.get('/api/conversations/:id/booking-card', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const isUserAdmin = (req as any).user?.isAdmin;
+      const isParticipant = await storage.isParticipant(req.params.id, userId);
+      if (!isParticipant && !isUserAdmin) return res.status(403).json({ error: 'Forbidden' });
+      const conv = await storage.getConversation(req.params.id);
+      if (!conv?.bookingId) return res.status(404).json({ error: 'No booking linked' });
+      const booking = await storage.getBooking(conv.bookingId);
+      if (!booking) return res.status(404).json({ error: 'Booking not found' });
+      const balanceDue = booking.totalPrice - Math.round(booking.totalPrice * 0.5);
+      res.json({
+        bookingId: booking.id, clientName: booking.clientName, serviceType: booking.serviceType,
+        packageType: booking.packageType, shootDate: booking.shootDate, shootTime: booking.shootTime,
+        location: booking.location, parish: booking.parish, status: booking.status,
+        totalPrice: booking.totalPrice, depositPaid: booking.depositPaid,
+        balancePaid: booking.balancePaid, balanceDue,
+      });
+    } catch (error) {
+      console.error('Error fetching conversation booking card:', error);
+      res.status(500).json({ error: 'Failed to fetch booking card' });
+    }
+  });
+
+  // ===== PHOTOGRAPHER CATALOGUES =====
+  app.get('/api/photographer/catalogues', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const cats = await storage.getCataloguesByPhotographerId(userId);
+      res.json(cats);
+    } catch (error) {
+      console.error('Error fetching photographer catalogues:', error);
+      res.status(500).json({ error: 'Failed to fetch catalogues' });
     }
   });
 

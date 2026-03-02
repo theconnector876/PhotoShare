@@ -179,9 +179,20 @@ function AdminNewChatModal({ open, onClose, onCreated, currentUserId }: AdminNew
   );
 }
 
+function getConvTitle(conv: ConversationWithMeta, currentUserId: string): string {
+  if (conv.title) return conv.title;
+  const others = conv.participants.filter((p: { id: string }) => p.id !== currentUserId);
+  return others
+    .map((p: { firstName?: string | null; lastName?: string | null; email?: string | null }) =>
+      `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || p.email || "User"
+    )
+    .join(", ") || "Chat";
+}
+
 export function ChatPanel({ isAdmin }: ChatPanelProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [selectedId, setSelectedId] = useState<string | undefined>();
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const [showNewChat, setShowNewChat] = useState(false);
@@ -226,6 +237,56 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
   const currentUserId = user?.id ?? "";
   const selectedConv = conversations.find(c => c.id === selectedId);
 
+  const canSendBookingCard = isAdmin && selectedConv?.type === "booking";
+  const canSendPaymentRequest = (isAdmin || user?.role === "photographer") && selectedConv?.type === "booking";
+  const canSendReviewRequest = isAdmin && selectedConv?.type === "booking";
+
+  const handleSendBookingCard = async () => {
+    if (!selectedId) return;
+    try {
+      const res = await apiRequest("GET", `/api/conversations/${selectedId}/booking-card`);
+      if (!res.ok) { toast({ title: "No booking linked", variant: "destructive" }); return; }
+      const data = await res.json();
+      await apiRequest("POST", `/api/conversations/${selectedId}/messages`, { body: JSON.stringify(data), messageType: "booking_card" });
+      queryClient.invalidateQueries({ queryKey: [`/api/conversations/${selectedId}/messages`] });
+    } catch {
+      toast({ title: "Failed to share booking", variant: "destructive" });
+    }
+  };
+
+  const handleSendPaymentRequest = async () => {
+    if (!selectedId) return;
+    try {
+      const res = await apiRequest("GET", `/api/conversations/${selectedId}/booking-card`);
+      if (!res.ok) { toast({ title: "No booking linked", variant: "destructive" }); return; }
+      const data = await res.json();
+      if (data.balancePaid) { toast({ title: "Balance already paid" }); return; }
+      await apiRequest("POST", `/api/conversations/${selectedId}/messages`, {
+        body: JSON.stringify({ bookingId: data.bookingId, clientName: data.clientName, balanceDue: data.balanceDue, title: `${data.clientName} – ${data.serviceType}` }),
+        messageType: "payment_request",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/conversations/${selectedId}/messages`] });
+    } catch {
+      toast({ title: "Failed to send payment request", variant: "destructive" });
+    }
+  };
+
+  const handleSendReviewRequest = async () => {
+    if (!selectedId) return;
+    try {
+      const res = await apiRequest("GET", `/api/conversations/${selectedId}/booking-card`);
+      if (!res.ok) { toast({ title: "No booking linked", variant: "destructive" }); return; }
+      const data = await res.json();
+      await apiRequest("POST", `/api/conversations/${selectedId}/messages`, {
+        body: JSON.stringify({ bookingId: data.bookingId, title: `${data.clientName} – ${data.serviceType}` }),
+        messageType: "review_request",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/conversations/${selectedId}/messages`] });
+    } catch {
+      toast({ title: "Failed to send review request", variant: "destructive" });
+    }
+  };
+
   if (!user) {
     return null;
   }
@@ -268,6 +329,33 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
               currentUserId={currentUserId}
               onBack={mobileView === "chat" ? handleBack : undefined}
               isReadOnly={selectedConv?.currentUserRole === 'observer'}
+              conversationTitle={selectedConv ? getConvTitle(selectedConv, currentUserId) : undefined}
+              conversationType={selectedConv?.type}
+              participants={selectedConv?.participants as any}
+              canShareGallery={selectedConv?.type === 'booking' && user?.role === 'photographer'}
+              onShareGallery={async () => {
+                if (!selectedId) return;
+                try {
+                  const res = await apiRequest("GET", `/api/conversations/${selectedId}/gallery`);
+                  if (!res.ok) { toast({ title: "No gallery linked to this conversation", variant: "destructive" }); return; }
+                  const data = await res.json();
+                  await apiRequest("POST", `/api/conversations/${selectedId}/messages`, {
+                    body: JSON.stringify(data),
+                    messageType: "gallery",
+                  });
+                  queryClient.invalidateQueries({ queryKey: [`/api/conversations/${selectedId}/messages`] });
+                } catch {
+                  toast({ title: "Failed to share gallery", variant: "destructive" });
+                }
+              }}
+              isCurrentUserAdmin={isAdmin}
+              onParticipantsChanged={() => queryClient.invalidateQueries({ queryKey: [conversationsKey] })}
+              canSendBookingCard={canSendBookingCard}
+              canSendPaymentRequest={canSendPaymentRequest}
+              canSendReviewRequest={canSendReviewRequest}
+              onSendBookingCard={handleSendBookingCard}
+              onSendPaymentRequest={handleSendPaymentRequest}
+              onSendReviewRequest={handleSendReviewRequest}
             />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
