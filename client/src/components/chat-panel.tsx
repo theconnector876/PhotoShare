@@ -292,7 +292,7 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
   }
 
   return (
-    <div className="h-[calc(100vh-200px)] min-h-[500px] border rounded-lg overflow-hidden bg-background">
+    <div className="h-full min-h-0 border rounded-lg overflow-hidden bg-background">
       {/* Desktop: side-by-side. Mobile: single column */}
       <div className="h-full grid md:grid-cols-[280px_1fr]">
         {/* Conversation list — hidden on mobile when chat is open */}

@@ -669,7 +669,7 @@ export default function PhotographerDashboard() {
       </aside>
 
       {/* ── Main area ── */}
-      <div className="flex-1 flex flex-col md:ml-56 min-h-screen">
+      <div className={`flex-1 flex flex-col md:ml-56 ${activeTab === "chat" ? "h-screen overflow-hidden" : "min-h-screen"}`}>
 
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-10 bg-white border-b px-4 h-14 flex items-center justify-between">
@@ -704,7 +704,7 @@ export default function PhotographerDashboard() {
         </div>
 
         {/* Content */}
-        <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6">
+        <main className={`flex-1 min-h-0 overflow-hidden ${activeTab === "chat" ? "flex flex-col p-0" : "p-4 md:p-6 pb-24 md:pb-6 overflow-y-auto"}`}>
 
           {/* ── OVERVIEW ── */}
           {activeTab === "overview" && (

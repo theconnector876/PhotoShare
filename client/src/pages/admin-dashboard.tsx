@@ -111,11 +111,19 @@ export function AdminDashboard() {
   const approvedReviews = safeReviews.filter((r: any) => r.isApproved).length;
   const pendingPhotographerCount = pendingPhotographers?.length || 0;
 
+  const isChat = tabValue === "chat";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 p-4">
-      <div className="max-w-7xl mx-auto">
+    <div className={isChat
+      ? "h-screen overflow-hidden flex flex-col bg-gradient-to-br from-green-50 to-yellow-50"
+      : "min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 p-4"
+    }>
+      <div className={isChat
+        ? "max-w-7xl w-full mx-auto flex flex-col flex-1 min-h-0 px-4 pt-4"
+        : "max-w-7xl mx-auto"
+      }>
         {/* Header */}
-        <div className="mb-8">
+        <div className={isChat ? "mb-3 flex-shrink-0" : "mb-8"}>
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-green-800">Admin Dashboard</h1>
@@ -142,8 +150,8 @@ export function AdminDashboard() {
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
+        {/* Statistics Cards — hidden on chat tab */}
+        {!isChat && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("bookings")}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
@@ -233,11 +241,11 @@ export function AdminDashboard() {
               </p>
             </CardContent>
           </Card>
-        </div>
+        </div>}
 
         {/* Main Content Tabs */}
-        <Tabs value={tabValue} onValueChange={setTabValue} className="space-y-6">
-          <div className="overflow-x-auto pb-1 -mx-1 px-1">
+        <Tabs value={tabValue} onValueChange={setTabValue} className={isChat ? "flex flex-col flex-1 min-h-0" : "space-y-6"}>
+          <div className={`overflow-x-auto pb-1 -mx-1 px-1${isChat ? " flex-shrink-0" : ""}`}>
             <TabsList className="inline-flex w-max min-w-full h-auto flex-wrap sm:flex-nowrap gap-1 p-1">
               <TabsTrigger value="bookings" data-testid="tab-bookings" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
                 <CalendarIcon className="w-4 h-4 shrink-0" />
@@ -334,7 +342,7 @@ export function AdminDashboard() {
           <TabsContent value="site">
             <AdminSite />
           </TabsContent>
-          <TabsContent value="chat">
+          <TabsContent value="chat" className="flex-1 min-h-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
             <ChatPanel isAdmin />
           </TabsContent>
           <TabsContent value="profile">
