@@ -51157,19 +51157,25 @@ __export(schema_exports, {
   bookings: () => bookings,
   catalogues: () => catalogues,
   contactMessages: () => contactMessages,
+  conversationParticipants: () => conversationParticipants,
+  conversations: () => conversations,
   coupons: () => coupons,
   galleries: () => galleries,
   inboundEmails: () => inboundEmails,
   insertBookingSchema: () => insertBookingSchema,
   insertCatalogueSchema: () => insertCatalogueSchema,
   insertContactMessageSchema: () => insertContactMessageSchema,
+  insertConversationParticipantSchema: () => insertConversationParticipantSchema,
+  insertConversationSchema: () => insertConversationSchema,
   insertCouponSchema: () => insertCouponSchema,
   insertGallerySchema: () => insertGallerySchema,
+  insertMessageSchema: () => insertMessageSchema,
   insertPhotographerProfileSchema: () => insertPhotographerProfileSchema,
   insertPricingConfigSchema: () => insertPricingConfigSchema,
   insertReviewSchema: () => insertReviewSchema,
   insertSiteConfigSchema: () => insertSiteConfigSchema,
   insertUserSchema: () => insertUserSchema,
+  messages: () => messages,
   passwordResetTokens: () => passwordResetTokens,
   photographerProfiles: () => photographerProfiles,
   pricingConfigs: () => pricingConfigs,
@@ -61911,6 +61917,7 @@ var users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  phone: text("phone"),
   isAdmin: boolean("is_admin").default(false),
   isBlocked: boolean("is_blocked").notNull().default(false),
   role: text("role").notNull().default("client"),
@@ -62077,6 +62084,30 @@ var inboundEmails = pgTable("inbound_emails", {
   // unread, read, responded
   receivedAt: timestamp("received_at").defaultNow()
 });
+var conversations = pgTable("conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: text("type").notNull().default("support"),
+  bookingId: varchar("booking_id").references(() => bookings.id),
+  title: text("title"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+var conversationParticipants = pgTable("conversation_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  lastReadAt: timestamp("last_read_at"),
+  joinedAt: timestamp("joined_at").defaultNow()
+}, (t) => [index("idx_cp_conv").on(t.conversationId), index("idx_cp_user").on(t.userId)]);
+var messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  senderId: varchar("sender_id").references(() => users.id),
+  messageType: text("message_type").notNull().default("text"),
+  body: text("body").notNull(),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").defaultNow()
+}, (t) => [index("idx_msg_conv").on(t.conversationId, t.createdAt)]);
 var passwordResetTokens = pgTable("password_reset_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
@@ -62128,6 +62159,9 @@ var insertSiteConfigSchema = createInsertSchema(siteConfigs).omit({
   updatedAt: true
 });
 var insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usageCount: true });
+var insertConversationSchema = createInsertSchema(conversations).omit({ id: true, createdAt: true, updatedAt: true });
+var insertConversationParticipantSchema = createInsertSchema(conversationParticipants).omit({ id: true, joinedAt: true });
+var insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
 
 // node_modules/@neondatabase/serverless/index.mjs
 var io = Object.create;
@@ -64173,7 +64207,7 @@ var wi = I((Rh, gi) => {
 });
 var Ai = I((Dh, _i) => {
   p();
-  var Ke = $t(), ze = Vt(), lt2 = li(), Si = mi(), xi = wi();
+  var Ke = $t(), ze = Vt(), lt3 = li(), Si = mi(), xi = wi();
   function ft(r2) {
     return a(function(t) {
       return t === null ? t : r2(t);
@@ -64222,7 +64256,7 @@ var Ai = I((Dh, _i) => {
   }, "parseStringArray"), Jt = a(function(r2) {
     if (!r2) return null;
     var e = ze.create(r2, function(t) {
-      return t !== null && (t = lt2(t)), t;
+      return t !== null && (t = lt3(t)), t;
     });
     return e.parse();
   }, "parseDateArray"), Ca = a(function(r2) {
@@ -64265,8 +64299,8 @@ var Ai = I((Dh, _i) => {
       vi
     ), r2(21, Xt), r2(23, Xt), r2(26, Xt), r2(700, parseFloat), r2(701, parseFloat), r2(16, Ei), r2(
       1082,
-      lt2
-    ), r2(1114, lt2), r2(1184, lt2), r2(600, er), r2(651, ne2), r2(718, Ia), r2(1e3, Ea), r2(1001, Ta), r2(
+      lt3
+    ), r2(1114, lt3), r2(1184, lt3), r2(600, er), r2(651, ne2), r2(718, Ia), r2(1e3, Ea), r2(1001, Ta), r2(
       1005,
       Yt
     ), r2(1007, Yt), r2(1028, Yt), r2(1016, _a), r2(1017, Aa), r2(1021, Zt), r2(1022, Zt), r2(1231, Zt), r2(1014, ne2), r2(1015, ne2), r2(1008, ne2), r2(1009, ne2), r2(1040, ne2), r2(1041, ne2), r2(1115, Jt), r2(
@@ -68437,6 +68471,117 @@ var DatabaseStorage = class {
   async deleteInboundEmail(id) {
     const result = await db.delete(inboundEmails).where(eq(inboundEmails.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+  async updateUserProfile(userId, data) {
+    const [user] = await db.update(users).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId)).returning();
+    return user;
+  }
+  async createConversation(data) {
+    const [conv] = await db.insert(conversations).values({ type: data.type, bookingId: data.bookingId, title: data.title }).returning();
+    for (const uid of data.participantIds) {
+      await db.insert(conversationParticipants).values({ conversationId: conv.id, userId: uid }).onConflictDoNothing();
+    }
+    return conv;
+  }
+  async getConversationsForUser(userId, isAdmin2) {
+    let convRows;
+    if (isAdmin2) {
+      convRows = await db.select().from(conversations).orderBy(desc(conversations.updatedAt));
+    } else {
+      const rows = await db.select({ conv: conversations }).from(conversations).innerJoin(conversationParticipants, eq(conversationParticipants.conversationId, conversations.id)).where(eq(conversationParticipants.userId, userId)).orderBy(desc(conversations.updatedAt));
+      convRows = rows.map((r2) => r2.conv);
+    }
+    const result = [];
+    for (const conv of convRows) {
+      const [lastMsg] = await db.select().from(messages).where(eq(messages.conversationId, conv.id)).orderBy(desc(messages.createdAt)).limit(1);
+      const [myParticipant] = await db.select().from(conversationParticipants).where(and(eq(conversationParticipants.conversationId, conv.id), eq(conversationParticipants.userId, userId)));
+      let unreadCount = 0;
+      if (!isAdmin2 && myParticipant) {
+        const since = myParticipant.lastReadAt;
+        const countResult = await db.select({ count: sql`count(*)` }).from(messages).where(and(
+          eq(messages.conversationId, conv.id),
+          since ? gt(messages.createdAt, since) : sql`true`,
+          or(isNull(messages.senderId), sql`${messages.senderId} != ${userId}`)
+        ));
+        unreadCount = Number(countResult[0]?.count ?? 0);
+      } else if (isAdmin2) {
+        const [myAdminPart] = await db.select().from(conversationParticipants).where(and(eq(conversationParticipants.conversationId, conv.id), eq(conversationParticipants.userId, userId)));
+        if (myAdminPart) {
+          const since = myAdminPart.lastReadAt;
+          const countResult = await db.select({ count: sql`count(*)` }).from(messages).where(and(
+            eq(messages.conversationId, conv.id),
+            since ? gt(messages.createdAt, since) : sql`true`,
+            or(isNull(messages.senderId), sql`${messages.senderId} != ${userId}`)
+          ));
+          unreadCount = Number(countResult[0]?.count ?? 0);
+        }
+      }
+      const participantRows = await db.select({ user: users }).from(users).innerJoin(conversationParticipants, eq(conversationParticipants.userId, users.id)).where(eq(conversationParticipants.conversationId, conv.id));
+      result.push({
+        ...conv,
+        lastMessage: lastMsg ?? null,
+        unreadCount,
+        participants: participantRows.map((r2) => r2.user)
+      });
+    }
+    return result;
+  }
+  async getConversation(id) {
+    const [conv] = await db.select().from(conversations).where(eq(conversations.id, id));
+    return conv;
+  }
+  async getConversationByBookingId(bookingId) {
+    const [conv] = await db.select().from(conversations).where(eq(conversations.bookingId, bookingId));
+    return conv;
+  }
+  async isParticipant(conversationId, userId) {
+    const [row] = await db.select().from(conversationParticipants).where(and(eq(conversationParticipants.conversationId, conversationId), eq(conversationParticipants.userId, userId)));
+    return !!row;
+  }
+  async addParticipant(conversationId, userId) {
+    await db.insert(conversationParticipants).values({ conversationId, userId }).onConflictDoNothing();
+  }
+  async getMessages(conversationId) {
+    const rows = await db.select({
+      msg: messages,
+      sender: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        role: users.role
+      }
+    }).from(messages).leftJoin(users, eq(users.id, messages.senderId)).where(eq(messages.conversationId, conversationId)).orderBy(messages.createdAt);
+    return rows.map((r2) => ({
+      ...r2.msg,
+      sender: r2.sender?.id ? r2.sender : null
+    }));
+  }
+  async createMessage(data) {
+    const [msg] = await db.insert(messages).values(data).returning();
+    await db.update(conversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.id, data.conversationId));
+    return msg;
+  }
+  async markConversationRead(conversationId, userId) {
+    await db.update(conversationParticipants).set({ lastReadAt: /* @__PURE__ */ new Date() }).where(and(
+      eq(conversationParticipants.conversationId, conversationId),
+      eq(conversationParticipants.userId, userId)
+    ));
+  }
+  async getTotalUnreadCount(userId) {
+    const result = await db.execute(sql`
+      SELECT COALESCE(SUM(cnt), 0) as total
+      FROM (
+        SELECT COUNT(*) as cnt
+        FROM messages m
+        INNER JOIN conversation_participants cp
+          ON cp.conversation_id = m.conversation_id
+          AND cp.user_id = ${userId}
+        WHERE (cp.last_read_at IS NULL OR m.created_at > cp.last_read_at)
+          AND (m.sender_id IS NULL OR m.sender_id != ${userId})
+      ) sub
+    `);
+    return Number(result.rows[0]?.total ?? 0);
   }
 };
 var storage = new DatabaseStorage();
@@ -74577,6 +74722,22 @@ async function registerRoutes(app2) {
       if (!booking) {
         return res.status(404).json({ error: "Booking not found" });
       }
+      if (validatedData.status === "confirmed" || validatedData.status === "completed") {
+        try {
+          const conv = await storage.getConversationByBookingId(id);
+          if (conv) {
+            const statusText = validatedData.status === "confirmed" ? "confirmed" : "completed";
+            await storage.createMessage({
+              conversationId: conv.id,
+              senderId: null,
+              messageType: "system",
+              body: `Your booking has been marked as ${statusText}.`
+            });
+          }
+        } catch (msgErr) {
+          console.error("Failed to post status system message:", msgErr);
+        }
+      }
       res.json(booking);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -74630,8 +74791,8 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/admin/contacts", isAdmin, async (req, res) => {
     try {
-      const messages = await storage.getAllContactMessages();
-      res.json(messages);
+      const messages2 = await storage.getAllContactMessages();
+      res.json(messages2);
     } catch (error) {
       console.error("Error fetching admin contacts:", error);
       res.status(500).json({ error: "Failed to fetch contact messages" });
@@ -75675,6 +75836,37 @@ Thank you!`
       if (!booking) {
         return res.status(404).json({ error: "Booking not found" });
       }
+      if (photographerId) {
+        try {
+          const existing = await storage.getConversationByBookingId(booking.id);
+          if (!existing) {
+            const clientUser = await storage.getUserByEmail(booking.email);
+            const allUsers = await storage.getAllUsers();
+            const adminIds = allUsers.filter((u) => u.isAdmin).map((u) => u.id);
+            const participantIds = [.../* @__PURE__ */ new Set([
+              ...clientUser ? [clientUser.id] : [],
+              photographerId,
+              ...adminIds
+            ])];
+            const photographer = await storage.getUser(photographerId);
+            const conv = await storage.createConversation({
+              type: "booking",
+              bookingId: booking.id,
+              title: `Booking: ${booking.clientName} \u2013 ${booking.serviceType}`,
+              participantIds
+            });
+            const photographerName = photographer ? `${photographer.firstName || ""} ${photographer.lastName || ""}`.trim() : "a photographer";
+            await storage.createMessage({
+              conversationId: conv.id,
+              senderId: null,
+              messageType: "system",
+              body: `Photographer ${photographerName} has been assigned to your booking.`
+            });
+          }
+        } catch (convErr) {
+          console.error("Failed to create booking conversation:", convErr);
+        }
+      }
       res.json(booking);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -75770,6 +75962,140 @@ Thank you!`
     } catch (error) {
       console.error("Error deleting inbound email:", error);
       res.status(500).json({ error: "Failed to delete email" });
+    }
+  });
+  app2.patch("/api/user/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const profileSchema = z.object({
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        phone: z.string().optional(),
+        profileImageUrl: z.string().optional()
+      });
+      const data = profileSchema.parse(req.body);
+      const updated = await storage.updateUserProfile(userId, data);
+      if (!updated) return res.status(404).json({ error: "User not found" });
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: error.errors });
+      console.error("Error updating profile:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+  app2.post("/api/user/upload-signature", isAuthenticated, async (req, res) => {
+    try {
+      const config = getCloudinarySignedConfig();
+      res.json(config);
+    } catch (error) {
+      console.error("Error generating upload signature:", error);
+      res.status(500).json({ error: "Failed to generate upload signature" });
+    }
+  });
+  app2.get("/api/conversations/unread-count", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const count = await storage.getTotalUnreadCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error getting unread count:", error);
+      res.status(500).json({ error: "Failed to get unread count" });
+    }
+  });
+  app2.get("/api/conversations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const convs = await storage.getConversationsForUser(userId);
+      res.json(convs);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ error: "Failed to fetch conversations" });
+    }
+  });
+  app2.post("/api/conversations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const convSchema = z.object({
+        type: z.string().default("support"),
+        participantIds: z.array(z.string()).optional(),
+        title: z.string().optional()
+      });
+      const data = convSchema.parse(req.body);
+      let participantIds = data.participantIds ?? [];
+      if (data.type === "support") {
+        const allUsers = await storage.getAllUsers();
+        const adminIds = allUsers.filter((u) => u.isAdmin).map((u) => u.id);
+        participantIds = Array.from(/* @__PURE__ */ new Set([...participantIds, ...adminIds]));
+      }
+      const allParticipants = Array.from(/* @__PURE__ */ new Set([userId, ...participantIds]));
+      const conv = await storage.createConversation({ ...data, participantIds: allParticipants });
+      res.json(conv);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: error.errors });
+      console.error("Error creating conversation:", error);
+      res.status(500).json({ error: "Failed to create conversation" });
+    }
+  });
+  app2.get("/api/conversations/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const isAdmin2 = req.user?.isAdmin;
+      const { id } = req.params;
+      if (!isAdmin2) {
+        const ok = await storage.isParticipant(id, userId);
+        if (!ok) return res.status(403).json({ error: "Not a participant" });
+      }
+      const msgs = await storage.getMessages(id);
+      await storage.markConversationRead(id, userId);
+      res.json(msgs);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+  app2.post("/api/conversations/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const isAdmin2 = req.user?.isAdmin;
+      const { id } = req.params;
+      if (!isAdmin2) {
+        const ok = await storage.isParticipant(id, userId);
+        if (!ok) return res.status(403).json({ error: "Not a participant" });
+      } else {
+        await storage.addParticipant(id, userId);
+      }
+      const msgSchema = z.object({
+        body: z.string().min(1),
+        messageType: z.string().default("text"),
+        imageUrl: z.string().optional()
+      });
+      const data = msgSchema.parse(req.body);
+      const msg = await storage.createMessage({ conversationId: id, senderId: userId, ...data });
+      res.json(msg);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: error.errors });
+      console.error("Error creating message:", error);
+      res.status(500).json({ error: "Failed to create message" });
+    }
+  });
+  app2.post("/api/conversations/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      await storage.markConversationRead(req.params.id, userId);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error marking read:", error);
+      res.status(500).json({ error: "Failed to mark read" });
+    }
+  });
+  app2.get("/api/admin/conversations", isAdmin, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const convs = await storage.getConversationsForUser(userId, true);
+      res.json(convs);
+    } catch (error) {
+      console.error("Error fetching admin conversations:", error);
+      res.status(500).json({ error: "Failed to fetch conversations" });
     }
   });
   const httpServer = (0, import_http.createServer)(app2);

@@ -21,7 +21,9 @@ import {
   Camera,
   DollarSignIcon,
   Settings,
-  Tag
+  Tag,
+  MessageSquare,
+  User
 } from "lucide-react";
 import { AdminBookings } from "@/components/admin-bookings";
 import { AdminGalleries } from "@/components/admin-galleries";
@@ -33,6 +35,8 @@ import { AdminPhotographers } from "@/components/admin-photographers";
 import { AdminPricing } from "@/components/admin-pricing";
 import { AdminSite } from "@/components/admin-site";
 import { AdminCoupons } from "@/components/admin-coupons";
+import { ChatPanel } from "@/components/chat-panel";
+import { UserProfileForm } from "@/components/user-profile-form";
 
 export function AdminDashboard() {
   const { toast } = useToast();
@@ -80,6 +84,12 @@ export function AdminDashboard() {
   const { data: inboundEmails } = useQuery<any[]>({
     queryKey: ["/api/admin/inbound-emails"],
   });
+
+  const { data: unreadChatData } = useQuery<{ count: number }>({
+    queryKey: ["/api/conversations/unread-count"],
+    refetchInterval: 4000,
+  });
+  const unreadChatCount = unreadChatData?.count ?? 0;
 
 
 
@@ -275,6 +285,15 @@ export function AdminDashboard() {
                 <Settings className="w-4 h-4 shrink-0" />
                 <span>Site</span>
               </TabsTrigger>
+              <TabsTrigger value="chat" data-testid="tab-chat" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                <span>Chat</span>
+                {unreadChatCount > 0 && <Badge className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0">{unreadChatCount}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="profile" data-testid="tab-profile" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <User className="w-4 h-4 shrink-0" />
+                <span>Profile</span>
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -314,6 +333,12 @@ export function AdminDashboard() {
           </TabsContent>
           <TabsContent value="site">
             <AdminSite />
+          </TabsContent>
+          <TabsContent value="chat">
+            <ChatPanel isAdmin />
+          </TabsContent>
+          <TabsContent value="profile">
+            <UserProfileForm />
           </TabsContent>
         </Tabs>
       </div>

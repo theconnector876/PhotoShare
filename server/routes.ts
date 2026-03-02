@@ -782,6 +782,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!booking) {
         return res.status(404).json({ error: 'Booking not found' });
       }
+      // Post system message to booking conversation on notable status changes
+      if (validatedData.status === 'confirmed' || validatedData.status === 'completed') {
+        try {
+          const conv = await storage.getConversationByBookingId(id);
+          if (conv) {
+            const statusText = validatedData.status === 'confirmed' ? 'confirmed' : 'completed';
+            await storage.createMessage({
+              conversationId: conv.id,
+              senderId: null,
+              messageType: 'system',
+              body: `Your booking has been marked as ${statusText}.`,
+            });
+          }
+        } catch (msgErr) {
+          console.error('Failed to post status system message:', msgErr);
+        }
+      }
       res.json(booking);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2091,6 +2108,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!booking) {
         return res.status(404).json({ error: 'Booking not found' });
       }
+
+      // Auto-create booking conversation when photographer is assigned
+      if (photographerId) {
+        try {
+          const existing = await storage.getConversationByBookingId(booking.id);
+          if (!existing) {
+            const clientUser = await storage.getUserByEmail(booking.email);
+            const allUsers = await storage.getAllUsers();
+            const adminIds = allUsers.filter(u => u.isAdmin).map(u => u.id);
+            const participantIds = [...new Set([
+              ...(clientUser ? [clientUser.id] : []),
+              photographerId,
+              ...adminIds,
+            ])];
+            const photographer = await storage.getUser(photographerId);
+            const conv = await storage.createConversation({
+              type: 'booking',
+              bookingId: booking.id,
+              title: `Booking: ${booking.clientName} – ${booking.serviceType}`,
+              participantIds,
+            });
+            const photographerName = photographer ? `${photographer.firstName || ''} ${photographer.lastName || ''}`.trim() : 'a photographer';
+            await storage.createMessage({
+              conversationId: conv.id,
+              senderId: null,
+              messageType: 'system',
+              body: `Photographer ${photographerName} has been assigned to your booking.`,
+            });
+          }
+        } catch (convErr) {
+          console.error('Failed to create booking conversation:', convErr);
+        }
+      }
+
       res.json(booking);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2205,6 +2256,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting inbound email:', error);
       res.status(500).json({ error: 'Failed to delete email' });
+    }
+  });
+
+  // ===== USER PROFILE =====
+
+  app.patch('/api/user/profile', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const profileSchema = z.object({
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        phone: z.string().optional(),
+        profileImageUrl: z.string().optional(),
+      });
+      const data = profileSchema.parse(req.body);
+      const updated = await storage.updateUserProfile(userId, data);
+      if (!updated) return res.status(404).json({ error: 'User not found' });
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: error.errors });
+      console.error('Error updating profile:', error);
+      res.status(500).json({ error: 'Failed to update profile' });
+    }
+  });
+
+  app.post('/api/user/upload-signature', isAuthenticated, async (req, res) => {
+    try {
+      const config = getCloudinarySignedConfig();
+      res.json(config);
+    } catch (error) {
+      console.error('Error generating upload signature:', error);
+      res.status(500).json({ error: 'Failed to generate upload signature' });
+    }
+  });
+
+  // ===== CONVERSATIONS =====
+
+  app.get('/api/conversations/unread-count', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const count = await storage.getTotalUnreadCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error('Error getting unread count:', error);
+      res.status(500).json({ error: 'Failed to get unread count' });
+    }
+  });
+
+  app.get('/api/conversations', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const convs = await storage.getConversationsForUser(userId);
+      res.json(convs);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      res.status(500).json({ error: 'Failed to fetch conversations' });
+    }
+  });
+
+  app.post('/api/conversations', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const convSchema = z.object({
+        type: z.string().default('support'),
+        participantIds: z.array(z.string()).optional(),
+        title: z.string().optional(),
+      });
+      const data = convSchema.parse(req.body);
+      let participantIds = data.participantIds ?? [];
+      // For support conversations, automatically include all admin users
+      if (data.type === 'support') {
+        const allUsers = await storage.getAllUsers();
+        const adminIds = allUsers.filter(u => u.isAdmin).map(u => u.id);
+        participantIds = Array.from(new Set([...participantIds, ...adminIds]));
+      }
+      // Ensure creator is included
+      const allParticipants = Array.from(new Set([userId, ...participantIds]));
+      const conv = await storage.createConversation({ ...data, participantIds: allParticipants });
+      res.json(conv);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: error.errors });
+      console.error('Error creating conversation:', error);
+      res.status(500).json({ error: 'Failed to create conversation' });
+    }
+  });
+
+  app.get('/api/conversations/:id/messages', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const isAdmin = (req as any).user?.isAdmin;
+      const { id } = req.params;
+      if (!isAdmin) {
+        const ok = await storage.isParticipant(id, userId);
+        if (!ok) return res.status(403).json({ error: 'Not a participant' });
+      }
+      const msgs = await storage.getMessages(id);
+      // Mark as read
+      await storage.markConversationRead(id, userId);
+      res.json(msgs);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+  });
+
+  app.post('/api/conversations/:id/messages', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const isAdmin = (req as any).user?.isAdmin;
+      const { id } = req.params;
+      if (!isAdmin) {
+        const ok = await storage.isParticipant(id, userId);
+        if (!ok) return res.status(403).json({ error: 'Not a participant' });
+      } else {
+        // Auto-add admin as participant if not already
+        await storage.addParticipant(id, userId);
+      }
+      const msgSchema = z.object({
+        body: z.string().min(1),
+        messageType: z.string().default('text'),
+        imageUrl: z.string().optional(),
+      });
+      const data = msgSchema.parse(req.body);
+      const msg = await storage.createMessage({ conversationId: id, senderId: userId, ...data });
+      res.json(msg);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: error.errors });
+      console.error('Error creating message:', error);
+      res.status(500).json({ error: 'Failed to create message' });
+    }
+  });
+
+  app.post('/api/conversations/:id/read', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      await storage.markConversationRead(req.params.id, userId);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error('Error marking read:', error);
+      res.status(500).json({ error: 'Failed to mark read' });
+    }
+  });
+
+  app.get('/api/admin/conversations', isAdmin, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const convs = await storage.getConversationsForUser(userId, true);
+      res.json(convs);
+    } catch (error) {
+      console.error('Error fetching admin conversations:', error);
+      res.status(500).json({ error: 'Failed to fetch conversations' });
     }
   });
 

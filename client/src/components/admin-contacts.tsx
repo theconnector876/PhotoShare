@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { MessageSquareIcon, MailIcon, UserIcon, Trash2, CheckCheck, Mail, Eye, ExternalLink } from "lucide-react";
+import { MessageSquareIcon, MailIcon, UserIcon, Trash2, CheckCheck, Mail, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -342,19 +342,7 @@ export function AdminContacts() {
                     </div>
 
                     <div className="flex flex-wrap gap-2 pt-3 border-t">
-                      {msg.source === "inbound" && msg.resendEmailId && (
-                        <a
-                          href={`https://resend.com/emails/received/${msg.resendEmailId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Button size="sm" variant="outline">
-                            <Eye className="w-3.5 h-3.5 mr-1.5" /> View Body
-                            <ExternalLink className="w-3 h-3 ml-1 opacity-50" />
-                          </Button>
-                        </a>
-                      )}
-                      {msg.source === "inbound" && !msg.resendEmailId && (msg.htmlBody || msg.body) && (
+                      {msg.source === "inbound" && (msg.htmlBody || msg.body) && (
                         <Button size="sm" variant="outline" onClick={() => openView(msg)}>
                           <Eye className="w-3.5 h-3.5 mr-1.5" /> View
                         </Button>

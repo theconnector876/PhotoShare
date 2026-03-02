@@ -4,10 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Download, Eye, Camera, Clock, MapPin, Phone, Mail, LogOut, ArrowRight } from "lucide-react";
+import { Calendar, Download, Eye, Camera, Clock, MapPin, Phone, Mail, LogOut, ArrowRight, MessageSquare, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
+import { ChatPanel } from "@/components/chat-panel";
+import { UserProfileForm } from "@/components/user-profile-form";
 
 interface UserBooking {
   id: string;
@@ -59,6 +61,14 @@ export default function Dashboard() {
     enabled: !!user,
     retry: false,
   });
+
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: ["/api/conversations/unread-count"],
+    refetchInterval: 4000,
+    enabled: !!user,
+    retry: false,
+  });
+  const unreadCount = unreadData?.count ?? 0;
 
   // Admin-specific data queries
   const isAdmin = user?.isAdmin || false;
@@ -197,17 +207,31 @@ export default function Dashboard() {
         )}
 
         <Tabs defaultValue="bookings" className="space-y-6">
-          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-4'}`}>
             <TabsTrigger value="bookings" data-testid="tab-bookings">
               {isAdmin ? "All Bookings" : "My Bookings"}
             </TabsTrigger>
             <TabsTrigger value="galleries" data-testid="tab-galleries">
               {isAdmin ? "All Galleries" : "My Galleries"}
             </TabsTrigger>
-            {isAdmin && (
+            {isAdmin ? (
               <TabsTrigger value="contacts" data-testid="tab-contacts">
                 Contact Messages
               </TabsTrigger>
+            ) : (
+              <>
+                <TabsTrigger value="chat" data-testid="tab-chat" className="relative">
+                  <MessageSquare className="w-4 h-4 mr-1.5" />
+                  Chat
+                  {unreadCount > 0 && (
+                    <Badge className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0 h-4">{unreadCount}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="profile" data-testid="tab-profile">
+                  <User className="w-4 h-4 mr-1.5" />
+                  Profile
+                </TabsTrigger>
+              </>
             )}
           </TabsList>
 
@@ -424,6 +448,17 @@ export default function Dashboard() {
                 </div>
               </TabsContent>
 
+            </>
+          )}
+
+          {!isAdmin && (
+            <>
+              <TabsContent value="chat">
+                <ChatPanel />
+              </TabsContent>
+              <TabsContent value="profile">
+                <UserProfileForm />
+              </TabsContent>
             </>
           )}
         </Tabs>

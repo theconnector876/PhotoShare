@@ -15,8 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Camera, Calendar, Image, User, Clock, CheckCircle, Upload, Phone, Mail, MapPin, DollarSign, Users, GripVertical, X, Eye, Loader2, CheckCircle2, AlertCircle, Copy } from "lucide-react";
+import { Camera, Calendar, Image, User, Clock, CheckCircle, Upload, Phone, Mail, MapPin, DollarSign, Users, GripVertical, X, Eye, Loader2, CheckCircle2, AlertCircle, Copy, MessageSquare } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { ChatPanel } from "@/components/chat-panel";
 
 interface UserBooking {
   id: string;
@@ -203,6 +204,14 @@ export default function PhotographerDashboard() {
     enabled: !!user,
     retry: false,
   });
+
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: ["/api/conversations/unread-count"],
+    refetchInterval: 4000,
+    enabled: !!user,
+    retry: false,
+  });
+  const unreadCount = unreadData?.count ?? 0;
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -578,7 +587,7 @@ export default function PhotographerDashboard() {
         )}
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="profile">
               <User className="w-4 h-4 mr-2" />
               Profile
@@ -594,6 +603,13 @@ export default function PhotographerDashboard() {
             <TabsTrigger value="pricing">
               <Image className="w-4 h-4 mr-2" />
               Pricing
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="relative">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Chat
+              {unreadCount > 0 && (
+                <Badge className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0 h-4">{unreadCount}</Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -1148,6 +1164,10 @@ export default function PhotographerDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="chat">
+            <ChatPanel />
           </TabsContent>
         </Tabs>
       </div>

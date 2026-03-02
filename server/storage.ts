@@ -11,6 +11,9 @@ import {
   siteConfigs,
   coupons,
   inboundEmails,
+  conversations,
+  conversationParticipants,
+  messages,
   type User,
   type UpsertUser,
   type Booking,
@@ -31,9 +34,13 @@ import {
   type Coupon,
   type InsertCoupon,
   type InboundEmail,
+  type Conversation,
+  type Message,
+  type MessageWithSender,
+  type ConversationWithMeta,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc, lt, gt, isNull, or } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -132,6 +139,21 @@ export interface IStorage {
   markInboundEmailRead(id: string, isRead: boolean): Promise<InboundEmail | undefined>;
   updateInboundEmailStatus(id: string, status: string): Promise<InboundEmail | undefined>;
   deleteInboundEmail(id: string): Promise<boolean>;
+
+  // User profile
+  updateUserProfile(userId: string, data: { firstName?: string; lastName?: string; phone?: string; profileImageUrl?: string }): Promise<User | undefined>;
+
+  // Conversation operations
+  createConversation(data: { type: string; bookingId?: string; title?: string; participantIds: string[] }): Promise<Conversation>;
+  getConversationsForUser(userId: string, isAdmin?: boolean): Promise<ConversationWithMeta[]>;
+  getConversation(id: string): Promise<Conversation | undefined>;
+  getConversationByBookingId(bookingId: string): Promise<Conversation | undefined>;
+  isParticipant(conversationId: string, userId: string): Promise<boolean>;
+  addParticipant(conversationId: string, userId: string): Promise<void>;
+  getMessages(conversationId: string): Promise<MessageWithSender[]>;
+  createMessage(data: { conversationId: string; senderId: string | null; messageType: string; body: string; imageUrl?: string }): Promise<Message>;
+  markConversationRead(conversationId: string, userId: string): Promise<void>;
+  getTotalUnreadCount(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -784,6 +806,184 @@ export class DatabaseStorage implements IStorage {
   async deleteInboundEmail(id: string): Promise<boolean> {
     const result = await db.delete(inboundEmails).where(eq(inboundEmails.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async updateUserProfile(userId: string, data: { firstName?: string; lastName?: string; phone?: string; profileImageUrl?: string }): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async createConversation(data: { type: string; bookingId?: string; title?: string; participantIds: string[] }): Promise<Conversation> {
+    const [conv] = await db
+      .insert(conversations)
+      .values({ type: data.type, bookingId: data.bookingId, title: data.title })
+      .returning();
+    for (const uid of data.participantIds) {
+      await db.insert(conversationParticipants).values({ conversationId: conv.id, userId: uid }).onConflictDoNothing();
+    }
+    return conv;
+  }
+
+  async getConversationsForUser(userId: string, isAdmin?: boolean): Promise<ConversationWithMeta[]> {
+    let convRows: Conversation[];
+    if (isAdmin) {
+      convRows = await db.select().from(conversations).orderBy(desc(conversations.updatedAt));
+    } else {
+      const rows = await db
+        .select({ conv: conversations })
+        .from(conversations)
+        .innerJoin(conversationParticipants, eq(conversationParticipants.conversationId, conversations.id))
+        .where(eq(conversationParticipants.userId, userId))
+        .orderBy(desc(conversations.updatedAt));
+      convRows = rows.map(r => r.conv);
+    }
+
+    const result: ConversationWithMeta[] = [];
+    for (const conv of convRows) {
+      const [lastMsg] = await db
+        .select()
+        .from(messages)
+        .where(eq(messages.conversationId, conv.id))
+        .orderBy(desc(messages.createdAt))
+        .limit(1);
+
+      // Get participant's lastReadAt for unread count
+      const [myParticipant] = await db
+        .select()
+        .from(conversationParticipants)
+        .where(and(eq(conversationParticipants.conversationId, conv.id), eq(conversationParticipants.userId, userId)));
+
+      let unreadCount = 0;
+      if (!isAdmin && myParticipant) {
+        const since = myParticipant.lastReadAt;
+        const countResult = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(messages)
+          .where(and(
+            eq(messages.conversationId, conv.id),
+            since ? gt(messages.createdAt, since) : sql`true`,
+            or(isNull(messages.senderId), sql`${messages.senderId} != ${userId}`)
+          ));
+        unreadCount = Number(countResult[0]?.count ?? 0);
+      } else if (isAdmin) {
+        const [myAdminPart] = await db
+          .select()
+          .from(conversationParticipants)
+          .where(and(eq(conversationParticipants.conversationId, conv.id), eq(conversationParticipants.userId, userId)));
+        if (myAdminPart) {
+          const since = myAdminPart.lastReadAt;
+          const countResult = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(messages)
+            .where(and(
+              eq(messages.conversationId, conv.id),
+              since ? gt(messages.createdAt, since) : sql`true`,
+              or(isNull(messages.senderId), sql`${messages.senderId} != ${userId}`)
+            ));
+          unreadCount = Number(countResult[0]?.count ?? 0);
+        }
+      }
+
+      const participantRows = await db
+        .select({ user: users })
+        .from(users)
+        .innerJoin(conversationParticipants, eq(conversationParticipants.userId, users.id))
+        .where(eq(conversationParticipants.conversationId, conv.id));
+
+      result.push({
+        ...conv,
+        lastMessage: lastMsg ?? null,
+        unreadCount,
+        participants: participantRows.map(r => r.user),
+      });
+    }
+    return result;
+  }
+
+  async getConversation(id: string): Promise<Conversation | undefined> {
+    const [conv] = await db.select().from(conversations).where(eq(conversations.id, id));
+    return conv;
+  }
+
+  async getConversationByBookingId(bookingId: string): Promise<Conversation | undefined> {
+    const [conv] = await db.select().from(conversations).where(eq(conversations.bookingId, bookingId));
+    return conv;
+  }
+
+  async isParticipant(conversationId: string, userId: string): Promise<boolean> {
+    const [row] = await db
+      .select()
+      .from(conversationParticipants)
+      .where(and(eq(conversationParticipants.conversationId, conversationId), eq(conversationParticipants.userId, userId)));
+    return !!row;
+  }
+
+  async addParticipant(conversationId: string, userId: string): Promise<void> {
+    await db
+      .insert(conversationParticipants)
+      .values({ conversationId, userId })
+      .onConflictDoNothing();
+  }
+
+  async getMessages(conversationId: string): Promise<MessageWithSender[]> {
+    const rows = await db
+      .select({
+        msg: messages,
+        sender: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+          role: users.role,
+        },
+      })
+      .from(messages)
+      .leftJoin(users, eq(users.id, messages.senderId))
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(messages.createdAt);
+
+    return rows.map(r => ({
+      ...r.msg,
+      sender: r.sender?.id ? r.sender : null,
+    }));
+  }
+
+  async createMessage(data: { conversationId: string; senderId: string | null; messageType: string; body: string; imageUrl?: string }): Promise<Message> {
+    const [msg] = await db.insert(messages).values(data).returning();
+    // Update conversation updatedAt
+    await db.update(conversations).set({ updatedAt: new Date() }).where(eq(conversations.id, data.conversationId));
+    return msg;
+  }
+
+  async markConversationRead(conversationId: string, userId: string): Promise<void> {
+    await db
+      .update(conversationParticipants)
+      .set({ lastReadAt: new Date() })
+      .where(and(
+        eq(conversationParticipants.conversationId, conversationId),
+        eq(conversationParticipants.userId, userId)
+      ));
+  }
+
+  async getTotalUnreadCount(userId: string): Promise<number> {
+    // Sum unread messages across all conversations the user participates in
+    const result = await db.execute(sql`
+      SELECT COALESCE(SUM(cnt), 0) as total
+      FROM (
+        SELECT COUNT(*) as cnt
+        FROM messages m
+        INNER JOIN conversation_participants cp
+          ON cp.conversation_id = m.conversation_id
+          AND cp.user_id = ${userId}
+        WHERE (cp.last_read_at IS NULL OR m.created_at > cp.last_read_at)
+          AND (m.sender_id IS NULL OR m.sender_id != ${userId})
+      ) sub
+    `);
+    return Number((result.rows[0] as any)?.total ?? 0);
   }
 }
 
