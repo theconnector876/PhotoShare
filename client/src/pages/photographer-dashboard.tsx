@@ -213,7 +213,7 @@ export default function PhotographerDashboard() {
   const [portfolioInput, setPortfolioInput] = useState("");
 
   // Pricing
-  const [pricingRaw, setPricingRaw] = useState(JSON.stringify(defaultPricingConfig, null, 2));
+  const [pricingForm, setPricingForm] = useState<PricingConfig>(defaultPricingConfig);
 
   // Bookings
   const [bookingStatusDraft, setBookingStatusDraft] = useState<Record<string, string>>({});
@@ -297,7 +297,7 @@ export default function PhotographerDashboard() {
 
   useEffect(() => {
     if (pricingData?.config) {
-      setPricingRaw(JSON.stringify(pricingData.config, null, 2));
+      setPricingForm(pricingData.config);
     }
   }, [pricingData]);
 
@@ -414,15 +414,24 @@ export default function PhotographerDashboard() {
     }));
   }, []);
 
+  // Pricing deep-update helper
+  const updPricing = (updater: (d: PricingConfig) => void) => {
+    setPricingForm(prev => {
+      const next = JSON.parse(JSON.stringify(prev)) as PricingConfig;
+      updater(next);
+      return next;
+    });
+  };
+
   const { toast: copyToast } = useToast();
   const copyImageNames = useCallback((images: string[], withCommas: boolean) => {
     const names = images.map(url => {
       const file = url.split("/").pop()?.split("?")[0] ?? url;
       return file.replace(/\.[^.]+$/, "");
     });
-    const text = withCommas ? names.join(", ") : names.join("\n");
+    const text = withCommas ? names.join(", ") : names.join(" ");
     navigator.clipboard.writeText(text).then(() => {
-      copyToast({ title: withCommas ? "Copied with commas ✓" : "Copied as lines ✓" });
+      copyToast({ title: withCommas ? "Copied with commas ✓" : "Copied with spaces ✓" });
     });
   }, [copyToast]);
 
@@ -557,10 +566,21 @@ export default function PhotographerDashboard() {
 
   const copyBookingLink = async () => {
     try {
-      await navigator.clipboard.writeText(bookingLink);
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(bookingLink);
+      } else {
+        const el = document.createElement("textarea");
+        el.value = bookingLink;
+        el.style.position = "fixed";
+        el.style.opacity = "0";
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+      }
       toast({ title: "Booking link copied" });
     } catch {
-      toast({ title: "Copy failed", description: "Copy the link manually.", variant: "destructive" });
+      toast({ title: "Copy failed", description: bookingLink, variant: "destructive" });
     }
   };
 
@@ -1198,7 +1218,7 @@ export default function PhotographerDashboard() {
                                       </GalleryDropdownMenuTrigger>
                                       <GalleryDropdownMenuContent align="end">
                                         <GalleryDropdownMenuItem onClick={() => copyImageNames(images, false)}>
-                                          Copy as lines (one per line)
+                                          Copy with spaces
                                         </GalleryDropdownMenuItem>
                                         <GalleryDropdownMenuItem onClick={() => copyImageNames(images, true)}>
                                           Copy with commas
@@ -1338,93 +1358,250 @@ export default function PhotographerDashboard() {
           )}
 
           {/* ── PRICING ── */}
-          {activeTab === "pricing" && (
-            <div className="max-w-3xl space-y-5">
-              {/* Quick stats */}
-              {(() => {
-                try {
-                  const config = JSON.parse(pricingRaw) as PricingConfig;
-                  return (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {[
-                        { label: "Photoshoot Bronze", value: `$${config.packages.photoshoot.photography.bronze.price}` },
-                        { label: "Photoshoot Platinum", value: `$${config.packages.photoshoot.photography.platinum.price}` },
-                        { label: "Wedding Bronze", value: `$${config.packages.wedding.photography.bronze}` },
-                        { label: "Wedding Platinum", value: `$${config.packages.wedding.photography.platinum}` },
-                      ].map(({ label, value }) => (
-                        <Card key={label}>
-                          <CardContent className="p-4 text-center">
-                            <p className="text-2xl font-bold text-primary">{value}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{label}</p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  );
-                } catch { return null; }
-              })()}
+          {activeTab === "pricing" && (() => {
+            const pf = pricingForm;
+            const tiers = ["bronze", "silver", "gold", "platinum"] as const;
+            const savePricing = () => updatePricingMutation.mutate(pricingForm);
+            const resetPricing = () => { setPricingForm(defaultPricingConfig); toast({ title: "Reset to defaults" }); };
+            const SaveBtn = () => (
+              <Button size="sm" onClick={savePricing} disabled={updatePricingMutation.isPending}>
+                <Save className="w-4 h-4 mr-1.5" />
+                {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
+              </Button>
+            );
+            return (
+              <div className="max-w-3xl space-y-5">
+                {/* Quick stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: "Photoshoot Bronze", value: `$${pf.packages.photoshoot.photography.bronze.price}` },
+                    { label: "Photoshoot Platinum", value: `$${pf.packages.photoshoot.photography.platinum.price}` },
+                    { label: "Wedding Bronze", value: `$${pf.packages.wedding.photography.bronze}` },
+                    { label: "Wedding Platinum", value: `$${pf.packages.wedding.photography.platinum}` },
+                  ].map(({ label, value }) => (
+                    <Card key={label}>
+                      <CardContent className="p-4 text-center">
+                        <p className="text-2xl font-bold text-primary">{value}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{label}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Pricing Configuration (JSON)</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Edit your packages, add-ons, and fees. Changes apply to new bookings immediately after saving.
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800 space-y-1">
-                    <p className="font-semibold mb-1">Pricing Structure:</p>
-                    <p>• <strong>photoshoot</strong>: price, duration (min), images, locations per tier</p>
-                    <p>• <strong>wedding</strong>: simple price value per tier</p>
-                    <p>• <strong>event</strong>: base rate per hour + minimum hours</p>
-                    <p>• <strong>addons</strong>: drone, express delivery, highlight reel, etc.</p>
-                    <p>• <strong>fees</strong>: additional person + transportation by parish</p>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        try {
-                          const parsed = JSON.parse(pricingRaw) as PricingConfig;
-                          updatePricingMutation.mutate(parsed);
-                        } catch {
-                          toast({ title: "Invalid JSON", description: "Fix JSON formatting before saving.", variant: "destructive" });
-                        }
-                      }}
-                      disabled={updatePricingMutation.isPending}
-                    >
-                      {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
-                    </Button>
-                  </div>
-                  <Textarea rows={14} value={pricingRaw} onChange={e => setPricingRaw(e.target.value)} className="font-mono text-xs" />
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      onClick={() => {
-                        try {
-                          const parsed = JSON.parse(pricingRaw) as PricingConfig;
-                          updatePricingMutation.mutate(parsed);
-                        } catch {
-                          toast({ title: "Invalid JSON", description: "Fix JSON formatting before saving.", variant: "destructive" });
-                        }
-                      }}
-                      disabled={updatePricingMutation.isPending}
-                    >
-                      {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
-                    </Button>
-                    <Button variant="outline" onClick={() => { setPricingRaw(JSON.stringify(defaultPricingConfig, null, 2)); toast({ title: "Reset to defaults" }); }}>
-                      Reset to Defaults
-                    </Button>
-                    <Button variant="outline" onClick={() => {
-                      try { setPricingRaw(JSON.stringify(JSON.parse(pricingRaw), null, 2)); toast({ title: "Formatted" }); }
-                      catch { toast({ title: "Invalid JSON", variant: "destructive" }); }
-                    }}>
-                      Format JSON
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={resetPricing}>Reset Defaults</Button>
+                  <SaveBtn />
+                </div>
+
+                {/* Photoshoot Photography */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Photoshoot – Photography</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {tiers.map(tier => {
+                      const pkg = pf.packages.photoshoot.photography[tier];
+                      return (
+                        <div key={tier} className="px-4 py-3 border-b last:border-0">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 capitalize">{tier}</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {([
+                              { label: "Price ($)", vkey: "price" },
+                              { label: "Duration (min)", vkey: "duration" },
+                              { label: "Images", vkey: "images" },
+                              { label: "Locations", vkey: "locations" },
+                            ] as const).map(({ label, vkey }) => (
+                              <div key={vkey}>
+                                <Label className="text-[10px] text-muted-foreground">{label}</Label>
+                                <Input
+                                  type="number" min={0} value={(pkg as any)[vkey]}
+                                  onChange={e => updPricing(d => { (d.packages.photoshoot.photography[tier] as any)[vkey] = +e.target.value || 0; })}
+                                  className="h-8 text-sm mt-1"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+
+                {/* Photoshoot Videography */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Photoshoot – Videography</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-y p-0">
+                    {tiers.map(tier => (
+                      <div key={tier} className="flex items-center justify-between px-4 py-3">
+                        <p className="text-sm capitalize">{tier}</p>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm text-muted-foreground">$</span>
+                          <Input
+                            type="number" min={0} value={pf.packages.photoshoot.videography[tier]}
+                            onChange={e => updPricing(d => { d.packages.photoshoot.videography[tier] = +e.target.value || 0; })}
+                            className="w-24 h-8 text-sm text-right"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Wedding Photography */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Wedding – Photography</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-y p-0">
+                    {tiers.map(tier => (
+                      <div key={tier} className="flex items-center justify-between px-4 py-3">
+                        <p className="text-sm capitalize">{tier}</p>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm text-muted-foreground">$</span>
+                          <Input
+                            type="number" min={0} value={pf.packages.wedding.photography[tier]}
+                            onChange={e => updPricing(d => { d.packages.wedding.photography[tier] = +e.target.value || 0; })}
+                            className="w-24 h-8 text-sm text-right"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Wedding Videography */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Wedding – Videography</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-y p-0">
+                    {tiers.map(tier => (
+                      <div key={tier} className="flex items-center justify-between px-4 py-3">
+                        <p className="text-sm capitalize">{tier}</p>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm text-muted-foreground">$</span>
+                          <Input
+                            type="number" min={0} value={pf.packages.wedding.videography[tier]}
+                            onChange={e => updPricing(d => { d.packages.wedding.videography[tier] = +e.target.value || 0; })}
+                            className="w-24 h-8 text-sm text-right"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Events */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Events (Hourly)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-y p-0">
+                    {(["photography", "videography"] as const).map(type => (
+                      <div key={type} className="px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 capitalize">{type}</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Base Rate ($/hr)</Label>
+                            <Input
+                              type="number" min={0} value={pf.packages.event[type].baseRate}
+                              onChange={e => updPricing(d => { d.packages.event[type].baseRate = +e.target.value || 0; })}
+                              className="h-8 text-sm mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Minimum Hours</Label>
+                            <Input
+                              type="number" min={1} value={pf.packages.event[type].minimumHours}
+                              onChange={e => updPricing(d => { d.packages.event[type].minimumHours = +e.target.value || 1; })}
+                              className="h-8 text-sm mt-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Add-ons */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Add-ons</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-y p-0">
+                    {([
+                      { label: "Highlight Reel", key: "highlightReel" as const },
+                      { label: "Express Delivery", key: "expressDelivery" as const },
+                      { label: "Drone (Photoshoot)", key: "dronePhotoshoot" as const },
+                      { label: "Drone (Wedding)", key: "droneWedding" as const },
+                      { label: "Studio Rental", note: "per hour", key: "studioRental" as const },
+                      { label: "Flying Dress", note: "per dress", key: "flyingDress" as const },
+                      { label: "Clear Kayak", key: "clearKayak" as const },
+                    ]).map(({ label, note, key }) => (
+                      <div key={key} className="flex items-center justify-between px-4 py-2.5">
+                        <div>
+                          <p className="text-sm">{label}</p>
+                          {note && <p className="text-[10px] text-muted-foreground">{note}</p>}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm text-muted-foreground">$</span>
+                          <Input
+                            type="number" min={0} value={pf.addons[key]}
+                            onChange={e => updPricing(d => { d.addons[key] = +e.target.value || 0; })}
+                            className="w-24 h-8 text-sm text-right"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Fees */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Fees</CardTitle>
+                  </CardHeader>
+                  <CardContent className="divide-y p-0">
+                    <div className="flex items-center justify-between px-4 py-2.5">
+                      <p className="text-sm">Additional Person</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm text-muted-foreground">$</span>
+                        <Input
+                          type="number" min={0} value={pf.fees.additionalPerson}
+                          onChange={e => updPricing(d => { d.fees.additionalPerson = +e.target.value || 0; })}
+                          className="w-24 h-8 text-sm text-right"
+                        />
+                      </div>
+                    </div>
+                    {([
+                      { label: "Transport – Manchester / St. Elizabeth", key: "manchesterStElizabeth" as const },
+                      { label: "Transport – Montego Bay / Negril / Ocho Rios", key: "montegoBayNegrilOchoRios" as const },
+                      { label: "Transport – Other Parishes", key: "otherParishes" as const },
+                    ]).map(({ label, key }) => (
+                      <div key={key} className="flex items-center justify-between px-4 py-2.5">
+                        <p className="text-sm">{label}</p>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm text-muted-foreground">$</span>
+                          <Input
+                            type="number" min={0} value={pf.fees.transportation[key]}
+                            onChange={e => updPricing(d => { d.fees.transportation[key] = +e.target.value || 0; })}
+                            className="w-24 h-8 text-sm text-right"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <div className="flex gap-2 justify-end pb-4">
+                  <Button variant="outline" size="sm" onClick={resetPricing}>Reset Defaults</Button>
+                  <SaveBtn />
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── CHAT ── */}
           {activeTab === "chat" && <ChatPanel />}

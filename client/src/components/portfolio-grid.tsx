@@ -545,9 +545,9 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                   />
                 </div>
 
-                {/* Right Panel - Details */}
+                {/* Right Panel - Details (hidden on mobile so image fills screen) */}
                 {selectedImage.catalogueId && (
-                  <div className="w-80 h-full bg-black/60 backdrop-blur-sm p-6 overflow-y-auto">
+                  <div className="hidden sm:block w-80 h-full bg-black/60 backdrop-blur-sm p-6 overflow-y-auto">
                     {(() => {
                       const catalogue = getCurrentCatalogue(selectedImage.catalogueId);
                       const reviews = catalogueReviews[selectedImage.catalogueId] || [];
