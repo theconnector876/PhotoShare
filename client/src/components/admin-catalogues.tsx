@@ -585,15 +585,15 @@ export function AdminCatalogues() {
                   Create Catalogue
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
+              <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                   <DialogTitle>Create New Catalogue</DialogTitle>
                   <DialogDescription>
                     Upload your completed work to create a new portfolio catalogue.
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 overflow-y-auto flex-1 pr-1">
                     <FormField
                       control={form.control}
                       name="title"
@@ -730,15 +730,15 @@ export function AdminCatalogues() {
               </DialogContent>
             </Dialog>
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
+              <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                   <DialogTitle>Edit Catalogue</DialogTitle>
                   <DialogDescription>
                     Update the catalogue details, images, and cover.
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...editForm}>
-                  <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                  <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4 overflow-y-auto flex-1 pr-1">
                     <FormField
                       control={editForm.control}
                       name="title"
