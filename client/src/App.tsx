@@ -9,6 +9,7 @@ import { SiteConfigProvider } from "@/context/site-config";
 import { CurrencyProvider } from "@/context/currency";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { HelmetProvider } from "react-helmet-async";
+import { Analytics } from "@vercel/analytics/react";
 import Navigation from "@/components/navigation";
 import ConstellationBackground from "@/components/constellation-background";
 
@@ -80,6 +81,7 @@ function App() {
                 <Navigation />
                 <Router />
                 <Toaster />
+                <Analytics />
               </div>
             </TooltipProvider>
           </AuthProvider>
