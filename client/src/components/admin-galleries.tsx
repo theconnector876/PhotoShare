@@ -288,6 +288,37 @@ function ImageSection({
 }: ImageSectionProps) {
   const fileInputId = `fu-${gallery.id}-${type}`;
   const [showFolderInput, setShowFolderInput] = useState(false);
+  const [fileDragOver, setFileDragOver] = useState(false);
+  const dragCounterRef = useRef(0); // track nested enter/leave events
+
+  const isFileDrag = (e: React.DragEvent) =>
+    e.dataTransfer.types.length > 0 &&
+    Array.from(e.dataTransfer.types).some((t) => t === "Files");
+
+  const handleZoneDragEnter = (e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragCounterRef.current += 1;
+    setFileDragOver(true);
+  };
+  const handleZoneDragLeave = (e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setFileDragOver(false); }
+  };
+  const handleZoneDragOver = (e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+  const handleZoneDrop = (e: React.DragEvent) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setFileDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    if (files.length > 0) onFilesSelected(files, gallery, type);
+  };
 
   const allImages =
     type === "gallery"  ? gallery.galleryImages  || []
@@ -440,7 +471,22 @@ function ImageSection({
         )}
       </div>
 
-      {/* Image grid or empty drop zone */}
+      {/* Image grid or empty drop zone — wrapped in file-drag zone */}
+      <div
+        className="relative"
+        onDragEnter={handleZoneDragEnter}
+        onDragLeave={handleZoneDragLeave}
+        onDragOver={handleZoneDragOver}
+        onDrop={handleZoneDrop}
+      >
+        {/* File-drag overlay */}
+        {fileDragOver && (
+          <div className="absolute inset-0 z-20 rounded-xl border-2 border-dashed border-green-500 bg-green-50/90 flex flex-col items-center justify-center gap-2 pointer-events-none">
+            <UploadIcon className="w-8 h-8 text-green-600" />
+            <span className="text-sm font-semibold text-green-700">Drop photos to upload</span>
+          </div>
+        )}
+
       {imagesToShow.length === 0 ? (
         <label
           htmlFor={fileInputId}
@@ -448,8 +494,8 @@ function ImageSection({
         >
           <UploadIcon className="w-6 h-6 opacity-60" />
           {activeFolder
-            ? `No photos in "${activeFolder}" yet — tap to upload`
-            : "Tap to upload photos from your device"}
+            ? `No photos in "${activeFolder}" yet — tap or drag to upload`
+            : "Tap or drag photos here to upload"}
         </label>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
@@ -512,6 +558,7 @@ function ImageSection({
           </label>
         </div>
       )}
+      </div>{/* end file-drag zone */}
     </div>
   );
 }
