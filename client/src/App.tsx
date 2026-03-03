@@ -1,75 +1,91 @@
 import { Switch, Route } from "wouter";
+import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import { SiteConfigProvider } from "@/context/site-config";
+import { CurrencyProvider } from "@/context/currency";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { HelmetProvider } from "react-helmet-async";
-import NotFound from "@/pages/not-found";
-import Home from "@/pages/home";
-import Portfolio from "@/pages/portfolio";
-import Booking from "@/pages/booking";
-import PhotographerBooking from "@/pages/photographer-booking";
-import About from "@/pages/about";
-import Contact from "@/pages/contact";
-import Gallery from "@/pages/gallery";
-import AuthPage from "@/pages/auth-page";
-import Dashboard from "@/pages/dashboard";
-import PhotographerDashboard from "@/pages/photographer-dashboard";
-import { AdminDashboard } from "@/pages/admin-dashboard";
-import Payment from "@/pages/payment";
-import { PaymentSuccess } from "@/pages/payment-success";
-import CheckoutOverlay from "@/pages/checkout-overlay";
-import Blog from "@/pages/blog";
-import BlogPost from "@/pages/blog-post";
 import Navigation from "@/components/navigation";
 import ConstellationBackground from "@/components/constellation-background";
 
+// Lazy-loaded pages — each splits into its own chunk, only loaded when visited
+const Home                  = lazy(() => import("@/pages/home"));
+const Portfolio             = lazy(() => import("@/pages/portfolio"));
+const Booking               = lazy(() => import("@/pages/booking"));
+const PhotographerBooking   = lazy(() => import("@/pages/photographer-booking"));
+const About                 = lazy(() => import("@/pages/about"));
+const Contact               = lazy(() => import("@/pages/contact"));
+const Gallery               = lazy(() => import("@/pages/gallery"));
+const AuthPage              = lazy(() => import("@/pages/auth-page"));
+const Dashboard             = lazy(() => import("@/pages/dashboard"));
+const PhotographerDashboard = lazy(() => import("@/pages/photographer-dashboard"));
+const AdminDashboard        = lazy(() => import("@/pages/admin-dashboard").then((m) => ({ default: m.AdminDashboard })));
+const Payment               = lazy(() => import("@/pages/payment"));
+const PaymentSuccess        = lazy(() => import("@/pages/payment-success").then((m) => ({ default: m.PaymentSuccess })));
+const CheckoutOverlay       = lazy(() => import("@/pages/checkout-overlay"));
+const Blog                  = lazy(() => import("@/pages/blog"));
+const BlogPost              = lazy(() => import("@/pages/blog-post"));
+const NotFound              = lazy(() => import("@/pages/not-found"));
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+    </div>
+  );
+}
+
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/portfolio" component={Portfolio} />
-      <Route path="/booking" component={Booking} />
-      <Route path="/book/:photographerId" component={PhotographerBooking} />
-      <Route path="/about" component={About} />
-      <Route path="/contact" component={Contact} />
-      <Route path="/gallery" component={Gallery} />
-      <Route path="/gallery/:email/:code" component={Gallery} />
-      <Route path="/blog" component={Blog} />
-      <Route path="/blog/:slug" component={BlogPost} />
-      <Route path="/auth" component={AuthPage} />
-      <ProtectedRoute path="/dashboard" component={Dashboard} />
-      <ProtectedRoute path="/photographer" component={PhotographerDashboard} />
-      <ProtectedRoute path="/admin" component={AdminDashboard} requireAdmin />
-      <Route path="/payment" component={Payment} />
-      <Route path="/payment-success" component={PaymentSuccess} />
-      <Route path="/checkout/custom/:id" component={CheckoutOverlay} />
-      <Route path="/checkout/:rest*" component={CheckoutOverlay} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<PageLoader />}>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/portfolio" component={Portfolio} />
+        <Route path="/booking" component={Booking} />
+        <Route path="/book/:photographerId" component={PhotographerBooking} />
+        <Route path="/about" component={About} />
+        <Route path="/contact" component={Contact} />
+        <Route path="/gallery" component={Gallery} />
+        <Route path="/gallery/:email/:code" component={Gallery} />
+        <Route path="/blog" component={Blog} />
+        <Route path="/blog/:slug" component={BlogPost} />
+        <Route path="/auth" component={AuthPage} />
+        <ProtectedRoute path="/dashboard" component={Dashboard} />
+        <ProtectedRoute path="/photographer" component={PhotographerDashboard} />
+        <ProtectedRoute path="/admin" component={AdminDashboard} requireAdmin />
+        <Route path="/payment" component={Payment} />
+        <Route path="/payment-success" component={PaymentSuccess} />
+        <Route path="/checkout/custom/:id" component={CheckoutOverlay} />
+        <Route path="/checkout/:rest*" component={CheckoutOverlay} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
 function App() {
   return (
     <HelmetProvider>
-    <QueryClientProvider client={queryClient}>
-      <SiteConfigProvider>
-        <AuthProvider>
-          <TooltipProvider>
-            <div className="min-h-screen relative">
-              <ConstellationBackground />
-              <Navigation />
-              <Router />
-              <Toaster />
-            </div>
-          </TooltipProvider>
-        </AuthProvider>
-      </SiteConfigProvider>
-    </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <SiteConfigProvider>
+          <CurrencyProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <div className="min-h-screen relative">
+                <ConstellationBackground />
+                <Navigation />
+                <Router />
+                <Toaster />
+              </div>
+            </TooltipProvider>
+          </AuthProvider>
+          </CurrencyProvider>
+        </SiteConfigProvider>
+      </QueryClientProvider>
     </HelmetProvider>
   );
 }

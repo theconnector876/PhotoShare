@@ -2922,6 +2922,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== PAYOUTS =====
+
+  // GET /api/photographer/payout-details
+  app.get('/api/photographer/payout-details', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const details = await storage.getPayoutDetails(userId);
+      res.json(details);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // PUT /api/photographer/payout-details
+  app.put('/api/photographer/payout-details', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const schema = z.object({
+        method: z.enum(['bank', 'card']),
+        bankName: z.string().optional(),
+        bankBranch: z.string().optional(),
+        accountHolderName: z.string().optional(),
+        accountNumber: z.string().optional(),
+        routingNumber: z.string().optional(),
+        cardHolderName: z.string().optional(),
+        cardNumber: z.string().max(4).optional(),
+        cardType: z.string().optional(),
+        cardIssuingBank: z.string().optional(),
+        notes: z.string().optional(),
+      });
+      const data = schema.parse(req.body);
+      await storage.savePayoutDetails(userId, data);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // GET /api/photographer/payouts
+  app.get('/api/photographer/payouts', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const list = await storage.getPhotographerPayouts(userId);
+      res.json(list);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/photographer/payouts/request
+  app.post('/api/photographer/payouts/request', isPhotographerApproved, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const schema = z.object({
+        bookingIds: z.array(z.string()).min(1, 'Select at least one booking'),
+        currency: z.string().length(3).default('USD'),
+      });
+      const { bookingIds, currency } = schema.parse(req.body);
+
+      const payoutDetails = await storage.getPayoutDetails(userId);
+      if (!(payoutDetails as any)?.method) {
+        return res.status(400).json({ error: 'Please save your payout details before requesting a payout.' });
+      }
+
+      const payoutCfg = await storage.getSiteConfig('payout_config');
+      const payoutPct: number = (payoutCfg?.config as any)?.percentage ?? 70;
+
+      const existingPayouts = await storage.getPhotographerPayouts(userId);
+      let totalAmount = 0;
+      const validatedIds: string[] = [];
+
+      for (const bid of bookingIds) {
+        const booking = await storage.getBooking(bid);
+        if (!booking || booking.photographerId !== userId) continue;
+        if (booking.status !== 'completed') continue;
+        if (!booking.depositPaid && !booking.balancePaid) continue;
+        const alreadyCovered = existingPayouts.some(p =>
+          ['pending', 'processing', 'completed'].includes(p.status) &&
+          (p.bookingIds as string[]).includes(bid)
+        );
+        if (alreadyCovered) continue;
+        const depositAmt = Math.round(booking.totalPrice * 0.5);
+        const paid = (booking.depositPaid ? depositAmt : 0) + (booking.balancePaid ? (booking.totalPrice - depositAmt) : 0);
+        totalAmount += Math.round(paid * payoutPct / 100);
+        validatedIds.push(bid);
+      }
+
+      if (validatedIds.length === 0) {
+        return res.status(400).json({ error: 'No eligible completed bookings found. Bookings must be completed with payment received and not already paid out.' });
+      }
+
+      const payout = await storage.createPayoutRequest({
+        photographerId: userId,
+        bookingIds: validatedIds,
+        amount: totalAmount,
+        currency,
+        payoutMethod: (payoutDetails as any).method,
+        payoutDetails: payoutDetails as Record<string, unknown>,
+      });
+
+      res.json(payout);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // GET /api/admin/payouts
+  app.get('/api/admin/payouts', isAdmin, async (_req, res) => {
+    try {
+      const list = await storage.getAllPayouts();
+      res.json(list);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // PATCH /api/admin/payouts/:id
+  app.patch('/api/admin/payouts/:id', isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        status: z.enum(['pending', 'processing', 'completed', 'rejected']),
+        adminNotes: z.string().optional(),
+        referenceNumber: z.string().optional(),
+      });
+      const { status, adminNotes, referenceNumber } = schema.parse(req.body);
+      const updated = await storage.updatePayoutStatus(req.params.id, status, adminNotes, referenceNumber);
+      if (!updated) return res.status(404).json({ error: 'Payout not found' });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // GET /api/admin/payout-config
+  app.get('/api/admin/payout-config', isAdmin, async (_req, res) => {
+    try {
+      const cfg = await storage.getSiteConfig('payout_config');
+      res.json({ percentage: (cfg?.config as any)?.percentage ?? 70 });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // PUT /api/admin/payout-config
+  app.put('/api/admin/payout-config', isAdmin, async (req, res) => {
+    try {
+      const { percentage } = z.object({ percentage: z.number().min(1).max(100) }).parse(req.body);
+      await storage.upsertSiteConfig('payout_config', { percentage });
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   // ── SEO: robots.txt ─────────────────────────────────────────────────────────
   app.get('/robots.txt', (_req, res) => {
     res.header('Content-Type', 'text/plain');

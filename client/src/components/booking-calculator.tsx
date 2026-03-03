@@ -251,12 +251,17 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
     },
   ];
 
+  // Studio rental hours: for photoshoots, use the package duration rounded up to nearest hour
+  const studioHours = calculation.serviceType === 'photoshoot'
+    ? Math.ceil((packages.photoshoot.photography[calculation.packageType as keyof typeof packages.photoshoot.photography]?.duration ?? 60) / 60)
+    : 1;
+
   const addons = [
     { id: 'highlightReel', label: 'Highlight Reel', description: '1-3 min video', price: pricingConfig.addons.highlightReel },
     { id: 'expressDelivery', label: 'Express Delivery', description: '1-2 days', price: pricingConfig.addons.expressDelivery },
     { id: 'drone', label: 'Drone Photography', description: 'Aerial shots', price: calculation.serviceType === 'wedding' ? pricingConfig.addons.droneWedding : pricingConfig.addons.dronePhotoshoot },
-    { id: 'studioRental', label: 'Studio Rental', description: 'Professional studio', price: pricingConfig.addons.studioRental },
-    { id: 'flyingDress', label: 'Flying Dress', description: 'Dramatic dress rental', price: pricingConfig.addons.flyingDress },
+    { id: 'studioRental', label: 'Studio Rental', description: `$${pricingConfig.addons.studioRental}/hr · ${studioHours}hr`, price: pricingConfig.addons.studioRental * studioHours },
+    { id: 'flyingDress', label: 'Flying Dress', description: `$${pricingConfig.addons.flyingDress}/person · ×${calculation.peopleCount}`, price: pricingConfig.addons.flyingDress * calculation.peopleCount },
     { id: 'clearKayak', label: 'Clear Kayak', description: 'Water photoshoot prop', price: pricingConfig.addons.clearKayak },
   ];
 
@@ -443,25 +448,14 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                 </div>
                 
                 {calculation.hasVideoPackage && (
-                  <div className="grid md:grid-cols-4 gap-4">
-                    {Object.entries(packages.wedding.videography).map(([tier, price]) => (
-                      <div 
-                        key={tier}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all duration-300 hover:border-primary ${
-                          calculation.videoPackageType === tier 
-                            ? 'border-primary bg-primary/10' 
-                            : 'border-border'
-                        }`}
-                        onClick={() => updateVideoPackage(tier)}
-                        data-testid={`video-package-${tier}`}
-                      >
-                        <div className="text-center">
-                          <h5 className="font-semibold text-sm mb-1 capitalize">{tier}</h5>
-                          <p className="text-2xl font-bold text-primary">${price}</p>
-                          <p className="text-xs text-muted-foreground">Video Package</p>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="mt-3 p-4 rounded-lg border border-primary/40 bg-primary/5 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold capitalize">{calculation.packageType} Videography</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Tier locked to your photo package</p>
+                    </div>
+                    <p className="text-2xl font-bold text-primary">
+                      ${packages.wedding.videography[calculation.packageType as keyof typeof packages.wedding.videography]}
+                    </p>
                   </div>
                 )}
               </Card>

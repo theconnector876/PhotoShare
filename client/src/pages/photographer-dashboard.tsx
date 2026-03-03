@@ -17,10 +17,11 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { ChatPanel } from "@/components/chat-panel";
+import { PhotographerPayouts } from "@/components/photographer-payouts";
 import {
   Camera, Calendar, User, Clock, CheckCircle, Upload, Phone, Mail,
   MapPin, DollarSign, Users, GripVertical, X, Eye, Loader2, CheckCircle2,
-  AlertCircle, Copy, MessageSquare, LayoutDashboard, LogOut,
+  AlertCircle, Copy, MessageSquare, LayoutDashboard, LogOut, BanknoteIcon,
   Link as LinkIcon, Plus, Image as GalleryIcon, ChevronRight, ChevronDown, Tag, Save,
 } from "lucide-react";
 import {
@@ -32,7 +33,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "overview" | "profile" | "bookings" | "galleries" | "pricing" | "chat";
+type Tab = "overview" | "profile" | "bookings" | "galleries" | "pricing" | "chat" | "payouts";
 
 interface UserBooking {
   id: string;
@@ -573,6 +574,7 @@ export default function PhotographerDashboard() {
     { id: "bookings",  label: "Bookings",  icon: Calendar,        badge: pendingCount },
     { id: "galleries", label: "Galleries", icon: Camera,          badge: 0 },
     { id: "pricing",   label: "Pricing",   icon: DollarSign,      badge: 0 },
+    { id: "payouts",   label: "Payouts",   icon: BanknoteIcon,    badge: 0 },
     { id: "chat",      label: "Chat",      icon: MessageSquare,   badge: unreadCount },
   ];
 
@@ -1607,6 +1609,17 @@ export default function PhotographerDashboard() {
                   </Button>
                 </div>
               </div>
+          )}
+
+          {/* ── PAYOUTS ── */}
+          {activeTab === "payouts" && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold">Payouts</h2>
+                <p className="text-muted-foreground text-sm">Request your earnings for completed sessions.</p>
+              </div>
+              <PhotographerPayouts bookings={(userBookings ?? []) as any} />
+            </div>
           )}
 
           {/* ── CHAT ── */}

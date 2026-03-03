@@ -51172,6 +51172,7 @@ __export(schema_exports, {
   insertCouponSchema: () => insertCouponSchema,
   insertGallerySchema: () => insertGallerySchema,
   insertMessageSchema: () => insertMessageSchema,
+  insertPayoutSchema: () => insertPayoutSchema,
   insertPhotographerProfileSchema: () => insertPhotographerProfileSchema,
   insertPricingConfigSchema: () => insertPricingConfigSchema,
   insertReviewSchema: () => insertReviewSchema,
@@ -51179,6 +51180,7 @@ __export(schema_exports, {
   insertUserSchema: () => insertUserSchema,
   messages: () => messages,
   passwordResetTokens: () => passwordResetTokens,
+  payouts: () => payouts,
   photographerProfiles: () => photographerProfiles,
   pricingConfigs: () => pricingConfigs,
   reviews: () => reviews,
@@ -61943,8 +61945,28 @@ var photographerProfiles = pgTable("photographer_profiles", {
   phone: text("phone"),
   socials: jsonb("socials").default({}),
   verificationDocs: text("verification_docs").array().default([]),
+  payoutDetails: jsonb("payout_details").default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
+});
+var payouts = pgTable("payouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  photographerId: varchar("photographer_id").notNull().references(() => users.id),
+  bookingIds: text("booking_ids").array().default([]),
+  amount: integer("amount").notNull(),
+  // in smallest currency unit (cents for USD, whole JMD for JMD)
+  currency: varchar("currency", { length: 3 }).default("USD"),
+  status: text("status").notNull().default("pending"),
+  // pending | processing | completed | rejected
+  payoutMethod: text("payout_method"),
+  // 'bank' | 'card'
+  payoutDetails: jsonb("payout_details").default({}),
+  // snapshot of bank/card details
+  adminNotes: text("admin_notes"),
+  referenceNumber: text("reference_number"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow()
 });
 var pricingConfigs = pgTable("pricing_configs", {
   key: text("key").primaryKey(),
@@ -61992,6 +62014,7 @@ var bookings = pgTable("bookings", {
   contractAccepted: boolean("contract_accepted").notNull().default(false),
   couponCode: text("coupon_code"),
   discountAmount: integer("discount_amount").notNull().default(0),
+  currency: varchar("currency", { length: 3 }).default("USD"),
   status: text("status").notNull().default("pending"),
   // pending, confirmed, completed
   createdAt: timestamp("created_at").defaultNow()
@@ -62196,6 +62219,7 @@ var insertBlogPostSchema = createInsertSchema(blogPosts).omit({
   createdAt: true,
   updatedAt: true
 });
+var insertPayoutSchema = createInsertSchema(payouts).omit({ id: true, createdAt: true, requestedAt: true, processedAt: true });
 
 // node_modules/@neondatabase/serverless/index.mjs
 var io = Object.create;
@@ -68758,6 +68782,56 @@ var DatabaseStorage = class {
     const result = await db.delete(blogPosts).where(eq(blogPosts.id, id));
     return (result.rowCount ?? 0) > 0;
   }
+  // ── Payout operations ────────────────────────────────────────────────────
+  async getPayoutDetails(photographerId) {
+    const [profile] = await db.select({ payoutDetails: photographerProfiles.payoutDetails }).from(photographerProfiles).where(eq(photographerProfiles.userId, photographerId));
+    return profile?.payoutDetails ?? {};
+  }
+  async savePayoutDetails(photographerId, details) {
+    await db.update(photographerProfiles).set({ payoutDetails: details, updatedAt: /* @__PURE__ */ new Date() }).where(eq(photographerProfiles.userId, photographerId));
+  }
+  async createPayoutRequest(data) {
+    const [payout] = await db.insert(payouts).values({
+      photographerId: data.photographerId,
+      bookingIds: data.bookingIds,
+      amount: data.amount,
+      currency: data.currency,
+      status: "pending",
+      payoutMethod: data.payoutMethod,
+      payoutDetails: data.payoutDetails,
+      requestedAt: /* @__PURE__ */ new Date(),
+      createdAt: /* @__PURE__ */ new Date()
+    }).returning();
+    return payout;
+  }
+  async getPhotographerPayouts(photographerId) {
+    return await db.select().from(payouts).where(eq(payouts.photographerId, photographerId)).orderBy(desc(payouts.createdAt));
+  }
+  async getAllPayouts() {
+    const rows = await db.select({
+      payout: payouts,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email
+    }).from(payouts).leftJoin(users, eq(payouts.photographerId, users.id)).orderBy(desc(payouts.createdAt));
+    return rows.map((r2) => ({
+      ...r2.payout,
+      photographerName: [r2.firstName, r2.lastName].filter(Boolean).join(" ") || null,
+      photographerEmail: r2.email
+    }));
+  }
+  async updatePayoutStatus(id, status, adminNotes, referenceNumber) {
+    const updateData = { status };
+    if (adminNotes !== void 0) updateData.adminNotes = adminNotes;
+    if (referenceNumber !== void 0) updateData.referenceNumber = referenceNumber;
+    if (status === "completed" || status === "processing") updateData.processedAt = /* @__PURE__ */ new Date();
+    const [updated] = await db.update(payouts).set(updateData).where(eq(payouts.id, id)).returning();
+    return updated;
+  }
+  async getPendingPayoutCount() {
+    const result = await db.select({ count: sql`count(*)::int` }).from(payouts).where(eq(payouts.status, "pending"));
+    return result[0]?.count ?? 0;
+  }
 };
 var storage = new DatabaseStorage();
 
@@ -74012,6 +74086,7 @@ var import_passport2 = __toESM(require_lib6(), 1);
 
 // shared/pricing.ts
 var defaultPricingConfig = {
+  currency: "USD",
   packages: {
     photoshoot: {
       photography: {
@@ -76732,6 +76807,134 @@ Thank you!`
       res.send(xml);
     } catch (error) {
       res.status(500).send('<?xml version="1.0"?><urlset/>');
+    }
+  });
+  app2.get("/api/photographer/payout-details", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const details = await storage.getPayoutDetails(userId);
+      res.json(details);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.put("/api/photographer/payout-details", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const schema = z.object({
+        method: z.enum(["bank", "card"]),
+        bankName: z.string().optional(),
+        bankBranch: z.string().optional(),
+        accountHolderName: z.string().optional(),
+        accountNumber: z.string().optional(),
+        routingNumber: z.string().optional(),
+        cardHolderName: z.string().optional(),
+        cardNumber: z.string().max(4).optional(),
+        cardType: z.string().optional(),
+        cardIssuingBank: z.string().optional(),
+        notes: z.string().optional()
+      });
+      const data = schema.parse(req.body);
+      await storage.savePayoutDetails(userId, data);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  app2.get("/api/photographer/payouts", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const list = await storage.getPhotographerPayouts(userId);
+      res.json(list);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.post("/api/photographer/payouts/request", isPhotographerApproved, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const schema = z.object({
+        bookingIds: z.array(z.string()).min(1, "Select at least one booking"),
+        currency: z.string().length(3).default("USD")
+      });
+      const { bookingIds, currency } = schema.parse(req.body);
+      const payoutDetails = await storage.getPayoutDetails(userId);
+      if (!payoutDetails?.method) {
+        return res.status(400).json({ error: "Please save your payout details before requesting a payout." });
+      }
+      const payoutCfg = await storage.getSiteConfig("payout_config");
+      const payoutPct = payoutCfg?.config?.percentage ?? 70;
+      const existingPayouts = await storage.getPhotographerPayouts(userId);
+      let totalAmount = 0;
+      const validatedIds = [];
+      for (const bid of bookingIds) {
+        const booking = await storage.getBooking(bid);
+        if (!booking || booking.photographerId !== userId) continue;
+        if (booking.status !== "completed") continue;
+        if (!booking.depositPaid && !booking.balancePaid) continue;
+        const alreadyCovered = existingPayouts.some(
+          (p2) => ["pending", "processing", "completed"].includes(p2.status) && p2.bookingIds.includes(bid)
+        );
+        if (alreadyCovered) continue;
+        const depositAmt = Math.round(booking.totalPrice * 0.5);
+        const paid = (booking.depositPaid ? depositAmt : 0) + (booking.balancePaid ? booking.totalPrice - depositAmt : 0);
+        totalAmount += Math.round(paid * payoutPct / 100);
+        validatedIds.push(bid);
+      }
+      if (validatedIds.length === 0) {
+        return res.status(400).json({ error: "No eligible completed bookings found. Bookings must be completed with payment received and not already paid out." });
+      }
+      const payout = await storage.createPayoutRequest({
+        photographerId: userId,
+        bookingIds: validatedIds,
+        amount: totalAmount,
+        currency,
+        payoutMethod: payoutDetails.method,
+        payoutDetails
+      });
+      res.json(payout);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  app2.get("/api/admin/payouts", isAdmin, async (_req, res) => {
+    try {
+      const list = await storage.getAllPayouts();
+      res.json(list);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.patch("/api/admin/payouts/:id", isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        status: z.enum(["pending", "processing", "completed", "rejected"]),
+        adminNotes: z.string().optional(),
+        referenceNumber: z.string().optional()
+      });
+      const { status, adminNotes, referenceNumber } = schema.parse(req.body);
+      const updated = await storage.updatePayoutStatus(req.params.id, status, adminNotes, referenceNumber);
+      if (!updated) return res.status(404).json({ error: "Payout not found" });
+      res.json(updated);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+  app2.get("/api/admin/payout-config", isAdmin, async (_req, res) => {
+    try {
+      const cfg = await storage.getSiteConfig("payout_config");
+      res.json({ percentage: cfg?.config?.percentage ?? 70 });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.put("/api/admin/payout-config", isAdmin, async (req, res) => {
+    try {
+      const { percentage } = z.object({ percentage: z.number().min(1).max(100) }).parse(req.body);
+      await storage.upsertSiteConfig("payout_config", { percentage });
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
     }
   });
   app2.get("/robots.txt", (_req, res) => {

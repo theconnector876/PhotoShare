@@ -15,6 +15,7 @@ import {
   conversationParticipants,
   messages,
   blogPosts,
+  payouts,
   type User,
   type UpsertUser,
   type Booking,
@@ -42,6 +43,7 @@ import {
   type EmailThread,
   type BlogPost,
   type InsertBlogPost,
+  type Payout,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql, desc, lt, gt, isNull, or } from "drizzle-orm";
@@ -176,6 +178,15 @@ export interface IStorage {
   createBlogPost(data: InsertBlogPost): Promise<BlogPost>;
   updateBlogPost(id: string, data: Partial<BlogPost>): Promise<BlogPost | undefined>;
   deleteBlogPost(id: string): Promise<boolean>;
+
+  // Payout operations
+  getPayoutDetails(photographerId: string): Promise<Record<string, unknown>>;
+  savePayoutDetails(photographerId: string, details: Record<string, unknown>): Promise<void>;
+  createPayoutRequest(data: { photographerId: string; bookingIds: string[]; amount: number; currency: string; payoutMethod: string; payoutDetails: Record<string, unknown> }): Promise<Payout>;
+  getPhotographerPayouts(photographerId: string): Promise<Payout[]>;
+  getAllPayouts(): Promise<(Payout & { photographerName: string | null; photographerEmail: string | null })[]>;
+  updatePayoutStatus(id: string, status: string, adminNotes?: string, referenceNumber?: string): Promise<Payout | undefined>;
+  getPendingPayoutCount(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1232,6 +1243,97 @@ export class DatabaseStorage implements IStorage {
   async deleteBlogPost(id: string): Promise<boolean> {
     const result = await db.delete(blogPosts).where(eq(blogPosts.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // ── Payout operations ────────────────────────────────────────────────────
+
+  async getPayoutDetails(photographerId: string): Promise<Record<string, unknown>> {
+    const [profile] = await db
+      .select({ payoutDetails: photographerProfiles.payoutDetails })
+      .from(photographerProfiles)
+      .where(eq(photographerProfiles.userId, photographerId));
+    return (profile?.payoutDetails as Record<string, unknown>) ?? {};
+  }
+
+  async savePayoutDetails(photographerId: string, details: Record<string, unknown>): Promise<void> {
+    await db
+      .update(photographerProfiles)
+      .set({ payoutDetails: details, updatedAt: new Date() })
+      .where(eq(photographerProfiles.userId, photographerId));
+  }
+
+  async createPayoutRequest(data: {
+    photographerId: string;
+    bookingIds: string[];
+    amount: number;
+    currency: string;
+    payoutMethod: string;
+    payoutDetails: Record<string, unknown>;
+  }): Promise<Payout> {
+    const [payout] = await db
+      .insert(payouts)
+      .values({
+        photographerId: data.photographerId,
+        bookingIds: data.bookingIds,
+        amount: data.amount,
+        currency: data.currency,
+        status: 'pending',
+        payoutMethod: data.payoutMethod,
+        payoutDetails: data.payoutDetails,
+        requestedAt: new Date(),
+        createdAt: new Date(),
+      })
+      .returning();
+    return payout;
+  }
+
+  async getPhotographerPayouts(photographerId: string): Promise<Payout[]> {
+    return await db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.photographerId, photographerId))
+      .orderBy(desc(payouts.createdAt));
+  }
+
+  async getAllPayouts(): Promise<(Payout & { photographerName: string | null; photographerEmail: string | null })[]> {
+    const rows = await db
+      .select({
+        payout: payouts,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+      })
+      .from(payouts)
+      .leftJoin(users, eq(payouts.photographerId, users.id))
+      .orderBy(desc(payouts.createdAt));
+
+    return rows.map(r => ({
+      ...r.payout,
+      photographerName: [r.firstName, r.lastName].filter(Boolean).join(' ') || null,
+      photographerEmail: r.email,
+    }));
+  }
+
+  async updatePayoutStatus(id: string, status: string, adminNotes?: string, referenceNumber?: string): Promise<Payout | undefined> {
+    const updateData: Partial<Payout> = { status };
+    if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
+    if (referenceNumber !== undefined) updateData.referenceNumber = referenceNumber;
+    if (status === 'completed' || status === 'processing') updateData.processedAt = new Date();
+
+    const [updated] = await db
+      .update(payouts)
+      .set(updateData)
+      .where(eq(payouts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getPendingPayoutCount(): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(payouts)
+      .where(eq(payouts.status, 'pending'));
+    return result[0]?.count ?? 0;
   }
 }
 

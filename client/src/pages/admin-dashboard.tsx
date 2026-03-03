@@ -24,7 +24,8 @@ import {
   Tag,
   MessageSquare,
   User,
-  BookOpen
+  BookOpen,
+  BanknoteIcon
 } from "lucide-react";
 import { AdminBookings } from "@/components/admin-bookings";
 import { AdminGalleries } from "@/components/admin-galleries";
@@ -37,6 +38,7 @@ import { AdminPricing } from "@/components/admin-pricing";
 import { AdminSite } from "@/components/admin-site";
 import { AdminCoupons } from "@/components/admin-coupons";
 import { AdminBlog } from "@/components/admin-blog";
+import { AdminPayouts } from "@/components/admin-payouts";
 import { ChatPanel } from "@/components/chat-panel";
 import { UserProfileForm } from "@/components/user-profile-form";
 
@@ -304,6 +306,10 @@ export function AdminDashboard() {
                 <BookOpen className="w-4 h-4 shrink-0" />
                 <span>Blog</span>
               </TabsTrigger>
+              <TabsTrigger value="payouts" data-testid="tab-payouts" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <BanknoteIcon className="w-4 h-4 shrink-0" />
+                <span>Payouts</span>
+              </TabsTrigger>
               <TabsTrigger value="profile" data-testid="tab-profile" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
                 <User className="w-4 h-4 shrink-0" />
                 <span>Profile</span>
@@ -353,6 +359,9 @@ export function AdminDashboard() {
           </TabsContent>
           <TabsContent value="blog">
             <AdminBlog />
+          </TabsContent>
+          <TabsContent value="payouts">
+            <AdminPayouts />
           </TabsContent>
           <TabsContent value="profile">
             <UserProfileForm />

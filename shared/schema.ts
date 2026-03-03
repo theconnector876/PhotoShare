@@ -45,8 +45,25 @@ export const photographerProfiles = pgTable("photographer_profiles", {
   phone: text("phone"),
   socials: jsonb("socials").default({}),
   verificationDocs: text("verification_docs").array().default([]),
+  payoutDetails: jsonb("payout_details").default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const payouts = pgTable("payouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  photographerId: varchar("photographer_id").notNull().references(() => users.id),
+  bookingIds: text("booking_ids").array().default([]),
+  amount: integer("amount").notNull(), // in smallest currency unit (cents for USD, whole JMD for JMD)
+  currency: varchar("currency", { length: 3 }).default("USD"),
+  status: text("status").notNull().default("pending"), // pending | processing | completed | rejected
+  payoutMethod: text("payout_method"), // 'bank' | 'card'
+  payoutDetails: jsonb("payout_details").default({}), // snapshot of bank/card details
+  adminNotes: text("admin_notes"),
+  referenceNumber: text("reference_number"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const pricingConfigs = pgTable("pricing_configs", {
@@ -94,6 +111,7 @@ export const bookings = pgTable("bookings", {
   contractAccepted: boolean("contract_accepted").notNull().default(false),
   couponCode: text("coupon_code"),
   discountAmount: integer("discount_amount").notNull().default(0),
+  currency: varchar("currency", { length: 3 }).default("USD"),
   status: text("status").notNull().default("pending"), // pending, confirmed, completed
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -112,6 +130,8 @@ export const galleries = pgTable("galleries", {
   finalDownloadEnabled: boolean("final_download_enabled").notNull().default(true),
   clientComment: text("client_comment"),
   imageComments: jsonb("image_comments").default({}),
+  // Folder/subcategory mapping: { gallery: { "Reception": ["url1"], ... }, final: { ... } }
+  imageFolders: jsonb("image_folders").default({}),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -359,3 +379,24 @@ export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({
 });
 export type BlogPost = typeof blogPosts.$inferSelect;
 export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+
+export const insertPayoutSchema = createInsertSchema(payouts).omit({ id: true, createdAt: true, requestedAt: true, processedAt: true });
+export type Payout = typeof payouts.$inferSelect;
+export type InsertPayout = z.infer<typeof insertPayoutSchema>;
+
+export type PayoutDetails = {
+  method: 'bank' | 'card';
+  // Bank wire fields
+  bankName?: string;
+  bankBranch?: string;
+  accountHolderName?: string;
+  accountNumber?: string;
+  routingNumber?: string;
+  // Card fields
+  cardHolderName?: string;
+  cardNumber?: string; // last 4 digits only
+  cardType?: string; // Visa, Mastercard, etc.
+  cardIssuingBank?: string;
+  // Optional extra
+  notes?: string;
+};

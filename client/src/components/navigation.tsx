@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Camera, Menu, X, User, LogOut } from "lucide-react";
+import { Camera, Menu, LogOut, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { useSiteConfig } from "@/context/site-config";
+import { useCurrency } from "@/context/currency";
+import { SUPPORTED_CURRENCIES, CURRENCY_SYMBOLS, type Currency } from "@shared/currency";
 
 export default function Navigation() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const { user, logoutMutation } = useAuth();
   const { config } = useSiteConfig();
+  const { selectedCurrency, setCurrency } = useCurrency();
 
   const publicNavItems = [
     { href: "/", label: "Home" },
@@ -88,6 +92,26 @@ export default function Navigation() {
             {authNavItems.map((item) => (
               <NavLink key={item.href} {...item} />
             ))}
+            {/* Currency Switcher */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-xs font-medium gap-1 px-2">
+                  {CURRENCY_SYMBOLS[selectedCurrency]} {selectedCurrency}
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[140px]">
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <DropdownMenuItem
+                    key={c}
+                    onClick={() => setCurrency(c as Currency)}
+                    className={selectedCurrency === c ? "font-semibold bg-accent" : ""}
+                  >
+                    {CURRENCY_SYMBOLS[c as Currency]} {c}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {user && (
               <div className="flex items-center gap-3 pl-2 border-l border-border/60">
                 <span className="text-xs text-muted-foreground hidden lg:inline">

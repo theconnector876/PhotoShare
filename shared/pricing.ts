@@ -1,4 +1,7 @@
+import type { Currency } from "./currency";
+
 export type PricingConfig = {
+  currency?: Currency;
   packages: {
     photoshoot: {
       photography: {
@@ -59,6 +62,7 @@ export type PricingConfig = {
 };
 
 export const defaultPricingConfig: PricingConfig = {
+  currency: 'USD',
   packages: {
     photoshoot: {
       photography: {
