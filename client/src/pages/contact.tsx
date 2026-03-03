@@ -6,10 +6,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Phone, Mail, MapPin, Instagram, Facebook, Twitter } from "lucide-react";
+import { Phone, Mail, MapPin, Instagram, Facebook, Twitter, ExternalLink } from "lucide-react";
 
 const contactFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -55,6 +55,55 @@ export default function Contact() {
   const onSubmit = (data: ContactFormData) => {
     sendMessageMutation.mutate(data);
   };
+
+  const { data: socialConfig } = useQuery<{
+    twitterUsername: string | null;
+    facebookPageUrl: string | null;
+    tiktokUsername: string | null;
+    instagramConfigured: boolean;
+    instagramProfileUrl: string | null;
+  }>({
+    queryKey: ["/api/social/config"],
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // TikTok SVG path (lucide doesn't include it)
+  const TikTokIcon = () => (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.82a8.18 8.18 0 004.78 1.52V6.9a4.85 4.85 0 01-1.01-.21z" />
+    </svg>
+  );
+
+  const socialLinks = [
+    {
+      icon: Instagram,
+      label: "Instagram",
+      href: socialConfig?.instagramProfileUrl || (socialConfig?.instagramConfigured ? "https://www.instagram.com" : null),
+      gradient: "from-pink-500 via-red-500 to-orange-400",
+      testId: "social-instagram",
+    },
+    {
+      icon: Facebook,
+      label: "Facebook",
+      href: socialConfig?.facebookPageUrl || null,
+      gradient: "from-blue-600 to-blue-500",
+      testId: "social-facebook",
+    },
+    {
+      icon: Twitter,
+      label: "Twitter / X",
+      href: socialConfig?.twitterUsername ? `https://twitter.com/${socialConfig.twitterUsername}` : null,
+      gradient: "from-sky-400 to-blue-500",
+      testId: "social-twitter",
+    },
+    {
+      icon: TikTokIcon,
+      label: "TikTok",
+      href: socialConfig?.tiktokUsername ? `https://www.tiktok.com/@${socialConfig.tiktokUsername}` : null,
+      gradient: "from-gray-900 to-gray-700",
+      testId: "social-tiktok",
+    },
+  ].filter((s) => s.href);
 
   return (
     <div className="pt-20 pb-20 relative z-10">
@@ -106,29 +155,35 @@ export default function Contact() {
 
             <Card className="p-6 hover-3d" data-testid="contact-social">
               <h4 className="font-semibold mb-4">Follow Our Work</h4>
-              <div className="flex space-x-4">
-                <a 
-                  href="#" 
-                  className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white magnetic-btn"
-                  data-testid="social-instagram"
-                >
-                  <Instagram className="w-5 h-5" />
-                </a>
-                <a 
-                  href="#" 
-                  className="w-10 h-10 bg-gradient-to-r from-secondary to-accent rounded-full flex items-center justify-center text-white magnetic-btn"
-                  data-testid="social-facebook"
-                >
-                  <Facebook className="w-5 h-5" />
-                </a>
-                <a 
-                  href="#" 
-                  className="w-10 h-10 bg-gradient-to-r from-accent to-primary rounded-full flex items-center justify-center text-white magnetic-btn"
-                  data-testid="social-twitter"
-                >
-                  <Twitter className="w-5 h-5" />
-                </a>
-              </div>
+              {socialLinks.length > 0 ? (
+                <div className="flex space-x-4">
+                  {socialLinks.map(({ icon: Icon, label, href, gradient, testId }) => (
+                    <a
+                      key={testId}
+                      href={href!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={label}
+                      className={`w-10 h-10 bg-gradient-to-r ${gradient} rounded-full flex items-center justify-center text-white magnetic-btn transition-transform hover:scale-110`}
+                      data-testid={testId}
+                    >
+                      <Icon className="w-5 h-5" />
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex space-x-4">
+                  <a href="#" className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white magnetic-btn" data-testid="social-instagram">
+                    <Instagram className="w-5 h-5" />
+                  </a>
+                  <a href="#" className="w-10 h-10 bg-gradient-to-r from-secondary to-accent rounded-full flex items-center justify-center text-white magnetic-btn" data-testid="social-facebook">
+                    <Facebook className="w-5 h-5" />
+                  </a>
+                  <a href="#" className="w-10 h-10 bg-gradient-to-r from-accent to-primary rounded-full flex items-center justify-center text-white magnetic-btn" data-testid="social-twitter">
+                    <Twitter className="w-5 h-5" />
+                  </a>
+                </div>
+              )}
             </Card>
           </div>
 

@@ -20,11 +20,12 @@ interface SocialConfig {
   facebookPageUrl: string | null;
   tiktokUsername: string | null;
   instagramConfigured: boolean;
+  instagramProfileUrl: string | null;
 }
 
 // ── Instagram Grid ────────────────────────────────────────────────────────────
 
-function InstagramGrid() {
+function InstagramGrid({ profileUrl }: { profileUrl?: string | null }) {
   const { data, isLoading } = useQuery<{ media: InstagramMedia[]; configured: boolean }>({
     queryKey: ["/api/social/instagram"],
     staleTime: 30 * 60 * 1000,
@@ -48,9 +49,21 @@ function InstagramGrid() {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-4">
-        <Instagram className="h-5 w-5 text-pink-500" />
-        <h3 className="text-lg font-semibold">Instagram</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Instagram className="h-5 w-5 text-pink-500" />
+          <h3 className="text-lg font-semibold">Instagram</h3>
+        </div>
+        {profileUrl && (
+          <a
+            href={profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm font-medium text-pink-500 hover:text-pink-600 transition-colors"
+          >
+            Follow us <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
       </div>
       <div className="grid grid-cols-3 gap-1 md:gap-2">
         {media.map((item) => {
@@ -83,6 +96,18 @@ function InstagramGrid() {
           );
         })}
       </div>
+      {profileUrl && (
+        <div className="mt-3 text-center">
+          <a
+            href={profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-muted-foreground hover:text-pink-500 flex items-center justify-center gap-1 transition-colors"
+          >
+            View all posts on Instagram <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      )}
     </div>
   );
 }
@@ -245,7 +270,7 @@ export function SocialFeed() {
         {/* Instagram takes full width if present */}
         {hasInstagram && (
           <div className="mb-12">
-            <InstagramGrid />
+            <InstagramGrid profileUrl={config?.instagramProfileUrl} />
           </div>
         )}
 

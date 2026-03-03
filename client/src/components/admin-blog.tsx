@@ -87,6 +87,7 @@ type BlogFormData = z.infer<typeof blogFormSchema>;
 const socialFormSchema = z.object({
   instagramAccessToken: z.string().optional().or(z.literal("")),
   instagramUserId: z.string().optional().or(z.literal("")),
+  instagramProfileUrl: z.string().optional().or(z.literal("")),
   twitterUsername: z.string().optional().or(z.literal("")),
   facebookPageUrl: z.string().optional().or(z.literal("")),
   tiktokUsername: z.string().optional().or(z.literal("")),
@@ -103,6 +104,7 @@ function SocialConfigPanel() {
     facebookPageUrl: string | null;
     tiktokUsername: string | null;
     instagramConfigured: boolean;
+    instagramProfileUrl: string | null;
   }>({
     queryKey: ["/api/social/config"],
   });
@@ -112,13 +114,15 @@ function SocialConfigPanel() {
     defaultValues: {
       instagramAccessToken: "",
       instagramUserId: "",
-      twitterUsername: config?.twitterUsername || "",
-      facebookPageUrl: config?.facebookPageUrl || "",
-      tiktokUsername: config?.tiktokUsername || "",
+      instagramProfileUrl: "",
+      twitterUsername: "",
+      facebookPageUrl: "",
+      tiktokUsername: "",
     },
     values: {
       instagramAccessToken: "",
       instagramUserId: "",
+      instagramProfileUrl: config?.instagramProfileUrl || "",
       twitterUsername: config?.twitterUsername || "",
       facebookPageUrl: config?.facebookPageUrl || "",
       tiktokUsername: config?.tiktokUsername || "",
@@ -130,6 +134,7 @@ function SocialConfigPanel() {
       return apiRequest("PUT", "/api/admin/social-config", {
         instagramAccessToken: data.instagramAccessToken || undefined,
         instagramUserId: data.instagramUserId || undefined,
+        instagramProfileUrl: data.instagramProfileUrl || undefined,
         twitterUsername: data.twitterUsername || undefined,
         facebookPageUrl: data.facebookPageUrl || undefined,
         tiktokUsername: data.tiktokUsername || undefined,
@@ -139,6 +144,8 @@ function SocialConfigPanel() {
       toast({ title: "Social config saved" });
       qc.invalidateQueries({ queryKey: ["/api/social/config"] });
       qc.invalidateQueries({ queryKey: ["/api/social/instagram"] });
+      form.setValue("instagramAccessToken", "");
+      form.setValue("instagramUserId", "");
     },
     onError: () => {
       toast({ title: "Save failed", variant: "destructive" });
@@ -186,6 +193,23 @@ function SocialConfigPanel() {
                   <FormControl>
                     <Input {...field} placeholder="e.g. 17841400000000000" />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="instagramProfileUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Instagram className="h-4 w-4 text-pink-500" />
+                    Instagram Profile URL
+                  </FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="https://www.instagram.com/yourhandle" />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">Used for "Follow us" links on the site</p>
                   <FormMessage />
                 </FormItem>
               )}
