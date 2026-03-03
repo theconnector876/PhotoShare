@@ -15,6 +15,7 @@ export default function Navigation() {
   const publicNavItems = [
     { href: "/", label: "Home" },
     { href: "/portfolio", label: "Portfolio" },
+    { href: "/blog", label: "Blog" },
     { href: "/booking", label: "Book Now" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },

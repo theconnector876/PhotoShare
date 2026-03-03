@@ -23,7 +23,8 @@ import {
   Settings,
   Tag,
   MessageSquare,
-  User
+  User,
+  BookOpen
 } from "lucide-react";
 import { AdminBookings } from "@/components/admin-bookings";
 import { AdminGalleries } from "@/components/admin-galleries";
@@ -35,6 +36,7 @@ import { AdminPhotographers } from "@/components/admin-photographers";
 import { AdminPricing } from "@/components/admin-pricing";
 import { AdminSite } from "@/components/admin-site";
 import { AdminCoupons } from "@/components/admin-coupons";
+import { AdminBlog } from "@/components/admin-blog";
 import { ChatPanel } from "@/components/chat-panel";
 import { UserProfileForm } from "@/components/user-profile-form";
 
@@ -298,6 +300,10 @@ export function AdminDashboard() {
                 <span>Chat</span>
                 {unreadChatCount > 0 && <Badge className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0">{unreadChatCount}</Badge>}
               </TabsTrigger>
+              <TabsTrigger value="blog" data-testid="tab-blog" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <BookOpen className="w-4 h-4 shrink-0" />
+                <span>Blog</span>
+              </TabsTrigger>
               <TabsTrigger value="profile" data-testid="tab-profile" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
                 <User className="w-4 h-4 shrink-0" />
                 <span>Profile</span>
@@ -344,6 +350,9 @@ export function AdminDashboard() {
           </TabsContent>
           <TabsContent value="chat" className="flex-1 min-h-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
             <ChatPanel isAdmin />
+          </TabsContent>
+          <TabsContent value="blog">
+            <AdminBlog />
           </TabsContent>
           <TabsContent value="profile">
             <UserProfileForm />

@@ -1,13 +1,14 @@
 import { Link } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Camera, Heart, Users, ChevronDown } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Camera, Heart, Users, ChevronDown, BookOpen, ArrowRight, Calendar } from "lucide-react";
 import PortfolioGrid from "@/components/portfolio-grid";
 import ReviewDisplay from "@/components/review-display";
 import { useSiteConfig } from "@/context/site-config";
 import { AdminSectionEdit } from "@/components/admin-section-edit";
 import { AdminInlineEditor } from "@/components/admin-inline-editor";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Home() {
   const { config } = useSiteConfig();
@@ -20,6 +21,15 @@ export default function Home() {
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  const { data: blogPreviews = [] } = useQuery<any[]>({
+    queryKey: ["/api/blog", { page: 1, limit: 3 }],
+    queryFn: async () => {
+      const res = await fetch("/api/blog?page=1&limit=3", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
   const sections: Record<string, JSX.Element> = {
     hero: (
@@ -167,14 +177,78 @@ export default function Home() {
             </p>
           </div>
 
-          <ReviewDisplay 
-            type="general" 
+          <ReviewDisplay
+            type="general"
             limit={3}
             showSubmitForm={true}
           />
         </div>
       </section>
     ),
+    blog: blogPreviews.length > 0 ? (
+      <section className="py-20 bg-muted/20 relative z-10">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <BookOpen className="h-6 w-6 text-primary" />
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold font-serif mb-4 gradient-text">
+              Latest from the Blog
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Photography tips, inspiration, and behind-the-scenes stories.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {blogPreviews.map((post: any) => (
+              <Link key={post.id} href={`/blog/${post.slug}`}>
+                <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer h-full">
+                  {post.coverImage ? (
+                    <div className="h-48 overflow-hidden">
+                      <img
+                        src={post.coverImage}
+                        alt={post.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                      <BookOpen className="h-10 w-10 text-primary/30" />
+                    </div>
+                  )}
+                  <CardContent className="p-4">
+                    <h3 className="font-bold text-base leading-snug mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                      {post.title}
+                    </h3>
+                    {post.excerpt && (
+                      <p className="text-muted-foreground text-sm line-clamp-2 mb-3">{post.excerpt}</p>
+                    )}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(post.publishedAt || post.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                      <span className="flex items-center gap-1 text-primary font-medium">
+                        Read <ArrowRight className="h-3 w-3" />
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+          <div className="text-center">
+            <Link href="/blog">
+              <Button variant="outline" className="gap-2 magnetic-btn">
+                View All Posts
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+    ) : <></>,
   };
 
   return (

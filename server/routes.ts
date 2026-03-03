@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupPasswordAuth, hashPassword } from "./auth";
 import { getSession } from "./session";
 import passport from "passport";
-import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema, insertUserSchema, insertCouponSchema, type Coupon } from "@shared/schema";
+import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema, insertUserSchema, insertCouponSchema, insertBlogPostSchema, type Coupon } from "@shared/schema";
 import { defaultPricingConfig } from "@shared/pricing";
 import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
@@ -2680,6 +2680,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching photographer catalogues:', error);
       res.status(500).json({ error: 'Failed to fetch catalogues' });
+    }
+  });
+
+  // ===== BLOG =====
+
+  // Public: list published blog posts (paginated)
+  app.get('/api/blog', async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || '1')));
+      const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || '9'))));
+      const posts = await storage.getBlogPosts(page, limit);
+      res.json(posts);
+    } catch (error) {
+      console.error('Error fetching blog posts:', error);
+      res.status(500).json({ error: 'Failed to fetch blog posts' });
+    }
+  });
+
+  // Public: single published post by slug
+  app.get('/api/blog/:slug', async (req, res) => {
+    try {
+      const post = await storage.getBlogPostBySlug(req.params.slug);
+      if (!post) return res.status(404).json({ error: 'Post not found' });
+      res.json(post);
+    } catch (error) {
+      console.error('Error fetching blog post:', error);
+      res.status(500).json({ error: 'Failed to fetch blog post' });
+    }
+  });
+
+  // Admin: list all blog posts
+  app.get('/api/admin/blog', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const posts = await storage.getAllBlogPosts();
+      res.json(posts);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch blog posts' });
+    }
+  });
+
+  // Admin: create blog post
+  app.post('/api/admin/blog', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const data = insertBlogPostSchema.parse(req.body);
+      const authorId = (req as any).user?.id;
+      // Auto-set publishedAt when publishing
+      const publishedAt = data.status === 'published' ? new Date() : null;
+      const post = await storage.createBlogPost({ ...data, authorId, publishedAt } as any);
+      res.json(post);
+    } catch (error: any) {
+      if (error?.name === 'ZodError') return res.status(400).json({ error: error.errors });
+      console.error('Error creating blog post:', error);
+      res.status(500).json({ error: 'Failed to create blog post' });
+    }
+  });
+
+  // Admin: update blog post
+  app.put('/api/admin/blog/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const existing = await storage.getBlogPostById(req.params.id);
+      if (!existing) return res.status(404).json({ error: 'Post not found' });
+      // Set publishedAt when first publishing
+      const publishedAt = req.body.status === 'published' && existing.status !== 'published'
+        ? new Date()
+        : existing.publishedAt;
+      const post = await storage.updateBlogPost(req.params.id, { ...req.body, publishedAt });
+      res.json(post);
+    } catch (error) {
+      console.error('Error updating blog post:', error);
+      res.status(500).json({ error: 'Failed to update blog post' });
+    }
+  });
+
+  // Admin: delete blog post
+  app.delete('/api/admin/blog/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteBlogPost(req.params.id);
+      if (!ok) return res.status(404).json({ error: 'Post not found' });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete blog post' });
+    }
+  });
+
+  // ===== SOCIAL MEDIA =====
+
+  // In-memory Instagram cache (60 min TTL)
+  let igCache: { data: any; expiresAt: number } | null = null;
+
+  // Proxy Instagram Graph API feed
+  app.get('/api/social/instagram', async (req, res) => {
+    try {
+      // Return cache if fresh
+      if (igCache && Date.now() < igCache.expiresAt) {
+        return res.json(igCache.data);
+      }
+      const tokenRow = await storage.getSiteConfig('instagram_access_token');
+      const userIdRow = await storage.getSiteConfig('instagram_user_id');
+      const accessToken = (tokenRow?.config as any)?.value;
+      const userId = (userIdRow?.config as any)?.value;
+      if (!accessToken || !userId) {
+        return res.json({ media: [], configured: false });
+      }
+      const igUrl = `https://graph.instagram.com/${userId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp&limit=12&access_token=${accessToken}`;
+      const igRes = await fetch(igUrl);
+      if (!igRes.ok) {
+        const errText = await igRes.text();
+        console.error('Instagram API error:', errText);
+        return res.status(502).json({ error: 'Instagram API error', media: [], configured: true });
+      }
+      const igData = await igRes.json() as any;
+      const payload = { media: igData.data || [], configured: true };
+      igCache = { data: payload, expiresAt: Date.now() + 60 * 60 * 1000 };
+
+      // Auto-refresh token if within 7 days of creating this session
+      // (tokens are 60-day; we refresh proactively when called)
+      try {
+        const refreshUrl = `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${accessToken}`;
+        const refreshRes = await fetch(refreshUrl);
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json() as any;
+          if (refreshData.access_token && refreshData.access_token !== accessToken) {
+            await storage.upsertSiteConfig('instagram_access_token', { value: refreshData.access_token });
+          }
+        }
+      } catch (_) { /* silent */ }
+
+      return res.json(payload);
+    } catch (error) {
+      console.error('Instagram fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch Instagram feed', media: [], configured: false });
+    }
+  });
+
+  // Public: social config (non-secret values)
+  app.get('/api/social/config', async (req, res) => {
+    try {
+      const [tw, fb, tt, ig] = await Promise.all([
+        storage.getSiteConfig('twitter_username'),
+        storage.getSiteConfig('facebook_page_url'),
+        storage.getSiteConfig('tiktok_username'),
+        storage.getSiteConfig('instagram_user_id'),
+      ]);
+      res.json({
+        twitterUsername: (tw?.config as any)?.value || null,
+        facebookPageUrl: (fb?.config as any)?.value || null,
+        tiktokUsername: (tt?.config as any)?.value || null,
+        instagramConfigured: Boolean((ig?.config as any)?.value),
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch social config' });
+    }
+  });
+
+  // Admin: update social config keys
+  app.put('/api/admin/social-config', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { instagramAccessToken, instagramUserId, twitterUsername, facebookPageUrl, tiktokUsername } = req.body;
+      const updates: Promise<any>[] = [];
+      if (instagramAccessToken !== undefined) updates.push(storage.upsertSiteConfig('instagram_access_token', { value: instagramAccessToken }));
+      if (instagramUserId !== undefined) updates.push(storage.upsertSiteConfig('instagram_user_id', { value: instagramUserId }));
+      if (twitterUsername !== undefined) updates.push(storage.upsertSiteConfig('twitter_username', { value: twitterUsername }));
+      if (facebookPageUrl !== undefined) updates.push(storage.upsertSiteConfig('facebook_page_url', { value: facebookPageUrl }));
+      if (tiktokUsername !== undefined) updates.push(storage.upsertSiteConfig('tiktok_username', { value: tiktokUsername }));
+      await Promise.all(updates);
+      igCache = null; // bust cache on config change
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update social config' });
     }
   });
 

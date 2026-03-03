@@ -220,6 +220,23 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const blogPosts = pgTable("blog_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 200 }).notNull().unique(),
+  content: text("content").notNull().default(""),
+  excerpt: text("excerpt"),
+  coverImage: text("cover_image"),
+  authorId: varchar("author_id").references(() => users.id),
+  status: varchar("status", { length: 20 }).default("draft"), // draft | published
+  tags: text("tags").array(),
+  seoTitle: varchar("seo_title", { length: 200 }),
+  seoDescription: text("seo_description"),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,
   createdAt: true,
@@ -334,3 +351,11 @@ export type EmailThread = {
   lastActivity: string;
   messages: InboundEmail[];
 };
+
+export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type BlogPost = typeof blogPosts.$inferSelect;
+export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;

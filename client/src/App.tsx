@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import { SiteConfigProvider } from "@/context/site-config";
 import { ProtectedRoute } from "@/lib/protected-route";
+import { HelmetProvider } from "react-helmet-async";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Portfolio from "@/pages/portfolio";
@@ -21,6 +22,8 @@ import { AdminDashboard } from "@/pages/admin-dashboard";
 import Payment from "@/pages/payment";
 import { PaymentSuccess } from "@/pages/payment-success";
 import CheckoutOverlay from "@/pages/checkout-overlay";
+import Blog from "@/pages/blog";
+import BlogPost from "@/pages/blog-post";
 import Navigation from "@/components/navigation";
 import ConstellationBackground from "@/components/constellation-background";
 
@@ -35,6 +38,8 @@ function Router() {
       <Route path="/contact" component={Contact} />
       <Route path="/gallery" component={Gallery} />
       <Route path="/gallery/:email/:code" component={Gallery} />
+      <Route path="/blog" component={Blog} />
+      <Route path="/blog/:slug" component={BlogPost} />
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/photographer" component={PhotographerDashboard} />
@@ -50,6 +55,7 @@ function Router() {
 
 function App() {
   return (
+    <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <SiteConfigProvider>
         <AuthProvider>
@@ -64,6 +70,7 @@ function App() {
         </AuthProvider>
       </SiteConfigProvider>
     </QueryClientProvider>
+    </HelmetProvider>
   );
 }
 

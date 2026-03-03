@@ -51154,6 +51154,7 @@ var import_http = require("http");
 // shared/schema.ts
 var schema_exports = {};
 __export(schema_exports, {
+  blogPosts: () => blogPosts,
   bookings: () => bookings,
   catalogues: () => catalogues,
   contactMessages: () => contactMessages,
@@ -51162,6 +51163,7 @@ __export(schema_exports, {
   coupons: () => coupons,
   galleries: () => galleries,
   inboundEmails: () => inboundEmails,
+  insertBlogPostSchema: () => insertBlogPostSchema,
   insertBookingSchema: () => insertBookingSchema,
   insertCatalogueSchema: () => insertCatalogueSchema,
   insertContactMessageSchema: () => insertContactMessageSchema,
@@ -62123,6 +62125,23 @@ var passwordResetTokens = pgTable("password_reset_tokens", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow()
 });
+var blogPosts = pgTable("blog_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 200 }).notNull().unique(),
+  content: text("content").notNull().default(""),
+  excerpt: text("excerpt"),
+  coverImage: text("cover_image"),
+  authorId: varchar("author_id").references(() => users.id),
+  status: varchar("status", { length: 20 }).default("draft"),
+  // draft | published
+  tags: text("tags").array(),
+  seoTitle: varchar("seo_title", { length: 200 }),
+  seoDescription: text("seo_description"),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
 var insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,
   createdAt: true,
@@ -62170,6 +62189,11 @@ var insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt:
 var insertConversationSchema = createInsertSchema(conversations).omit({ id: true, createdAt: true, updatedAt: true });
 var insertConversationParticipantSchema = createInsertSchema(conversationParticipants).omit({ id: true, joinedAt: true });
 var insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
+var insertBlogPostSchema = createInsertSchema(blogPosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
 
 // node_modules/@neondatabase/serverless/index.mjs
 var io = Object.create;
@@ -68699,6 +68723,34 @@ var DatabaseStorage = class {
       ) sub
     `);
     return Number(result.rows[0]?.total ?? 0);
+  }
+  // Blog post operations
+  async getBlogPosts(page = 1, limit = 9) {
+    const offset = (page - 1) * limit;
+    return await db.select().from(blogPosts).where(eq(blogPosts.status, "published")).orderBy(desc(blogPosts.publishedAt)).limit(limit).offset(offset);
+  }
+  async getBlogPostBySlug(slug) {
+    const [post] = await db.select().from(blogPosts).where(and(eq(blogPosts.slug, slug), eq(blogPosts.status, "published")));
+    return post;
+  }
+  async getBlogPostById(id) {
+    const [post] = await db.select().from(blogPosts).where(eq(blogPosts.id, id));
+    return post;
+  }
+  async getAllBlogPosts() {
+    return await db.select().from(blogPosts).orderBy(desc(blogPosts.createdAt));
+  }
+  async createBlogPost(data) {
+    const [post] = await db.insert(blogPosts).values({ ...data, createdAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).returning();
+    return post;
+  }
+  async updateBlogPost(id, data) {
+    const [post] = await db.update(blogPosts).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(blogPosts.id, id)).returning();
+    return post;
+  }
+  async deleteBlogPost(id) {
+    const result = await db.delete(blogPosts).where(eq(blogPosts.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 };
 var storage = new DatabaseStorage();
@@ -76473,6 +76525,143 @@ Thank you!`
     } catch (error) {
       console.error("Error fetching photographer catalogues:", error);
       res.status(500).json({ error: "Failed to fetch catalogues" });
+    }
+  });
+  app2.get("/api/blog", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(String(req.query.page || "1")));
+      const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || "9"))));
+      const posts = await storage.getBlogPosts(page, limit);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching blog posts:", error);
+      res.status(500).json({ error: "Failed to fetch blog posts" });
+    }
+  });
+  app2.get("/api/blog/:slug", async (req, res) => {
+    try {
+      const post = await storage.getBlogPostBySlug(req.params.slug);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+      res.json(post);
+    } catch (error) {
+      console.error("Error fetching blog post:", error);
+      res.status(500).json({ error: "Failed to fetch blog post" });
+    }
+  });
+  app2.get("/api/admin/blog", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const posts = await storage.getAllBlogPosts();
+      res.json(posts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch blog posts" });
+    }
+  });
+  app2.post("/api/admin/blog", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const data = insertBlogPostSchema.parse(req.body);
+      const authorId = req.user?.id;
+      const publishedAt = data.status === "published" ? /* @__PURE__ */ new Date() : null;
+      const post = await storage.createBlogPost({ ...data, authorId, publishedAt });
+      res.json(post);
+    } catch (error) {
+      if (error?.name === "ZodError") return res.status(400).json({ error: error.errors });
+      console.error("Error creating blog post:", error);
+      res.status(500).json({ error: "Failed to create blog post" });
+    }
+  });
+  app2.put("/api/admin/blog/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const existing = await storage.getBlogPostById(req.params.id);
+      if (!existing) return res.status(404).json({ error: "Post not found" });
+      const publishedAt = req.body.status === "published" && existing.status !== "published" ? /* @__PURE__ */ new Date() : existing.publishedAt;
+      const post = await storage.updateBlogPost(req.params.id, { ...req.body, publishedAt });
+      res.json(post);
+    } catch (error) {
+      console.error("Error updating blog post:", error);
+      res.status(500).json({ error: "Failed to update blog post" });
+    }
+  });
+  app2.delete("/api/admin/blog/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteBlogPost(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Post not found" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete blog post" });
+    }
+  });
+  let igCache = null;
+  app2.get("/api/social/instagram", async (req, res) => {
+    try {
+      if (igCache && Date.now() < igCache.expiresAt) {
+        return res.json(igCache.data);
+      }
+      const tokenRow = await storage.getSiteConfig("instagram_access_token");
+      const userIdRow = await storage.getSiteConfig("instagram_user_id");
+      const accessToken = tokenRow?.config?.value;
+      const userId = userIdRow?.config?.value;
+      if (!accessToken || !userId) {
+        return res.json({ media: [], configured: false });
+      }
+      const igUrl = `https://graph.instagram.com/${userId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp&limit=12&access_token=${accessToken}`;
+      const igRes = await fetch(igUrl);
+      if (!igRes.ok) {
+        const errText = await igRes.text();
+        console.error("Instagram API error:", errText);
+        return res.status(502).json({ error: "Instagram API error", media: [], configured: true });
+      }
+      const igData = await igRes.json();
+      const payload = { media: igData.data || [], configured: true };
+      igCache = { data: payload, expiresAt: Date.now() + 60 * 60 * 1e3 };
+      try {
+        const refreshUrl = `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${accessToken}`;
+        const refreshRes = await fetch(refreshUrl);
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json();
+          if (refreshData.access_token && refreshData.access_token !== accessToken) {
+            await storage.upsertSiteConfig("instagram_access_token", { value: refreshData.access_token });
+          }
+        }
+      } catch (_2) {
+      }
+      return res.json(payload);
+    } catch (error) {
+      console.error("Instagram fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch Instagram feed", media: [], configured: false });
+    }
+  });
+  app2.get("/api/social/config", async (req, res) => {
+    try {
+      const [tw, fb, tt2, ig] = await Promise.all([
+        storage.getSiteConfig("twitter_username"),
+        storage.getSiteConfig("facebook_page_url"),
+        storage.getSiteConfig("tiktok_username"),
+        storage.getSiteConfig("instagram_user_id")
+      ]);
+      res.json({
+        twitterUsername: tw?.config?.value || null,
+        facebookPageUrl: fb?.config?.value || null,
+        tiktokUsername: tt2?.config?.value || null,
+        instagramConfigured: Boolean(ig?.config?.value)
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch social config" });
+    }
+  });
+  app2.put("/api/admin/social-config", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { instagramAccessToken, instagramUserId, twitterUsername, facebookPageUrl, tiktokUsername } = req.body;
+      const updates = [];
+      if (instagramAccessToken !== void 0) updates.push(storage.upsertSiteConfig("instagram_access_token", { value: instagramAccessToken }));
+      if (instagramUserId !== void 0) updates.push(storage.upsertSiteConfig("instagram_user_id", { value: instagramUserId }));
+      if (twitterUsername !== void 0) updates.push(storage.upsertSiteConfig("twitter_username", { value: twitterUsername }));
+      if (facebookPageUrl !== void 0) updates.push(storage.upsertSiteConfig("facebook_page_url", { value: facebookPageUrl }));
+      if (tiktokUsername !== void 0) updates.push(storage.upsertSiteConfig("tiktok_username", { value: tiktokUsername }));
+      await Promise.all(updates);
+      igCache = null;
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update social config" });
     }
   });
   const httpServer = (0, import_http.createServer)(app2);
