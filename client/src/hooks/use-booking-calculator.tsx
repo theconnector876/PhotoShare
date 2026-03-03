@@ -1,6 +1,16 @@
 import { useState, useCallback, useEffect } from "react";
 import { defaultPricingConfig, type PricingConfig } from "@shared/pricing";
 
+function deepMerge(base: any, overlay: any): any {
+  if (typeof overlay !== "object" || overlay === null) return overlay ?? base;
+  if (typeof base !== "object" || base === null) return overlay;
+  const result = { ...base };
+  for (const key of Object.keys(base)) {
+    result[key] = key in overlay ? deepMerge(base[key], overlay[key]) : base[key];
+  }
+  return result;
+}
+
 export interface BookingCalculation {
   serviceType: 'photoshoot' | 'wedding' | 'event';
   packageType: string;
@@ -74,7 +84,7 @@ export function useBookingCalculator(photographerId?: string) {
         }
         const data = await response.json();
         if (isMounted && data) {
-          setPricingConfig(data);
+          setPricingConfig(deepMerge(defaultPricingConfig, data) as PricingConfig);
         }
       } catch (error) {
         console.warn("Failed to load pricing config, using defaults.");

@@ -297,7 +297,8 @@ export default function PhotographerDashboard() {
 
   useEffect(() => {
     if (pricingData?.config) {
-      setPricingForm(pricingData.config);
+      // Deep-merge with defaults so missing/old fields always have valid values
+      setPricingForm(deepMerge(defaultPricingConfig, pricingData.config) as PricingConfig);
     }
   }, [pricingData]);
 
@@ -413,6 +414,17 @@ export default function PhotographerDashboard() {
       [galleryId]: { ...(prev[galleryId] ?? {}), [type]: !(prev[galleryId]?.[type] ?? false) },
     }));
   }, []);
+
+  // Deep-merge helper: fills missing fields in overlay from base defaults
+  function deepMerge(base: any, overlay: any): any {
+    if (typeof overlay !== "object" || overlay === null) return overlay ?? base;
+    if (typeof base !== "object" || base === null) return overlay;
+    const result = { ...base };
+    for (const key of Object.keys(base)) {
+      result[key] = key in overlay ? deepMerge(base[key], overlay[key]) : base[key];
+    }
+    return result;
+  }
 
   // Pricing deep-update helper
   const updPricing = (updater: (d: PricingConfig) => void) => {
@@ -704,7 +716,7 @@ export default function PhotographerDashboard() {
         </div>
 
         {/* Content */}
-        <main className={`flex-1 min-h-0 overflow-hidden ${activeTab === "chat" ? "flex flex-col p-0" : "p-4 md:p-6 pb-24 md:pb-6 overflow-y-auto"}`}>
+        <main className={activeTab === "chat" ? "flex-1 min-h-0 flex flex-col overflow-hidden" : "flex-1 p-4 md:p-6 pb-24 md:pb-6 overflow-y-auto"}>
 
           {/* ── OVERVIEW ── */}
           {activeTab === "overview" && (

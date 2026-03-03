@@ -39,13 +39,9 @@ function getInitials(name: string): string {
 }
 
 function sortConversations(convs: ConversationWithMeta[]): ConversationWithMeta[] {
-  return [...convs].sort((a, b) => {
-    // Support conversations pinned to top
-    if (a.type === "support" && b.type !== "support") return -1;
-    if (b.type === "support" && a.type !== "support") return 1;
-    // Then sort by updatedAt descending
-    return new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime();
-  });
+  return [...convs].sort((a, b) =>
+    new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime()
+  );
 }
 
 export function ConversationList({
@@ -58,7 +54,7 @@ export function ConversationList({
   const sorted = sortConversations(conversations);
 
   return (
-    <div className="flex flex-col h-full border-r">
+    <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <h2 className="font-semibold text-sm">Messages</h2>
       </div>

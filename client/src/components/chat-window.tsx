@@ -769,7 +769,7 @@ export function ChatWindow({
   const hasShareOptions = canShareGallery || canSendBookingCard || canSendPaymentRequest || canSendReviewRequest;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b flex-shrink-0">
         {onBack && (

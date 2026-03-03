@@ -294,9 +294,9 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
   return (
     <div className="h-full min-h-0 border rounded-lg overflow-hidden bg-background">
       {/* Desktop: side-by-side. Mobile: single column */}
-      <div className="h-full grid md:grid-cols-[280px_1fr]">
+      <div className="h-full flex overflow-hidden">
         {/* Conversation list — hidden on mobile when chat is open */}
-        <div className={`h-full flex flex-col ${mobileView === "chat" ? "hidden md:flex" : "flex"}`}>
+        <div className={`flex flex-col flex-shrink-0 md:w-[280px] border-r ${mobileView === "chat" ? "hidden md:flex" : "flex w-full"}`}>
           {isAdmin && (
             <div className="px-3 pt-2 pb-1 border-b border-r flex-shrink-0">
               <Button
@@ -310,7 +310,7 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
               </Button>
             </div>
           )}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <ConversationList
               conversations={conversations}
               selectedId={selectedId}
@@ -322,7 +322,7 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
         </div>
 
         {/* Chat window */}
-        <div className={`h-full ${mobileView === "list" ? "hidden md:flex" : "flex"} flex-col`}>
+        <div className={`flex-1 flex flex-col min-h-0 ${mobileView === "list" ? "hidden md:flex" : "flex"}`}>
           {selectedId ? (
             <ChatWindow
               conversationId={selectedId}
