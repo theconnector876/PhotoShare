@@ -205,7 +205,7 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
 
   const saveMutation = useMutation({
     mutationFn: async (payload: SiteConfig) => {
-      await apiRequest("/api/admin/site-config", "PUT", { config: payload });
+      await apiRequest("PUT", "/api/admin/site-config", { config: payload });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/site-config"] });
