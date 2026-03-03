@@ -46,6 +46,7 @@ export const photographerProfiles = pgTable("photographer_profiles", {
   socials: jsonb("socials").default({}),
   verificationDocs: text("verification_docs").array().default([]),
   payoutDetails: jsonb("payout_details").default({}),
+  customTerms: text("custom_terms"), // JSON string of BookingTerms; null = use platform default
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

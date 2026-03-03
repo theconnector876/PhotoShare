@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { defaultSiteConfig, type SiteConfig } from "@shared/site-config";
+import { DEFAULT_BOOKING_TERMS, type BookingTerms } from "@shared/booking-terms";
+import { TermsEditor } from "@/components/terms-editor";
 import { ChevronUp, ChevronDown, Trash2, Plus } from "lucide-react";
 
 const FONT_OPTIONS = [
@@ -111,6 +113,23 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
     mutationFn: (rates: typeof exchangeRates) => apiRequest("PUT", "/api/admin/exchange-rates", rates),
     onSuccess: () => toast({ title: "Exchange rates saved!" }),
     onError: () => toast({ title: "Failed to save rates", variant: "destructive" }),
+  });
+
+  // ── Booking Terms ────────────────────────────────────────────────────────────
+  const [bookingTerms, setBookingTerms] = useState<BookingTerms>(DEFAULT_BOOKING_TERMS);
+  const { data: termsData } = useQuery<BookingTerms>({
+    queryKey: ["/api/admin/booking-terms"],
+  });
+  useEffect(() => {
+    if (termsData) setBookingTerms(termsData);
+  }, [termsData]);
+  const saveTermsMutation = useMutation({
+    mutationFn: (terms: BookingTerms) => apiRequest("PUT", "/api/admin/booking-terms", terms),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/booking-terms"] });
+      toast({ title: "Contract terms saved!" });
+    },
+    onError: () => toast({ title: "Failed to save terms", variant: "destructive" }),
   });
 
   const saveMutation = useMutation({
@@ -722,6 +741,37 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                 disabled={saveRatesMutation.isPending}
               >
                 {saveRatesMutation.isPending ? "Saving…" : "Save Rates"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Contract Terms — platform default */}
+      {showSection("site-booking-terms") && (
+        <Card id="site-booking-terms">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Contract Terms</CardTitle>
+            <CardDescription className="text-xs">
+              Default T&amp;C shown on all booking forms. Photographers can override these from their dashboard.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <TermsEditor value={bookingTerms} onChange={setBookingTerms} />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBookingTerms(DEFAULT_BOOKING_TERMS)}
+              >
+                Reset to Defaults
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => saveTermsMutation.mutate(bookingTerms)}
+                disabled={saveTermsMutation.isPending}
+              >
+                {saveTermsMutation.isPending ? "Saving…" : "Save Terms"}
               </Button>
             </div>
           </CardContent>

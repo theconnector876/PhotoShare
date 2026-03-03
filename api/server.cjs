@@ -51140,6 +51140,63 @@ var require_dist4 = __commonJS({
   }
 });
 
+// shared/booking-terms.ts
+var booking_terms_exports = {};
+__export(booking_terms_exports, {
+  DEFAULT_BOOKING_TERMS: () => DEFAULT_BOOKING_TERMS
+});
+var DEFAULT_BOOKING_TERMS;
+var init_booking_terms = __esm({
+  "shared/booking-terms.ts"() {
+    "use strict";
+    DEFAULT_BOOKING_TERMS = {
+      header: "This contract pertains to the provision of photography and production services for an event scheduled to occur at the specified time and venue by ConnectAGrapher.",
+      sections: [
+        {
+          title: "1. Service Provision",
+          content: "ConnectAGrapher agrees to deliver a minimum number of photos as stipulated in the chosen package. No more than this specified number of images is required to be provided."
+        },
+        {
+          title: "2. Post-Processing",
+          content: "Post-processing and digital image editing services will be performed on the photos and/or video footage as artistically necessary, depending on the selected package."
+        },
+        {
+          title: "3. Image Usage Rights",
+          content: "The Client(s) grant permission to ConnectAGrapher and its assigns, licensees, and sub-licensees to utilise the likeness, images, and video footage for purposes including commercial use, advertising, and portfolio display, unless a written opt-out is provided."
+        },
+        {
+          title: "4. Payment Terms",
+          content: "A 50% deposit is required at the time of booking, processed securely through our online payment platform. The remaining balance is due prior to or on the day of the session. Cash payments on the day of the shoot may be accepted by prior arrangement. Deposits are non-refundable in the event of rescheduling or cancellation by the client."
+        },
+        {
+          title: "5. Delivery Timeline",
+          content: "Edited images will be delivered within 5\u20137 business days for portrait sessions and events, and 2\u20134 weeks for weddings. Platinum package clients receive same-day preview images."
+        },
+        {
+          title: "6. Overtime Policy",
+          content: "If the session exceeds the agreed timeframe, additional charges of $100 per hour apply. The client is responsible for any damage to equipment caused by attendees."
+        },
+        {
+          title: "7. Assignment & Subcontracting",
+          content: "The specific photographer assigned to your session may vary. ConnectAGrapher reserves the right to assign qualified second shooters or subcontractors as needed."
+        },
+        {
+          title: "8. Cancellation Policy",
+          content: "Cancellations by the client forfeit the non-refundable deposit. If cancellation is due to photographer unavailability, a full refund will be provided."
+        },
+        {
+          title: "9. Liability",
+          content: "ConnectAGrapher's liability is limited to the total contract value. We maintain equipment backup and professional insurance for reliability."
+        },
+        {
+          title: "10. Governing Law",
+          content: "This contract is governed by the applicable laws of ConnectAGrapher's operating jurisdiction."
+        }
+      ]
+    };
+  }
+});
+
 // server/vercel.ts
 var vercel_exports = {};
 __export(vercel_exports, {
@@ -61946,6 +62003,8 @@ var photographerProfiles = pgTable("photographer_profiles", {
   socials: jsonb("socials").default({}),
   verificationDocs: text("verification_docs").array().default([]),
   payoutDetails: jsonb("payout_details").default({}),
+  customTerms: text("custom_terms"),
+  // JSON string of BookingTerms; null = use platform default
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });
@@ -68827,6 +68886,20 @@ var DatabaseStorage = class {
     if (status === "completed" || status === "processing") updateData.processedAt = /* @__PURE__ */ new Date();
     const [updated] = await db.update(payouts).set(updateData).where(eq(payouts.id, id)).returning();
     return updated;
+  }
+  async getDefaultBookingTerms() {
+    const row = await this.getSiteConfig("booking_terms");
+    return row?.config ?? null;
+  }
+  async saveDefaultBookingTerms(terms) {
+    await this.upsertSiteConfig("booking_terms", terms);
+  }
+  async getPhotographerCustomTerms(photographerId) {
+    const [profile] = await db.select({ customTerms: photographerProfiles.customTerms }).from(photographerProfiles).where(eq(photographerProfiles.userId, photographerId));
+    return profile?.customTerms ?? null;
+  }
+  async savePhotographerCustomTerms(photographerId, terms) {
+    await db.update(photographerProfiles).set({ customTerms: terms, updatedAt: /* @__PURE__ */ new Date() }).where(eq(photographerProfiles.userId, photographerId));
   }
   async getPendingPayoutCount() {
     const result = await db.select({ count: sql`count(*)::int` }).from(payouts).where(eq(payouts.status, "pending"));
@@ -76968,6 +77041,74 @@ Thank you!`
       res.json({ ok: true });
     } catch (err) {
       res.status(400).json({ error: err.message });
+    }
+  });
+  app2.get("/api/booking-terms", async (req, res) => {
+    try {
+      const { DEFAULT_BOOKING_TERMS: DEFAULT_BOOKING_TERMS2 } = await Promise.resolve().then(() => (init_booking_terms(), booking_terms_exports));
+      const photographerId = req.query.photographerId;
+      if (photographerId) {
+        const custom2 = await storage.getPhotographerCustomTerms(photographerId);
+        if (custom2) return res.json(JSON.parse(custom2));
+      }
+      const defaultTerms = await storage.getDefaultBookingTerms();
+      res.json(defaultTerms ?? DEFAULT_BOOKING_TERMS2);
+    } catch {
+      const { DEFAULT_BOOKING_TERMS: DEFAULT_BOOKING_TERMS2 } = await Promise.resolve().then(() => (init_booking_terms(), booking_terms_exports));
+      res.json(DEFAULT_BOOKING_TERMS2);
+    }
+  });
+  app2.get("/api/admin/booking-terms", isAdmin, async (_req, res) => {
+    try {
+      const { DEFAULT_BOOKING_TERMS: DEFAULT_BOOKING_TERMS2 } = await Promise.resolve().then(() => (init_booking_terms(), booking_terms_exports));
+      const terms = await storage.getDefaultBookingTerms();
+      res.json(terms ?? DEFAULT_BOOKING_TERMS2);
+    } catch {
+      const { DEFAULT_BOOKING_TERMS: DEFAULT_BOOKING_TERMS2 } = await Promise.resolve().then(() => (init_booking_terms(), booking_terms_exports));
+      res.json(DEFAULT_BOOKING_TERMS2);
+    }
+  });
+  app2.put("/api/admin/booking-terms", isAdmin, async (req, res) => {
+    try {
+      const { header, sections } = req.body;
+      if (!header || !Array.isArray(sections)) return res.status(400).json({ error: "Invalid terms format" });
+      await storage.saveDefaultBookingTerms({ header, sections });
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ error: "Failed to save terms" });
+    }
+  });
+  app2.get("/api/photographer/booking-terms", isPhotographerApproved, async (req, res) => {
+    try {
+      const { DEFAULT_BOOKING_TERMS: DEFAULT_BOOKING_TERMS2 } = await Promise.resolve().then(() => (init_booking_terms(), booking_terms_exports));
+      const userId = req.user?.id;
+      const custom2 = await storage.getPhotographerCustomTerms(userId);
+      if (custom2) return res.json({ ...JSON.parse(custom2), isCustom: true });
+      const defaultTerms = await storage.getDefaultBookingTerms();
+      res.json({ ...defaultTerms ?? DEFAULT_BOOKING_TERMS2, isCustom: false });
+    } catch {
+      const { DEFAULT_BOOKING_TERMS: DEFAULT_BOOKING_TERMS2 } = await Promise.resolve().then(() => (init_booking_terms(), booking_terms_exports));
+      res.json({ ...DEFAULT_BOOKING_TERMS2, isCustom: false });
+    }
+  });
+  app2.put("/api/photographer/booking-terms", isPhotographerApproved, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const { header, sections } = req.body;
+      if (!header || !Array.isArray(sections)) return res.status(400).json({ error: "Invalid terms format" });
+      await storage.savePhotographerCustomTerms(userId, JSON.stringify({ header, sections }));
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ error: "Failed to save terms" });
+    }
+  });
+  app2.delete("/api/photographer/booking-terms", isPhotographerApproved, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      await storage.savePhotographerCustomTerms(userId, null);
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ error: "Failed to reset terms" });
     }
   });
   app2.get("/api/exchange-rates", async (_req, res) => {

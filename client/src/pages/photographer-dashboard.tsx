@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { defaultPricingConfig, type PricingConfig } from "@shared/pricing";
+import { DEFAULT_BOOKING_TERMS, type BookingTerms } from "@shared/booking-terms";
+import { TermsEditor } from "@/components/terms-editor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -216,6 +218,9 @@ export default function PhotographerDashboard() {
   // Pricing
   const [pricingForm, setPricingForm] = useState<PricingConfig>(defaultPricingConfig);
 
+  // Contract Terms
+  const [customTerms, setCustomTerms] = useState<BookingTerms | null>(null);
+
   // Bookings
   const [bookingStatusDraft, setBookingStatusDraft] = useState<Record<string, string>>({});
   const [bookingFilter, setBookingFilter] = useState<"all" | "upcoming" | "confirmed" | "completed" | "cancelled">("all");
@@ -242,6 +247,12 @@ export default function PhotographerDashboard() {
 
   const { data: pricingData } = useQuery<{ config: PricingConfig }>({
     queryKey: ["/api/photographer/pricing"],
+    enabled: !!user,
+    retry: false,
+  });
+
+  const { data: termsData } = useQuery<BookingTerms | null>({
+    queryKey: ["/api/photographer/booking-terms"],
     enabled: !!user,
     retry: false,
   });
@@ -303,6 +314,10 @@ export default function PhotographerDashboard() {
     }
   }, [pricingData]);
 
+  useEffect(() => {
+    if (termsData !== undefined) setCustomTerms(termsData);
+  }, [termsData]);
+
   // ── Mutations ──────────────────────────────────────────────────────────────
 
   const updateProfileMutation = useMutation({
@@ -337,6 +352,21 @@ export default function PhotographerDashboard() {
       toast({ title: "Pricing updated" });
     },
     onError: (e: Error) => toast({ title: "Pricing update failed", description: e.message, variant: "destructive" }),
+  });
+
+  const saveTermsMutation = useMutation({
+    mutationFn: async (terms: BookingTerms | null) => {
+      if (terms === null) {
+        await apiRequest("DELETE", "/api/photographer/booking-terms");
+      } else {
+        await apiRequest("PUT", "/api/photographer/booking-terms", terms);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photographer/booking-terms"] });
+      toast({ title: "Contract terms saved" });
+    },
+    onError: (e: Error) => toast({ title: "Failed to save terms", description: e.message, variant: "destructive" }),
   });
 
   const updateBookingStatusMutation = useMutation({
@@ -1608,6 +1638,51 @@ export default function PhotographerDashboard() {
                     {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
                   </Button>
                 </div>
+
+                {/* ── Contract Terms ── */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold">Contract Terms</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Customise the T&amp;C shown on your booking form. Leave as platform default or personalise for your own policies.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {customTerms === null && (
+                      <p className="text-xs text-muted-foreground italic">
+                        Currently using the platform default terms.{" "}
+                        <button
+                          type="button"
+                          className="text-primary underline"
+                          onClick={() => setCustomTerms(DEFAULT_BOOKING_TERMS)}
+                        >
+                          Customise
+                        </button>
+                      </p>
+                    )}
+                    {customTerms !== null && (
+                      <>
+                        <TermsEditor value={customTerms} onChange={setCustomTerms} />
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setCustomTerms(null); saveTermsMutation.mutate(null); }}
+                          >
+                            Revert to Platform Default
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => saveTermsMutation.mutate(customTerms)}
+                            disabled={saveTermsMutation.isPending}
+                          >
+                            {saveTermsMutation.isPending ? "Saving…" : "Save Terms"}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
           )}
 
