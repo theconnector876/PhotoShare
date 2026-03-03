@@ -1,4 +1,23 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, Component, type ReactNode, type ErrorInfo } from "react";
+
+// ── Error Boundary ─────────────────────────────────────────────────────────────
+class GalleryErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error("Gallery render error:", error, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <strong>Render error:</strong> {(this.state.error as Error).message}
+          <br /><span className="text-xs opacity-70">Check the browser console for details</span>
+          <br /><button className="underline text-xs mt-1" onClick={() => this.setState({ error: null })}>Dismiss</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -853,6 +872,7 @@ export function AdminGalleries() {
                       </div>
 
                       {isExpanded && (
+                        <GalleryErrorBoundary>
                         <div className="mt-4 pt-4 border-t border-green-100 space-y-6">
                           {/* Manage toolbar */}
                           <div className="flex flex-wrap gap-3 items-center p-3 bg-green-50 rounded-xl border border-green-100">
@@ -925,6 +945,7 @@ export function AdminGalleries() {
                             />
                           ))}
                         </div>
+                        </GalleryErrorBoundary>
                       )}
                     </CardContent>
                   </Card>
