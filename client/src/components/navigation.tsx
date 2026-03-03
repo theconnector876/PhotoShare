@@ -72,8 +72,8 @@ export default function Navigation() {
           {/* Logo */}
           <Link href="/">
             <div className="flex items-center space-x-4 cursor-pointer group" data-testid="logo-link">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
-                <Camera className="text-white text-lg" />
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center group-hover:rotate-12 transition-transform duration-300 overflow-hidden">
+                <img src="/logo-white.png" alt="ConnectAGrapher" className="w-7 h-7 object-contain" />
               </div>
               <span className="text-xl font-bold gradient-text font-serif">{config.branding.appName}</span>
             </div>
@@ -135,8 +135,8 @@ export default function Navigation() {
                 <div className="flex flex-col space-y-4 mt-8">
                   <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center">
-                        <Camera className="text-white text-sm" />
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center overflow-hidden">
+                        <img src="/logo-white.png" alt="ConnectAGrapher" className="w-6 h-6 object-contain" />
                       </div>
                       <span className="text-lg font-bold gradient-text font-serif">{config.branding.appName}</span>
                     </div>
