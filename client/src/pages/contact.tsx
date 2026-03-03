@@ -60,7 +60,7 @@ export default function Contact() {
     twitterUsername: string | null;
     facebookPageUrl: string | null;
     tiktokUsername: string | null;
-    instagramConfigured: boolean;
+    instagramEmbedUrl: string | null;
     instagramProfileUrl: string | null;
   }>({
     queryKey: ["/api/social/config"],
@@ -78,7 +78,7 @@ export default function Contact() {
     {
       icon: Instagram,
       label: "Instagram",
-      href: socialConfig?.instagramProfileUrl || (socialConfig?.instagramConfigured ? "https://www.instagram.com" : null),
+      href: socialConfig?.instagramProfileUrl || (socialConfig?.instagramEmbedUrl ? "https://www.instagram.com" : null),
       gradient: "from-pink-500 via-red-500 to-orange-400",
       testId: "social-instagram",
     },

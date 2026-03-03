@@ -76632,18 +76632,18 @@ Thank you!`
   });
   app2.get("/api/social/config", async (req, res) => {
     try {
-      const [tw, fb, tt2, ig, igProfile] = await Promise.all([
+      const [tw, fb, tt2, igEmbed, igProfile] = await Promise.all([
         storage.getSiteConfig("twitter_username"),
         storage.getSiteConfig("facebook_page_url"),
         storage.getSiteConfig("tiktok_username"),
-        storage.getSiteConfig("instagram_user_id"),
+        storage.getSiteConfig("instagram_embed_url"),
         storage.getSiteConfig("instagram_profile_url")
       ]);
       res.json({
         twitterUsername: tw?.config?.value || null,
         facebookPageUrl: fb?.config?.value || null,
         tiktokUsername: tt2?.config?.value || null,
-        instagramConfigured: Boolean(ig?.config?.value),
+        instagramEmbedUrl: igEmbed?.config?.value || null,
         instagramProfileUrl: igProfile?.config?.value || null
       });
     } catch (error) {
@@ -76652,16 +76652,14 @@ Thank you!`
   });
   app2.put("/api/admin/social-config", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { instagramAccessToken, instagramUserId, instagramProfileUrl, twitterUsername, facebookPageUrl, tiktokUsername } = req.body;
+      const { instagramEmbedUrl, instagramProfileUrl, twitterUsername, facebookPageUrl, tiktokUsername } = req.body;
       const updates = [];
-      if (instagramAccessToken !== void 0) updates.push(storage.upsertSiteConfig("instagram_access_token", { value: instagramAccessToken }));
-      if (instagramUserId !== void 0) updates.push(storage.upsertSiteConfig("instagram_user_id", { value: instagramUserId }));
+      if (instagramEmbedUrl !== void 0) updates.push(storage.upsertSiteConfig("instagram_embed_url", { value: instagramEmbedUrl }));
       if (instagramProfileUrl !== void 0) updates.push(storage.upsertSiteConfig("instagram_profile_url", { value: instagramProfileUrl }));
       if (twitterUsername !== void 0) updates.push(storage.upsertSiteConfig("twitter_username", { value: twitterUsername }));
       if (facebookPageUrl !== void 0) updates.push(storage.upsertSiteConfig("facebook_page_url", { value: facebookPageUrl }));
       if (tiktokUsername !== void 0) updates.push(storage.upsertSiteConfig("tiktok_username", { value: tiktokUsername }));
       await Promise.all(updates);
-      igCache = null;
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to update social config" });

@@ -85,8 +85,7 @@ type BlogFormData = z.infer<typeof blogFormSchema>;
 // ── Social Config Form ────────────────────────────────────────────────────────
 
 const socialFormSchema = z.object({
-  instagramAccessToken: z.string().optional().or(z.literal("")),
-  instagramUserId: z.string().optional().or(z.literal("")),
+  instagramEmbedUrl: z.string().optional().or(z.literal("")),
   instagramProfileUrl: z.string().optional().or(z.literal("")),
   twitterUsername: z.string().optional().or(z.literal("")),
   facebookPageUrl: z.string().optional().or(z.literal("")),
@@ -103,7 +102,7 @@ function SocialConfigPanel() {
     twitterUsername: string | null;
     facebookPageUrl: string | null;
     tiktokUsername: string | null;
-    instagramConfigured: boolean;
+    instagramEmbedUrl: string | null;
     instagramProfileUrl: string | null;
   }>({
     queryKey: ["/api/social/config"],
@@ -112,16 +111,14 @@ function SocialConfigPanel() {
   const form = useForm<SocialFormData>({
     resolver: zodResolver(socialFormSchema),
     defaultValues: {
-      instagramAccessToken: "",
-      instagramUserId: "",
+      instagramEmbedUrl: "",
       instagramProfileUrl: "",
       twitterUsername: "",
       facebookPageUrl: "",
       tiktokUsername: "",
     },
     values: {
-      instagramAccessToken: "",
-      instagramUserId: "",
+      instagramEmbedUrl: config?.instagramEmbedUrl || "",
       instagramProfileUrl: config?.instagramProfileUrl || "",
       twitterUsername: config?.twitterUsername || "",
       facebookPageUrl: config?.facebookPageUrl || "",
@@ -132,8 +129,7 @@ function SocialConfigPanel() {
   const saveMutation = useMutation({
     mutationFn: async (data: SocialFormData) => {
       return apiRequest("PUT", "/api/admin/social-config", {
-        instagramAccessToken: data.instagramAccessToken || undefined,
-        instagramUserId: data.instagramUserId || undefined,
+        instagramEmbedUrl: data.instagramEmbedUrl || undefined,
         instagramProfileUrl: data.instagramProfileUrl || undefined,
         twitterUsername: data.twitterUsername || undefined,
         facebookPageUrl: data.facebookPageUrl || undefined,
@@ -143,9 +139,6 @@ function SocialConfigPanel() {
     onSuccess: () => {
       toast({ title: "Social config saved" });
       qc.invalidateQueries({ queryKey: ["/api/social/config"] });
-      qc.invalidateQueries({ queryKey: ["/api/social/instagram"] });
-      form.setValue("instagramAccessToken", "");
-      form.setValue("instagramUserId", "");
     },
     onError: () => {
       toast({ title: "Save failed", variant: "destructive" });
@@ -154,45 +147,36 @@ function SocialConfigPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-200">
-        <p className="font-semibold mb-2">Instagram Setup Instructions</p>
+      <div className="bg-pink-50 dark:bg-pink-950 border border-pink-200 dark:border-pink-800 rounded-lg p-4 text-sm text-pink-800 dark:text-pink-200">
+        <p className="font-semibold mb-2 flex items-center gap-2">
+          <Instagram className="h-4 w-4" /> Instagram — Easy setup via Behold.so (free, no developer account needed)
+        </p>
         <ol className="list-decimal list-inside space-y-1">
-          <li>Go to <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="underline">developers.facebook.com</a> and create an app</li>
-          <li>Add the Instagram Graph API product to your app</li>
-          <li>Use Graph API Explorer to generate an access token (scope: <code>instagram_basic, pages_show_list</code>)</li>
-          <li>Exchange it for a long-lived token (valid 60 days, auto-refreshed by the server)</li>
-          <li>Your User ID appears in the API Explorer or call <code>/me?access_token=TOKEN</code></li>
+          <li>Go to <a href="https://behold.so" target="_blank" rel="noopener noreferrer" className="underline font-medium">behold.so</a> and sign up for free</li>
+          <li>Click <strong>New Feed</strong> and connect your Instagram account (just log in — no developer app)</li>
+          <li>Once created, copy the <strong>Feed URL</strong> — it looks like <code className="bg-pink-100 dark:bg-pink-900 px-1 rounded">https://feeds.behold.so/XXXXXXXX</code></li>
+          <li>Paste it into the <strong>Behold Feed URL</strong> field below and save</li>
         </ol>
+        <p className="mt-2 text-xs opacity-75">Free tier: 1 feed, auto-updates when you post on Instagram ✓</p>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit((d) => saveMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Instagram className="h-4 w-4 text-pink-500" />
-                Instagram Access Token
-                {config?.instagramConfigured && <Badge className="bg-green-100 text-green-700 text-xs">Connected</Badge>}
-              </Label>
-              <Input
-                {...form.register("instagramAccessToken")}
-                placeholder="Paste your long-lived access token"
-                type="password"
-              />
-              <p className="text-xs text-muted-foreground">Leave blank to keep existing token</p>
-            </div>
             <FormField
               control={form.control}
-              name="instagramUserId"
+              name="instagramEmbedUrl"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="md:col-span-2">
                   <FormLabel className="flex items-center gap-2">
                     <Instagram className="h-4 w-4 text-pink-500" />
-                    Instagram User ID (numeric)
+                    Behold Feed URL
+                    {config?.instagramEmbedUrl && <Badge className="bg-green-100 text-green-700 text-xs">Connected</Badge>}
                   </FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="e.g. 17841400000000000" />
+                    <Input {...field} placeholder="https://feeds.behold.so/XXXXXXXXXXXXXXXX" />
                   </FormControl>
+                  <p className="text-xs text-muted-foreground">Paste the feed URL from behold.so — your Instagram posts will appear automatically</p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -209,7 +193,7 @@ function SocialConfigPanel() {
                   <FormControl>
                     <Input {...field} placeholder="https://www.instagram.com/yourhandle" />
                   </FormControl>
-                  <p className="text-xs text-muted-foreground">Used for "Follow us" links on the site</p>
+                  <p className="text-xs text-muted-foreground">Used for "Follow us" links across the site</p>
                   <FormMessage />
                 </FormItem>
               )}

@@ -2817,18 +2817,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public: social config (non-secret values)
   app.get('/api/social/config', async (req, res) => {
     try {
-      const [tw, fb, tt, ig, igProfile] = await Promise.all([
+      const [tw, fb, tt, igEmbed, igProfile] = await Promise.all([
         storage.getSiteConfig('twitter_username'),
         storage.getSiteConfig('facebook_page_url'),
         storage.getSiteConfig('tiktok_username'),
-        storage.getSiteConfig('instagram_user_id'),
+        storage.getSiteConfig('instagram_embed_url'),
         storage.getSiteConfig('instagram_profile_url'),
       ]);
       res.json({
         twitterUsername: (tw?.config as any)?.value || null,
         facebookPageUrl: (fb?.config as any)?.value || null,
         tiktokUsername: (tt?.config as any)?.value || null,
-        instagramConfigured: Boolean((ig?.config as any)?.value),
+        instagramEmbedUrl: (igEmbed?.config as any)?.value || null,
         instagramProfileUrl: (igProfile?.config as any)?.value || null,
       });
     } catch (error) {
@@ -2839,16 +2839,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin: update social config keys
   app.put('/api/admin/social-config', isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { instagramAccessToken, instagramUserId, instagramProfileUrl, twitterUsername, facebookPageUrl, tiktokUsername } = req.body;
+      const { instagramEmbedUrl, instagramProfileUrl, twitterUsername, facebookPageUrl, tiktokUsername } = req.body;
       const updates: Promise<any>[] = [];
-      if (instagramAccessToken !== undefined) updates.push(storage.upsertSiteConfig('instagram_access_token', { value: instagramAccessToken }));
-      if (instagramUserId !== undefined) updates.push(storage.upsertSiteConfig('instagram_user_id', { value: instagramUserId }));
+      if (instagramEmbedUrl !== undefined) updates.push(storage.upsertSiteConfig('instagram_embed_url', { value: instagramEmbedUrl }));
       if (instagramProfileUrl !== undefined) updates.push(storage.upsertSiteConfig('instagram_profile_url', { value: instagramProfileUrl }));
       if (twitterUsername !== undefined) updates.push(storage.upsertSiteConfig('twitter_username', { value: twitterUsername }));
       if (facebookPageUrl !== undefined) updates.push(storage.upsertSiteConfig('facebook_page_url', { value: facebookPageUrl }));
       if (tiktokUsername !== undefined) updates.push(storage.upsertSiteConfig('tiktok_username', { value: tiktokUsername }));
       await Promise.all(updates);
-      igCache = null; // bust cache on config change
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Failed to update social config' });

@@ -5,47 +5,40 @@ import { useEffect, useRef } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface InstagramMedia {
-  id: string;
-  caption?: string;
-  media_type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM";
-  media_url?: string;
-  thumbnail_url?: string;
-  permalink: string;
-  timestamp: string;
-}
-
 interface SocialConfig {
   twitterUsername: string | null;
   facebookPageUrl: string | null;
   tiktokUsername: string | null;
-  instagramConfigured: boolean;
+  instagramEmbedUrl: string | null;
   instagramProfileUrl: string | null;
 }
 
-// ── Instagram Grid ────────────────────────────────────────────────────────────
+// ── Behold.so Instagram Embed ─────────────────────────────────────────────────
+// Behold provides a script-based embed. We inject it dynamically.
 
-function InstagramGrid({ profileUrl }: { profileUrl?: string | null }) {
-  const { data, isLoading } = useQuery<{ media: InstagramMedia[]; configured: boolean }>({
-    queryKey: ["/api/social/instagram"],
-    staleTime: 30 * 60 * 1000,
-  });
+function BeholdFeed({ feedUrl, profileUrl }: { feedUrl: string; profileUrl?: string | null }) {
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-3 gap-1 md:gap-2">
-        {Array.from({ length: 9 }).map((_, i) => (
-          <div key={i} className="aspect-square bg-muted animate-pulse rounded" />
-        ))}
-      </div>
-    );
-  }
+  // Extract feed ID from URL like https://feeds.behold.so/FEEDID
+  const feedId = feedUrl.replace(/^https?:\/\/feeds\.behold\.so\//, "").replace(/\/$/, "");
+  const widgetId = `beholdWidget-${feedId}`;
 
-  if (!data?.configured) {
-    return null;
-  }
+  useEffect(() => {
+    if (!containerRef.current) return;
+    // Remove any existing Behold script for this feed
+    const existing = document.getElementById(`behold-script-${feedId}`);
+    if (existing) existing.remove();
 
-  const media = data.media.slice(0, 9);
+    const script = document.createElement("script");
+    script.id = `behold-script-${feedId}`;
+    script.src = `https://feeds.behold.so/${feedId}`;
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      try { document.body.removeChild(script); } catch (_) {}
+    };
+  }, [feedId]);
 
   return (
     <div>
@@ -65,37 +58,12 @@ function InstagramGrid({ profileUrl }: { profileUrl?: string | null }) {
           </a>
         )}
       </div>
-      <div className="grid grid-cols-3 gap-1 md:gap-2">
-        {media.map((item) => {
-          const src = item.media_type === "VIDEO" ? item.thumbnail_url : item.media_url;
-          return (
-            <a
-              key={item.id}
-              href={item.permalink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative aspect-square overflow-hidden rounded bg-muted block"
-            >
-              {src ? (
-                <img
-                  src={src}
-                  alt={item.caption?.slice(0, 80) || "Instagram post"}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-muted">
-                  <Instagram className="h-6 w-6 text-muted-foreground" />
-                </div>
-              )}
-              {item.media_type === "VIDEO" && (
-                <div className="absolute top-2 right-2 bg-black/60 rounded px-1 text-white text-xs">▶</div>
-              )}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
-            </a>
-          );
-        })}
+
+      {/* Behold widget container */}
+      <div ref={containerRef}>
+        <div id={widgetId} />
       </div>
+
       {profileUrl && (
         <div className="mt-3 text-center">
           <a
@@ -112,6 +80,33 @@ function InstagramGrid({ profileUrl }: { profileUrl?: string | null }) {
   );
 }
 
+// ── Instagram profile-only card (no embed, just a follow CTA) ─────────────────
+
+function InstagramProfileCard({ profileUrl }: { profileUrl: string }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <Instagram className="h-5 w-5 text-pink-500" />
+        <h3 className="text-lg font-semibold">Instagram</h3>
+      </div>
+      <div className="rounded-lg border p-6 text-center space-y-4 bg-gradient-to-br from-pink-50 to-orange-50 dark:from-pink-950/20 dark:to-orange-950/20">
+        <div className="flex justify-center">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 via-red-500 to-orange-400 flex items-center justify-center">
+            <Instagram className="h-10 w-10 text-white" />
+          </div>
+        </div>
+        <p className="text-muted-foreground text-sm">Follow us on Instagram for behind-the-scenes content, photography inspiration, and more.</p>
+        <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+          <Button className="bg-gradient-to-r from-pink-500 to-orange-400 hover:from-pink-600 hover:to-orange-500 text-white gap-2">
+            <Instagram className="h-4 w-4" />
+            Follow on Instagram
+          </Button>
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ── Twitter / X Timeline ──────────────────────────────────────────────────────
 
 function TwitterWidget({ username }: { username: string }) {
@@ -119,7 +114,6 @@ function TwitterWidget({ username }: { username: string }) {
 
   useEffect(() => {
     if (!ref.current) return;
-    // Dynamically load Twitter widget script
     const script = document.createElement("script");
     script.src = "https://platform.twitter.com/widgets.js";
     script.async = true;
@@ -206,7 +200,6 @@ function TikTokWidget({ username }: { username: string }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        {/* TikTok icon — using a simple SVG since lucide doesn't have one */}
         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
           <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.82a8.18 8.18 0 004.78 1.52V6.9a4.85 4.85 0 01-1.01-.21z" />
         </svg>
@@ -224,11 +217,7 @@ function TikTokWidget({ username }: { username: string }) {
           <p className="font-semibold text-lg">@{username}</p>
           <p className="text-muted-foreground text-sm mt-1">Follow us on TikTok for behind-the-scenes content</p>
         </div>
-        <a
-          href={`https://www.tiktok.com/@${username}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href={`https://www.tiktok.com/@${username}`} target="_blank" rel="noopener noreferrer">
           <Button className="bg-black hover:bg-black/80 text-white gap-2">
             <ExternalLink className="h-4 w-4" />
             View on TikTok
@@ -247,7 +236,9 @@ export function SocialFeed() {
     staleTime: 10 * 60 * 1000,
   });
 
-  const hasInstagram = config?.instagramConfigured;
+  const hasInstagramEmbed = Boolean(config?.instagramEmbedUrl);
+  const hasInstagramProfile = Boolean(config?.instagramProfileUrl);
+  const hasInstagram = hasInstagramEmbed || hasInstagramProfile;
   const hasTwitter = Boolean(config?.twitterUsername);
   const hasFacebook = Boolean(config?.facebookPageUrl);
   const hasTikTok = Boolean(config?.tiktokUsername);
@@ -267,14 +258,18 @@ export function SocialFeed() {
           </p>
         </div>
 
-        {/* Instagram takes full width if present */}
+        {/* Instagram — Behold embed if URL is set, otherwise profile card */}
         {hasInstagram && (
           <div className="mb-12">
-            <InstagramGrid profileUrl={config?.instagramProfileUrl} />
+            {hasInstagramEmbed ? (
+              <BeholdFeed feedUrl={config!.instagramEmbedUrl!} profileUrl={config?.instagramProfileUrl} />
+            ) : (
+              <InstagramProfileCard profileUrl={config!.instagramProfileUrl!} />
+            )}
           </div>
         )}
 
-        {/* Twitter, Facebook, TikTok in a responsive grid */}
+        {/* Twitter, Facebook, TikTok */}
         {(hasTwitter || hasFacebook || hasTikTok) && (
           <div className={`grid gap-8 ${[hasTwitter, hasFacebook, hasTikTok].filter(Boolean).length === 1 ? "grid-cols-1 max-w-md mx-auto" : [hasTwitter, hasFacebook, hasTikTok].filter(Boolean).length === 2 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 md:grid-cols-3"}`}>
             {hasTwitter && <TwitterWidget username={config!.twitterUsername!} />}
