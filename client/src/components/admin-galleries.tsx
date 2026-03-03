@@ -395,12 +395,15 @@ function ImageSection({
       {/* Upload destination + new folder */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="text-xs text-green-600 font-medium shrink-0">Upload to:</span>
-        <Select value={uploadFolder} onValueChange={onUploadFolderChange}>
+        <Select
+          value={uploadFolder || "__none__"}
+          onValueChange={(v) => onUploadFolderChange(v === "__none__" ? "" : v)}
+        >
           <SelectTrigger className="h-7 text-xs border-green-200 w-44">
             <SelectValue placeholder="No folder (general)" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">No folder (general)</SelectItem>
+            <SelectItem value="__none__">No folder (general)</SelectItem>
             {folderNames.map((f) => (
               <SelectItem key={f} value={f}>
                 <span className="flex items-center gap-1"><Folder className="w-3 h-3" />{f}</span>
