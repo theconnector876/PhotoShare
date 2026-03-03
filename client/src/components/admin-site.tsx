@@ -14,7 +14,78 @@ import { Separator } from "@/components/ui/separator";
 import { defaultSiteConfig, type SiteConfig } from "@shared/site-config";
 import { DEFAULT_BOOKING_TERMS, type BookingTerms } from "@shared/booking-terms";
 import { TermsEditor } from "@/components/terms-editor";
-import { ChevronUp, ChevronDown, Trash2, Plus } from "lucide-react";
+import { ChevronUp, ChevronDown, Trash2, Plus, Upload, X } from "lucide-react";
+
+// ── Cloudinary upload helper ──────────────────────────────────────────────────
+
+async function uploadSiteImage(file: File): Promise<string> {
+  const sigRes = await fetch("/api/admin/upload-signature", { method: "POST", credentials: "include" });
+  if (!sigRes.ok) throw new Error("Failed to get upload signature");
+  const { cloudName, apiKey, timestamp, signature } = await sigRes.json();
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("api_key", apiKey);
+  fd.append("timestamp", String(timestamp));
+  fd.append("signature", signature);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: fd });
+  if (!res.ok) throw new Error("Upload failed");
+  return (await res.json()).secure_url as string;
+}
+
+// ── Reusable image upload field ───────────────────────────────────────────────
+
+function ImageUploadField({ label, value, onChange }: { label: string; value: string; onChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    setUploading(true);
+    try {
+      const url = await uploadSiteImage(file);
+      onChange(url);
+    } catch {
+      /* silently fail — toast not available here */
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      {value ? (
+        <div className="relative inline-block">
+          <img src={value} alt={label} className="h-16 w-auto rounded border object-contain bg-muted" />
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-destructive text-white flex items-center justify-center"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      ) : (
+        <label
+          className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/50"}`}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+        >
+          {uploading ? (
+            <span className="text-xs text-muted-foreground">Uploading…</span>
+          ) : (
+            <>
+              <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+              <span className="text-xs text-muted-foreground">Drag & drop or click to upload</span>
+            </>
+          )}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+        </label>
+      )}
+    </div>
+  );
+}
 
 const FONT_OPTIONS = [
   { label: "Inter", value: "Inter" },
@@ -250,14 +321,8 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
               <Label>Tagline</Label>
               <Input value={config.branding.tagline} onChange={(e) => updateConfig("branding.tagline", e.target.value)} />
             </div>
-            <div>
-              <Label>Logo URL</Label>
-              <Input value={config.branding.logoUrl} onChange={(e) => updateConfig("branding.logoUrl", e.target.value)} placeholder="https://..." />
-            </div>
-            <div>
-              <Label>Favicon URL</Label>
-              <Input value={config.branding.faviconUrl} onChange={(e) => updateConfig("branding.faviconUrl", e.target.value)} placeholder="https://..." />
-            </div>
+            <ImageUploadField label="Logo" value={config.branding.logoUrl} onChange={(url) => updateConfig("branding.logoUrl", url)} />
+            <ImageUploadField label="Favicon" value={config.branding.faviconUrl} onChange={(url) => updateConfig("branding.faviconUrl", url)} />
           </CardContent>
         </Card>
       )}
@@ -449,8 +514,7 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                       <Textarea rows={2} value={config.home.hero.subtitle} onChange={(e) => updateConfig("home.hero.subtitle", e.target.value)} />
                     </div>
                     <div className="md:col-span-2">
-                      <Label>Cover Image URL</Label>
-                      <Input value={config.home.hero.coverImage} onChange={(e) => updateConfig("home.hero.coverImage", e.target.value)} />
+                      <ImageUploadField label="Cover Image" value={config.home.hero.coverImage} onChange={(url) => updateConfig("home.hero.coverImage", url)} />
                     </div>
                     <div>
                       <Label>Primary Button Label</Label>
@@ -582,10 +646,7 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                     <Label>Paragraphs <span className="text-muted-foreground font-normal text-xs">(separate with a blank line)</span></Label>
                     <Textarea rows={6} value={paragraphsRaw} onChange={(e) => setParagraphsRaw(e.target.value)} />
                   </div>
-                  <div>
-                    <Label>About Image URL</Label>
-                    <Input value={config.about.image} onChange={(e) => updateConfig("about.image", e.target.value)} />
-                  </div>
+                  <ImageUploadField label="About Image" value={config.about.image} onChange={(url) => updateConfig("about.image", url)} />
 
                   {/* Stats */}
                   <div>
