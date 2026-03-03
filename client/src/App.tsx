@@ -23,6 +23,7 @@ import { PaymentSuccess } from "@/pages/payment-success";
 import CheckoutOverlay from "@/pages/checkout-overlay";
 import Navigation from "@/components/navigation";
 import ConstellationBackground from "@/components/constellation-background";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 function Router() {
   return (
@@ -59,6 +60,7 @@ function App() {
               <Navigation />
               <Router />
               <Toaster />
+              <SpeedInsights />
             </div>
           </TooltipProvider>
         </AuthProvider>
