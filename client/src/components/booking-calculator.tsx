@@ -14,13 +14,15 @@ import { z } from "zod";
 import { useBookingCalculator } from "@/hooks/use-booking-calculator";
 import PackageCard from "@/components/package-card";
 import { Camera, Heart, Users, Plus, Minus, ChevronDown, Shield, AlertTriangle, Clock, DollarSign, CheckCircle, Tag, X } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrency } from "@/context/currency";
 import { CURRENCY_NAMES, type Currency } from "@shared/currency";
+import type { BookingTerms } from "@shared/booking-terms";
+import { DEFAULT_BOOKING_TERMS } from "@shared/booking-terms";
 
 const createBookingFormSchema = (isLoggedIn: boolean) => {
   const base = z.object({
@@ -62,6 +64,18 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
   const isLoggedIn = !!user;
   const { format } = useCurrency();
   const pricingCurrency = (pricingConfig.currency || 'USD') as Currency;
+
+  // Fetch booking terms (photographer custom or platform default)
+  const { data: bookingTerms } = useQuery<BookingTerms>({
+    queryKey: ["/api/booking-terms", photographerId],
+    queryFn: async () => {
+      const url = photographerId ? `/api/booking-terms?photographerId=${photographerId}` : '/api/booking-terms';
+      const res = await fetch(url);
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const terms = bookingTerms ?? DEFAULT_BOOKING_TERMS;
 
   // Coupon state
   const [couponInput, setCouponInput] = useState("");
@@ -265,8 +279,8 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
     { id: 'highlightReel', label: 'Highlight Reel', description: '1-3 min video', price: pricingConfig.addons.highlightReel },
     { id: 'expressDelivery', label: 'Express Delivery', description: '1-2 days', price: pricingConfig.addons.expressDelivery },
     { id: 'drone', label: 'Drone Photography', description: 'Aerial shots', price: calculation.serviceType === 'wedding' ? pricingConfig.addons.droneWedding : pricingConfig.addons.dronePhotoshoot },
-    { id: 'studioRental', label: 'Studio Rental', description: `$${pricingConfig.addons.studioRental}/hr · ${studioHours}hr`, price: pricingConfig.addons.studioRental * studioHours },
-    { id: 'flyingDress', label: 'Flying Dress', description: `$${pricingConfig.addons.flyingDress}/person · ×${calculation.peopleCount}`, price: pricingConfig.addons.flyingDress * calculation.peopleCount },
+    { id: 'studioRental', label: 'Studio Rental', description: `${format(pricingConfig.addons.studioRental, pricingCurrency)}/hr · ${studioHours}hr`, price: pricingConfig.addons.studioRental * studioHours },
+    { id: 'flyingDress', label: 'Flying Dress', description: `${format(pricingConfig.addons.flyingDress, pricingCurrency)}/person · ×${calculation.peopleCount}`, price: pricingConfig.addons.flyingDress * calculation.peopleCount },
     { id: 'clearKayak', label: 'Clear Kayak', description: 'Water photoshoot prop', price: pricingConfig.addons.clearKayak },
   ];
 
@@ -314,7 +328,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <PackageCard
                 name="Bronze"
-                price={packages.photoshoot.photography.bronze.price}
+                price={format(packages.photoshoot.photography.bronze.price, pricingCurrency)}
                 duration={packages.photoshoot.photography.bronze.duration}
                 images={packages.photoshoot.photography.bronze.images}
                 locations={packages.photoshoot.photography.bronze.locations}
@@ -325,7 +339,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
               />
               <PackageCard
                 name="Silver"
-                price={packages.photoshoot.photography.silver.price}
+                price={format(packages.photoshoot.photography.silver.price, pricingCurrency)}
                 duration={packages.photoshoot.photography.silver.duration}
                 images={packages.photoshoot.photography.silver.images}
                 locations={packages.photoshoot.photography.silver.locations}
@@ -336,7 +350,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
               />
               <PackageCard
                 name="Gold"
-                price={packages.photoshoot.photography.gold.price}
+                price={format(packages.photoshoot.photography.gold.price, pricingCurrency)}
                 duration={packages.photoshoot.photography.gold.duration}
                 images={packages.photoshoot.photography.gold.images}
                 locations={packages.photoshoot.photography.gold.locations}
@@ -347,7 +361,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
               />
               <PackageCard
                 name="Platinum"
-                price={packages.photoshoot.photography.platinum.price}
+                price={format(packages.photoshoot.photography.platinum.price, pricingCurrency)}
                 duration={packages.photoshoot.photography.platinum.duration}
                 images={packages.photoshoot.photography.platinum.images}
                 locations={packages.photoshoot.photography.platinum.locations}
@@ -367,7 +381,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <PackageCard
                 name="Bronze"
-                price={packages.wedding.photography.bronze}
+                price={format(packages.wedding.photography.bronze, pricingCurrency)}
                 duration={2}
                 images={200}
                 color="bronze"
@@ -383,7 +397,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
               />
               <PackageCard
                 name="Silver"
-                price={packages.wedding.photography.silver}
+                price={format(packages.wedding.photography.silver, pricingCurrency)}
                 duration={4}
                 images={500}
                 color="silver"
@@ -400,7 +414,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
               />
               <PackageCard
                 name="Gold"
-                price={packages.wedding.photography.gold}
+                price={format(packages.wedding.photography.gold, pricingCurrency)}
                 duration={8}
                 images={800}
                 color="gold"
@@ -418,7 +432,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
               />
               <PackageCard
                 name="Platinum"
-                price={packages.wedding.photography.platinum}
+                price={format(packages.wedding.photography.platinum, pricingCurrency)}
                 duration={0}
                 images={1000}
                 color="platinum"
@@ -459,7 +473,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                       <p className="text-xs text-muted-foreground mt-0.5">Tier locked to your photo package</p>
                     </div>
                     <p className="text-2xl font-bold text-primary">
-                      ${packages.wedding.videography[calculation.packageType as keyof typeof packages.wedding.videography]}
+                      {format(packages.wedding.videography[calculation.packageType as keyof typeof packages.wedding.videography], pricingCurrency)}
                     </p>
                   </div>
                 )}
@@ -479,7 +493,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <Label>Duration: {eventHours} hours</Label>
-                      <span className="text-lg font-semibold">${packages.event.photography.baseRate}/hour</span>
+                      <span className="text-lg font-semibold">{format(packages.event.photography.baseRate, pricingCurrency)}/hour</span>
                     </div>
                     <div className="space-y-2">
                       <input
@@ -497,7 +511,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Minimum {packages.event.photography.minimumHours} hours required. Additional hours at ${packages.event.photography.baseRate}/hour.
+                      Minimum {packages.event.photography.minimumHours} hours required. Additional hours at {format(packages.event.photography.baseRate, pricingCurrency)}/hour.
                     </p>
                   </div>
                 </div>
@@ -507,18 +521,18 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span>Photography ({eventHours} hours)</span>
-                      <span>${packages.event.photography.baseRate * eventHours}</span>
+                      <span>{format(packages.event.photography.baseRate * eventHours, pricingCurrency)}</span>
                     </div>
                     {calculation.hasVideoPackage && (
                       <div className="flex justify-between">
                         <span>Videography ({eventHours} hours)</span>
-                        <span>${packages.event.videography.baseRate * eventHours}</span>
+                        <span>{format(packages.event.videography.baseRate * eventHours, pricingCurrency)}</span>
                       </div>
                     )}
                     <div className="border-t pt-3">
                       <div className="flex justify-between font-semibold">
                         <span>Total Price</span>
-                        <span>${(packages.event.photography.baseRate * eventHours) + (calculation.hasVideoPackage ? packages.event.videography.baseRate * eventHours : 0)}</span>
+                        <span>{format((packages.event.photography.baseRate * eventHours) + (calculation.hasVideoPackage ? packages.event.videography.baseRate * eventHours : 0), pricingCurrency)}</span>
                       </div>
                     </div>
                   </div>
@@ -532,7 +546,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-lg font-semibold">Add Event Videography</h4>
-                    <p className="text-sm text-muted-foreground">Professional video coverage at ${packages.event.videography.baseRate}/hour</p>
+                    <p className="text-sm text-muted-foreground">Professional video coverage at {format(packages.event.videography.baseRate, pricingCurrency)}/hour</p>
                   </div>
                   <Button
                     variant={calculation.hasVideoPackage ? "default" : "outline"}
@@ -582,7 +596,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
-                Additional people: <span className="font-semibold text-primary">${pricingConfig.fees.additionalPerson} each</span>
+                Additional people: <span className="font-semibold text-primary">{format(pricingConfig.fees.additionalPerson, pricingCurrency)} each</span>
               </p>
             </Card>
           )}
@@ -601,13 +615,13 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={pricingConfig.fees.transportation.manchesterStElizabeth.toString()}>
-                  Manchester & St. Elizabeth (+${pricingConfig.fees.transportation.manchesterStElizabeth})
+                  Manchester & St. Elizabeth (+{format(pricingConfig.fees.transportation.manchesterStElizabeth, pricingCurrency)})
                 </SelectItem>
                 <SelectItem value={pricingConfig.fees.transportation.montegoBayNegrilOchoRios.toString()}>
-                  Montego Bay, Negril & Ocho Rios (+${pricingConfig.fees.transportation.montegoBayNegrilOchoRios})
+                  Montego Bay, Negril & Ocho Rios (+{format(pricingConfig.fees.transportation.montegoBayNegrilOchoRios, pricingCurrency)})
                 </SelectItem>
                 <SelectItem value={pricingConfig.fees.transportation.otherParishes.toString()}>
-                  All Other Parishes (+${pricingConfig.fees.transportation.otherParishes})
+                  All Other Parishes (+{format(pricingConfig.fees.transportation.otherParishes, pricingCurrency)})
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -639,7 +653,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                 <div>
                   <div className="font-semibold">{addon.label}</div>
                   <div className="text-sm text-muted-foreground">
-                    {addon.description} (+${addon.price})
+                    {addon.description} (+{format(addon.price, pricingCurrency)})
                   </div>
                 </div>
               </div>
@@ -676,7 +690,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                 <span className="font-mono font-bold text-green-700">{couponData.code}</span>
                 {couponData.description && <span className="text-xs text-green-600 ml-2">— {couponData.description}</span>}
                 <p className="text-xs text-green-600 mt-0.5">
-                  Saves you ${couponData.discount} ({couponData.discountType === 'percentage' ? `${couponData.discountValue}%` : `$${couponData.discountValue} flat`})
+                  Saves you {format(couponData.discount, pricingCurrency)} ({couponData.discountType === 'percentage' ? `${couponData.discountValue}%` : `${format(couponData.discountValue, pricingCurrency)} flat`})
                 </p>
               </div>
               <button onClick={removeCoupon} className="text-green-700 hover:text-red-600 transition-colors ml-3">
@@ -993,134 +1007,17 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                   <CollapsibleContent className="px-6 pb-4">
                     <div className="space-y-4 text-sm">
                       <p className="text-muted-foreground leading-relaxed">
-                        This contract pertains to the provision of services and products for a PHOTOGRAPHY/PRODUCTIONS event 
-                        scheduled to occur at the specified time and venue by The Connector Photography.
+                        {terms.header}
                       </p>
 
-                      {/* Key Terms Summary */}
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className="bg-background p-4 rounded-lg">
-                          <div className="flex items-center mb-2">
-                            <CheckCircle className="text-green-500 mr-2" size={16} />
-                            <h4 className="font-semibold">Service Provision</h4>
-                          </div>
-                          <p className="text-muted-foreground text-xs">
-                            We deliver a minimum number of photos as stipulated in your chosen package.
-                          </p>
-                        </div>
-
-                        <div className="bg-background p-4 rounded-lg">
-                          <div className="flex items-center mb-2">
-                            <DollarSign className="text-jamaica-gold mr-2" size={16} />
-                            <h4 className="font-semibold">Payment Terms</h4>
-                          </div>
-                          <p className="text-muted-foreground text-xs">
-                            50% deposit required to secure your event date. Deposits are non-refundable.
-                          </p>
-                        </div>
-
-                        <div className="bg-background p-4 rounded-lg">
-                          <div className="flex items-center mb-2">
-                            <Clock className="text-blue-500 mr-2" size={16} />
-                            <h4 className="font-semibold">Delivery Schedule</h4>
-                          </div>
-                          <p className="text-muted-foreground text-xs">
-                            Portrait sessions & events: 5-7 business days. Weddings: 2-4 weeks.
-                          </p>
-                        </div>
-
-                        <div className="bg-background p-4 rounded-lg">
-                          <div className="flex items-center mb-2">
-                            <AlertTriangle className="text-orange-500 mr-2" size={16} />
-                            <h4 className="font-semibold">Overtime Charges</h4>
-                          </div>
-                          <p className="text-muted-foreground text-xs">
-                            Additional $100 per hour if agreed timeframe is exceeded.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Detailed Terms */}
+                      {/* Detailed Terms — dynamically rendered from DB */}
                       <div className="space-y-3 max-h-64 overflow-y-auto bg-background p-4 rounded-lg">
-                        <div>
-                          <h5 className="font-semibold text-primary mb-1">1. Service Provision</h5>
-                          <p className="text-muted-foreground text-xs">
-                            The Photographer(s)/Producer(s) agree(s) to deliver a minimum number of photos as stipulated in the chosen package. 
-                            No more than this specified number of images is required to be provided.
-                          </p>
-                        </div>
-
-                        <div>
-                          <h5 className="font-semibold text-primary mb-1">2. Post-Processing</h5>
-                          <p className="text-muted-foreground text-xs">
-                            Post-processing or digital image editing services will be performed on the photos and/or video footage 
-                            as artistically necessary, depending on the selected package.
-                          </p>
-                        </div>
-
-                        <div>
-                          <h5 className="font-semibold text-primary mb-1">3. Image Usage Rights</h5>
-                          <p className="text-muted-foreground text-xs">
-                            The Client(s) grant(s) permission to the Photographer(s)/Producer(s) and its assigns, licensees, and sub-licensees 
-                            to utilize the likeness, images, and video footage of the Client(s) for various purposes, including commercial use, 
-                            advertising, and personal use.
-                          </p>
-                        </div>
-
-                        <div>
-                          <h5 className="font-semibold text-primary mb-1">4. Payment Terms</h5>
-                          <p className="text-muted-foreground text-xs">
-                            The Client(s) agree(s) to pay a 50% deposit on event confirmation. Payments can be made via check or cash. 
-                            The deposit is non-refundable, even in case of date rescheduling or event cancellation.
-                          </p>
-                        </div>
-
-                        <div>
-                          <h5 className="font-semibold text-primary mb-1">5. Delivery Timeline</h5>
-                          <p className="text-muted-foreground text-xs">
-                            Final delivery timeline: Portrait sessions and events - 5-7 business days. Weddings - 2-4 weeks following the event. 
-                            Platinum package clients receive same-day preview images.
-                          </p>
-                        </div>
-
-                        <div>
-                          <h5 className="font-semibold text-primary mb-1">6. Overtime Policy</h5>
-                          <p className="text-muted-foreground text-xs">
-                            If the event exceeds the agreed-upon timeframe, additional charges of $100 per hour will apply. 
-                            The Client(s) is/are responsible for any damage to equipment caused by event attendees.
-                          </p>
-                        </div>
-
-                        <div>
-                          <h5 className="font-semibold text-primary mb-1">7. Assignment & Subcontracting</h5>
-                          <p className="text-muted-foreground text-xs">
-                            Client(s) acknowledge(s) that the specific Photographer(s)/Producer(s) assigned to the event may vary. 
-                            The Photographer(s)/Producer(s) may subcontract second shooters or assign other qualified photographers.
-                          </p>
-                        </div>
-
-                        <div>
-                          <h5 className="font-semibold text-primary mb-1">8. Cancellation Policy</h5>
-                          <p className="text-muted-foreground text-xs">
-                            In the event of cancellation by the Client(s), the deposit is non-refundable. 
-                            If cancellation occurs due to photographer unavailability, a full refund will be provided.
-                          </p>
-                        </div>
-
-                        <div>
-                          <h5 className="font-semibold text-primary mb-1">9. Liability</h5>
-                          <p className="text-muted-foreground text-xs">
-                            The Photographer(s)/Producer(s) shall not be held liable for any damages or losses beyond the total contract value. 
-                            Equipment backup and insurance are maintained for professional reliability.
-                          </p>
-                        </div>
-
-                        <div>
-                          <h5 className="font-semibold text-primary mb-1">10. Governing Law</h5>
-                          <p className="text-muted-foreground text-xs">
-                            This contract shall be governed by the laws of The Connector Photography's operating jurisdiction.
-                          </p>
-                        </div>
+                        {terms.sections.map((section, idx) => (
+                          <div key={idx}>
+                            <h5 className="font-semibold text-primary mb-1">{section.title}</h5>
+                            <p className="text-muted-foreground text-xs">{section.content}</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </CollapsibleContent>

@@ -49,6 +49,8 @@ interface UserGallery {
 export default function Dashboard() {
   const { user, isLoading: authLoading, logoutMutation } = useAuth();
   const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState("bookings");
+  const isChat = activeTab === "chat";
 
   const { data: userBookings, isLoading: bookingsLoading } = useQuery<UserBooking[]>({
     queryKey: ["/api/user/bookings"],
@@ -145,10 +147,10 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="pt-16 pb-20 bg-background relative z-10">
-      <div className="max-w-6xl mx-auto px-4">
+    <div className={isChat ? "h-screen overflow-hidden flex flex-col pt-16 bg-background relative z-10" : "pt-16 pb-20 bg-background relative z-10"}>
+      <div className={isChat ? "flex flex-col flex-1 min-h-0 max-w-6xl w-full mx-auto px-4" : "max-w-6xl mx-auto px-4"}>
         {/* Header */}
-        <div className="flex justify-between items-center mb-8 mt-8">
+        <div className={`flex justify-between items-center mt-8 ${isChat ? "mb-3 flex-shrink-0" : "mb-8"}`}>
           <div>
             <h1 className="text-4xl font-bold font-serif gradient-text">
               {isAdmin ? "Admin Dashboard" : `Welcome back, ${user?.firstName}!`}
@@ -172,7 +174,7 @@ export default function Dashboard() {
         </div>
 
         {/* Admin Statistics Dashboard */}
-        {isAdmin && (
+        {isAdmin && !isChat && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Admin Overview</h2>
@@ -206,8 +208,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        <Tabs defaultValue="bookings" className="space-y-6">
-          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-4'}`}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className={isChat ? "flex flex-col flex-1 min-h-0" : "space-y-6"}>
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-4'}${isChat ? " flex-shrink-0" : ""}`}>
             <TabsTrigger value="bookings" data-testid="tab-bookings">
               {isAdmin ? "All Bookings" : "My Bookings"}
             </TabsTrigger>
@@ -453,7 +455,7 @@ export default function Dashboard() {
 
           {!isAdmin && (
             <>
-              <TabsContent value="chat">
+              <TabsContent value="chat" className="flex-1 min-h-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
                 <ChatPanel />
               </TabsContent>
               <TabsContent value="profile">

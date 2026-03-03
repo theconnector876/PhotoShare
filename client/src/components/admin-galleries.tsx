@@ -522,7 +522,7 @@ export function AdminGalleries() {
   // Cancel flag for uploads
   const cancelRef = useRef(false);
 
-  const { data: galleries, isLoading } = useQuery<Gallery[]>({
+  const { data: galleries, isLoading, isError, error, refetch } = useQuery<Gallery[]>({
     queryKey: ["/api/admin/galleries"],
     retry: false,
   });
@@ -759,6 +759,15 @@ export function AdminGalleries() {
 
   if (isLoading)
     return <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" /></div>;
+
+  if (isError)
+    return (
+      <div className="flex flex-col items-center justify-center p-8 gap-4 text-red-600">
+        <AlertCircle className="w-8 h-8" />
+        <p className="text-sm font-medium">Failed to load galleries: {error instanceof Error ? error.message : "Unknown error"}</p>
+        <button onClick={() => refetch()} className="text-xs underline">Try again</button>
+      </div>
+    );
 
   return (
     <div className="space-y-6">

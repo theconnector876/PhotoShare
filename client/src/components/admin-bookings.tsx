@@ -118,6 +118,7 @@ interface Booking {
   balanceDue: number;
   couponCode: string | null;
   discountAmount: number;
+  currency?: string;
   createdAt: string;
 }
 

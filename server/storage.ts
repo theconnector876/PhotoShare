@@ -179,6 +179,12 @@ export interface IStorage {
   updateBlogPost(id: string, data: Partial<BlogPost>): Promise<BlogPost | undefined>;
   deleteBlogPost(id: string): Promise<boolean>;
 
+  // Booking terms operations
+  getDefaultBookingTerms(): Promise<Record<string, unknown> | null>;
+  saveDefaultBookingTerms(terms: Record<string, unknown>): Promise<void>;
+  getPhotographerCustomTerms(photographerId: string): Promise<string | null>;
+  savePhotographerCustomTerms(photographerId: string, terms: string | null): Promise<void>;
+
   // Payout operations
   getPayoutDetails(photographerId: string): Promise<Record<string, unknown>>;
   savePayoutDetails(photographerId: string, details: Record<string, unknown>): Promise<void>;
@@ -1326,6 +1332,30 @@ export class DatabaseStorage implements IStorage {
       .where(eq(payouts.id, id))
       .returning();
     return updated;
+  }
+
+  async getDefaultBookingTerms(): Promise<Record<string, unknown> | null> {
+    const row = await this.getSiteConfig('booking_terms');
+    return row?.config ?? null;
+  }
+
+  async saveDefaultBookingTerms(terms: Record<string, unknown>): Promise<void> {
+    await this.upsertSiteConfig('booking_terms', terms);
+  }
+
+  async getPhotographerCustomTerms(photographerId: string): Promise<string | null> {
+    const [profile] = await db
+      .select({ customTerms: photographerProfiles.customTerms })
+      .from(photographerProfiles)
+      .where(eq(photographerProfiles.userId, photographerId));
+    return profile?.customTerms ?? null;
+  }
+
+  async savePhotographerCustomTerms(photographerId: string, terms: string | null): Promise<void> {
+    await db
+      .update(photographerProfiles)
+      .set({ customTerms: terms, updatedAt: new Date() })
+      .where(eq(photographerProfiles.userId, photographerId));
   }
 
   async getPendingPayoutCount(): Promise<number> {

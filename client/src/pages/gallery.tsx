@@ -71,6 +71,7 @@ export default function Gallery() {
   const params = useParams<{ email?: string; code?: string }>();
   const [gallery, setGallery] = useState<Gallery | null>(null);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [selectedFinalImages, setSelectedFinalImages] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'gallery' | 'selected' | 'final'>('gallery');
   const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -146,6 +147,12 @@ export default function Gallery() {
   const toggleImageSelection = (imageUrl: string) => {
     setSelectedImages(prev =>
       prev.includes(imageUrl) ? prev.filter(img => img !== imageUrl) : [...prev, imageUrl]
+    );
+  };
+
+  const toggleFinalSelection = (imageUrl: string) => {
+    setSelectedFinalImages(prev =>
+      prev.includes(imageUrl) ? prev.filter(u => u !== imageUrl) : [...prev, imageUrl]
     );
   };
 
@@ -401,6 +408,7 @@ export default function Gallery() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
           {currentImages.map((imageUrl, index) => {
             const selected = selectedImages.includes(imageUrl);
+            const isSelectedFinal = selectedFinalImages.includes(imageUrl);
             const hasNote = !!imageComments[imageUrl];
             return (
               <div
@@ -422,7 +430,7 @@ export default function Gallery() {
                 {/* Hover overlay */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 pointer-events-none" />
 
-                {/* Selection circle */}
+                {/* Selection circle — gallery view */}
                 {viewMode === 'gallery' && (
                   <button
                     className="absolute top-2 right-2 z-10"
@@ -439,8 +447,30 @@ export default function Gallery() {
                   </button>
                 )}
 
-                {/* Selected border */}
+                {/* Selection circle — final view */}
+                {viewMode === 'final' && gallery.finalDownloadEnabled && (
+                  <button
+                    className="absolute top-2 right-2 z-10"
+                    onClick={(e) => { e.stopPropagation(); toggleFinalSelection(imageUrl); }}
+                    aria-label={isSelectedFinal ? "Deselect image" : "Select image"}
+                  >
+                    {isSelectedFinal ? (
+                      <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow-md">
+                        <Check className="w-4 h-4 text-white" />
+                      </div>
+                    ) : (
+                      <div className="w-7 h-7 border-2 border-white rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md" />
+                    )}
+                  </button>
+                )}
+
+                {/* Selected border — gallery view */}
                 {viewMode === 'gallery' && selected && (
+                  <div className="absolute inset-0 border-4 border-primary rounded-xl pointer-events-none" />
+                )}
+
+                {/* Selected border — final view */}
+                {viewMode === 'final' && isSelectedFinal && (
                   <div className="absolute inset-0 border-4 border-primary rounded-xl pointer-events-none" />
                 )}
 
@@ -532,11 +562,31 @@ export default function Gallery() {
         )}
 
         {viewMode === 'final' && gallery.finalDownloadEnabled && currentImages.length > 0 && (
-          <div className="text-center">
-            <Button onClick={() => downloadAll(currentImages, 'final')} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-all-final">
-              <Download className="mr-2 h-4 w-4" />
-              Download All Final Photos
-            </Button>
+          <div className="text-center space-y-4">
+            <div className="text-lg font-semibold text-muted-foreground">
+              {selectedFinalImages.length > 0 ? `${selectedFinalImages.length} selected` : `${currentImages.length} photos`}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
+              {selectedFinalImages.length > 0 && (
+                <Button onClick={() => downloadAll(selectedFinalImages, 'final')} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Selected ({selectedFinalImages.length})
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => downloadAll(currentImages, 'final')} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-final">
+                <Download className="mr-2 h-4 w-4" />
+                Download All ({currentImages.length})
+              </Button>
+              <Button
+                variant="outline"
+                className="px-8 py-3 rounded-lg font-semibold magnetic-btn"
+                onClick={() => setSelectedFinalImages(
+                  selectedFinalImages.length === currentImages.length ? [] : [...currentImages]
+                )}
+              >
+                {selectedFinalImages.length === currentImages.length ? 'Deselect All' : 'Select All'}
+              </Button>
+            </div>
           </div>
         )}
 

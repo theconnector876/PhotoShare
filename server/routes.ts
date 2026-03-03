@@ -3117,6 +3117,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Booking Terms ────────────────────────────────────────────────────────────
+  // Public: get terms for a booking (photographer custom or platform default)
+  app.get('/api/booking-terms', async (req, res) => {
+    try {
+      const { DEFAULT_BOOKING_TERMS } = await import('@shared/booking-terms');
+      const photographerId = req.query.photographerId as string | undefined;
+      if (photographerId) {
+        const custom = await storage.getPhotographerCustomTerms(photographerId);
+        if (custom) return res.json(JSON.parse(custom));
+      }
+      const defaultTerms = await storage.getDefaultBookingTerms();
+      res.json(defaultTerms ?? DEFAULT_BOOKING_TERMS);
+    } catch {
+      const { DEFAULT_BOOKING_TERMS } = await import('@shared/booking-terms');
+      res.json(DEFAULT_BOOKING_TERMS);
+    }
+  });
+
+  // Admin: get/set platform default terms
+  app.get('/api/admin/booking-terms', isAdmin, async (_req, res) => {
+    try {
+      const { DEFAULT_BOOKING_TERMS } = await import('@shared/booking-terms');
+      const terms = await storage.getDefaultBookingTerms();
+      res.json(terms ?? DEFAULT_BOOKING_TERMS);
+    } catch {
+      const { DEFAULT_BOOKING_TERMS } = await import('@shared/booking-terms');
+      res.json(DEFAULT_BOOKING_TERMS);
+    }
+  });
+
+  app.put('/api/admin/booking-terms', isAdmin, async (req, res) => {
+    try {
+      const { header, sections } = req.body;
+      if (!header || !Array.isArray(sections)) return res.status(400).json({ error: 'Invalid terms format' });
+      await storage.saveDefaultBookingTerms({ header, sections });
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ error: 'Failed to save terms' });
+    }
+  });
+
+  // Photographer: get/set own custom terms
+  app.get('/api/photographer/booking-terms', isPhotographerApproved, async (req, res) => {
+    try {
+      const { DEFAULT_BOOKING_TERMS } = await import('@shared/booking-terms');
+      const userId = (req as any).user?.id;
+      const custom = await storage.getPhotographerCustomTerms(userId);
+      if (custom) return res.json({ ...JSON.parse(custom), isCustom: true });
+      const defaultTerms = await storage.getDefaultBookingTerms();
+      res.json({ ...(defaultTerms ?? DEFAULT_BOOKING_TERMS), isCustom: false });
+    } catch {
+      const { DEFAULT_BOOKING_TERMS } = await import('@shared/booking-terms');
+      res.json({ ...DEFAULT_BOOKING_TERMS, isCustom: false });
+    }
+  });
+
+  app.put('/api/photographer/booking-terms', isPhotographerApproved, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const { header, sections } = req.body;
+      if (!header || !Array.isArray(sections)) return res.status(400).json({ error: 'Invalid terms format' });
+      await storage.savePhotographerCustomTerms(userId, JSON.stringify({ header, sections }));
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ error: 'Failed to save terms' });
+    }
+  });
+
+  app.delete('/api/photographer/booking-terms', isPhotographerApproved, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      await storage.savePhotographerCustomTerms(userId, null);
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ error: 'Failed to reset terms' });
+    }
+  });
+
   // ── Exchange Rates ───────────────────────────────────────────────────────────
   app.get('/api/exchange-rates', async (_req, res) => {
     try {

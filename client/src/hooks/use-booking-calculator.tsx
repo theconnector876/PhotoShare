@@ -187,6 +187,17 @@ export function useBookingCalculator(photographerId?: string) {
     calculation.addons.forEach(addon => {
       if (addon === 'drone') {
         total += calculation.serviceType === 'wedding' ? addonPrices.droneWedding : addonPrices.dronePhotoshoot;
+      } else if (addon === 'flyingDress') {
+        // Flying dress is per person
+        total += addonPrices.flyingDress * calculation.peopleCount;
+      } else if (addon === 'studioRental') {
+        // Studio rental is per hour — auto-calculate from package duration for photoshoots
+        let studioHours = 1;
+        if (calculation.serviceType === 'photoshoot') {
+          const dur = packages.photoshoot.photography[calculation.packageType as keyof typeof packages.photoshoot.photography]?.duration ?? 60;
+          studioHours = Math.ceil(dur / 60);
+        }
+        total += addonPrices.studioRental * studioHours;
       } else if (!addon.startsWith('videography-') && addonPrices[addon as keyof typeof addonPrices]) {
         total += addonPrices[addon as keyof typeof addonPrices];
       }
@@ -196,7 +207,7 @@ export function useBookingCalculator(photographerId?: string) {
     if (calculation.totalPrice !== total) {
       setCalculation(prev => ({ ...prev, totalPrice: total }));
     }
-  }, [calculation.basePrice, calculation.videoPrice, calculation.hasPhotoPackage, calculation.hasVideoPackage, calculation.peopleCount, calculation.transportationFee, calculation.addons, calculation.serviceType, pricingConfig.fees.additionalPerson]);
+  }, [calculation.basePrice, calculation.videoPrice, calculation.hasPhotoPackage, calculation.hasVideoPackage, calculation.peopleCount, calculation.transportationFee, calculation.addons, calculation.serviceType, calculation.packageType, pricingConfig.fees.additionalPerson, packages.photoshoot.photography]);
 
   const updateService = useCallback((serviceType: 'photoshoot' | 'wedding' | 'event') => {
     let newPackageType = 'bronze';
