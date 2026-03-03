@@ -72,17 +72,9 @@ export default function Navigation() {
           {/* Logo */}
           <Link href="/">
             <div className="flex items-center space-x-4 cursor-pointer group" data-testid="logo-link">
-              {config.branding.logoUrl ? (
-                <img
-                  src={config.branding.logoUrl}
-                  alt={config.branding.appName}
-                  className="w-10 h-10 rounded-full object-cover shadow-sm"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
-                  <Camera className="text-white text-lg" />
-                </div>
-              )}
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
+                <Camera className="text-white text-lg" />
+              </div>
               <span className="text-xl font-bold gradient-text font-serif">{config.branding.appName}</span>
             </div>
           </Link>
@@ -143,17 +135,9 @@ export default function Navigation() {
                 <div className="flex flex-col space-y-4 mt-8">
                   <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center space-x-3">
-                      {config.branding.logoUrl ? (
-                        <img
-                          src={config.branding.logoUrl}
-                          alt={config.branding.appName}
-                          className="w-8 h-8 rounded-full object-cover shadow-sm"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center">
-                          <Camera className="text-white text-sm" />
-                        </div>
-                      )}
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center">
+                        <Camera className="text-white text-sm" />
+                      </div>
                       <span className="text-lg font-bold gradient-text font-serif">{config.branding.appName}</span>
                     </div>
                   </div>
