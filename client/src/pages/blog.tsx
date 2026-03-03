@@ -47,8 +47,14 @@ export default function Blog() {
       <Helmet>
         <title>Blog & Inspiration | {appName}</title>
         <meta name="description" content={`Photography tips, inspiration, and behind-the-scenes stories from ${appName}. Learn about wedding photography, portraits, and more.`} />
+        <link rel="canonical" href="https://www.connectagrapher.com/blog" />
         <meta property="og:title" content={`Blog & Inspiration | ${appName}`} />
+        <meta property="og:description" content={`Photography tips, inspiration, and behind-the-scenes stories from ${appName}.`} />
         <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.connectagrapher.com/blog" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`Blog & Inspiration | ${appName}`} />
+        <meta name="twitter:description" content={`Photography tips, inspiration, and behind-the-scenes stories from ${appName}.`} />
       </Helmet>
 
       <div className="relative z-10 pt-16">

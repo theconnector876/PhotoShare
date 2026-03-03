@@ -62011,6 +62011,8 @@ var galleries = pgTable("galleries", {
   finalDownloadEnabled: boolean("final_download_enabled").notNull().default(true),
   clientComment: text("client_comment"),
   imageComments: jsonb("image_comments").default({}),
+  // Folder/subcategory mapping: { gallery: { "Reception": ["url1"], ... }, final: { ... } }
+  imageFolders: jsonb("image_folders").default({}),
   createdAt: timestamp("created_at").defaultNow()
 });
 var contactMessages = pgTable("contact_messages", {
@@ -68257,6 +68259,10 @@ var DatabaseStorage = class {
       updateData.finalImages = images;
     }
     const [gallery] = await db.update(galleries).set(updateData).where(eq(galleries.id, id)).returning();
+    return gallery;
+  }
+  async updateGallery(id, data) {
+    const [gallery] = await db.update(galleries).set(data).where(eq(galleries.id, id)).returning();
     return gallery;
   }
   async updateGallerySettings(id, settings) {
@@ -75127,6 +75133,31 @@ async function registerRoutes(app2) {
       res.status(400).json({ error: "Invalid settings" });
     }
   });
+  app2.patch("/api/admin/gallery/:id/folders", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { folders } = req.body;
+      if (!folders || typeof folders !== "object") return res.status(400).json({ error: "folders object required" });
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      const updated = await storage.updateGallery(gallery.id, { imageFolders: folders });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating gallery folders:", error);
+      res.status(500).json({ error: "Failed to update folders" });
+    }
+  });
+  app2.patch("/api/photographer/gallery/:id/folders", isAuthenticated, isPhotographerApproved, async (req, res) => {
+    try {
+      const { folders } = req.body;
+      if (!folders || typeof folders !== "object") return res.status(400).json({ error: "folders object required" });
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      const updated = await storage.updateGallery(gallery.id, { imageFolders: folders });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update folders" });
+    }
+  });
   app2.put("/api/admin/gallery-images", isAdmin, async (req, res) => {
     try {
       const galleryImageSchema = z.object({
@@ -76664,6 +76695,57 @@ Thank you!`
     } catch (error) {
       res.status(500).json({ error: "Failed to update social config" });
     }
+  });
+  app2.get("/sitemap.xml", async (_req, res) => {
+    try {
+      const BASE = "https://www.connectagrapher.com";
+      const staticPages = [
+        { url: "/", priority: "1.0", changefreq: "weekly" },
+        { url: "/portfolio", priority: "0.9", changefreq: "weekly" },
+        { url: "/blog", priority: "0.9", changefreq: "daily" },
+        { url: "/about", priority: "0.7", changefreq: "monthly" },
+        { url: "/contact", priority: "0.7", changefreq: "monthly" },
+        { url: "/booking", priority: "0.8", changefreq: "monthly" }
+      ];
+      const posts = await storage.getBlogPosts(1, 500);
+      const postEntries = posts.map((p2) => ({
+        url: `/blog/${p2.slug}`,
+        priority: "0.8",
+        changefreq: "weekly",
+        lastmod: (p2.updatedAt || p2.publishedAt || p2.createdAt)?.toISOString().split("T")[0]
+      }));
+      const allEntries = [...staticPages, ...postEntries];
+      const xml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        ...allEntries.map((e) => [
+          "  <url>",
+          `    <loc>${BASE}${e.url}</loc>`,
+          e.lastmod ? `    <lastmod>${e.lastmod}</lastmod>` : "",
+          `    <changefreq>${e.changefreq}</changefreq>`,
+          `    <priority>${e.priority}</priority>`,
+          "  </url>"
+        ].filter(Boolean).join("\n")),
+        "</urlset>"
+      ].join("\n");
+      res.header("Content-Type", "application/xml");
+      res.send(xml);
+    } catch (error) {
+      res.status(500).send('<?xml version="1.0"?><urlset/>');
+    }
+  });
+  app2.get("/robots.txt", (_req, res) => {
+    res.header("Content-Type", "text/plain");
+    res.send([
+      "User-agent: *",
+      "Allow: /",
+      "Disallow: /admin",
+      "Disallow: /dashboard",
+      "Disallow: /photographer",
+      "Disallow: /api/",
+      "",
+      "Sitemap: https://www.connectagrapher.com/sitemap.xml"
+    ].join("\n"));
   });
   const httpServer = (0, import_http.createServer)(app2);
   return httpServer;

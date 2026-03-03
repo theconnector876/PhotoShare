@@ -87,6 +87,7 @@ export interface IStorage {
   createGallery(gallery: InsertGallery): Promise<Gallery>;
   getGalleryByAccess(email: string, accessCode: string): Promise<Gallery | undefined>;
   getGalleryByBookingId(bookingId: string): Promise<Gallery | undefined>;
+  updateGallery(id: string, data: Partial<Gallery>): Promise<Gallery | undefined>;
   updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined>;
   updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string }): Promise<Gallery | undefined>;
   updateGalleryComment(id: string, comment: string): Promise<Gallery | undefined>;
@@ -430,6 +431,15 @@ export class DatabaseStorage implements IStorage {
     const [gallery] = await db
       .update(galleries)
       .set(updateData)
+      .where(eq(galleries.id, id))
+      .returning();
+    return gallery;
+  }
+
+  async updateGallery(id: string, data: Partial<Gallery>): Promise<Gallery | undefined> {
+    const [gallery] = await db
+      .update(galleries)
+      .set(data as any)
       .where(eq(galleries.id, id))
       .returning();
     return gallery;

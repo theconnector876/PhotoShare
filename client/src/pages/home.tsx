@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Camera, Heart, Users, ChevronDown, BookOpen, ArrowRight, Calendar } from "lucide-react";
@@ -251,7 +252,51 @@ export default function Home() {
     ) : <></>,
   };
 
+  const appName = config.branding?.appName || "ConnectAGrapher";
+  const siteDesc = `${appName} — Professional photography and videography services. Book your session for weddings, portraits, and events in Jamaica.`;
+
   return (
+    <>
+    <Helmet>
+      <title>{appName} | Professional Photography & Videography</title>
+      <meta name="description" content={siteDesc} />
+      <link rel="canonical" href="https://www.connectagrapher.com/" />
+      <meta property="og:title" content={`${appName} | Professional Photography`} />
+      <meta property="og:description" content={siteDesc} />
+      <meta property="og:type" content="website" />
+      <meta property="og:url" content="https://www.connectagrapher.com/" />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={`${appName} | Professional Photography`} />
+      <meta name="twitter:description" content={siteDesc} />
+      <script type="application/ld+json">{JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "@id": "https://www.connectagrapher.com/",
+        name: appName,
+        description: siteDesc,
+        url: "https://www.connectagrapher.com/",
+        telephone: "+1-876-000-0000",
+        address: {
+          "@type": "PostalAddress",
+          addressCountry: "JM",
+          addressRegion: "Kingston",
+        },
+        geo: {
+          "@type": "GeoCoordinates",
+          latitude: 17.9714,
+          longitude: -76.7936,
+        },
+        openingHoursSpecification: {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+          opens: "08:00",
+          closes: "20:00",
+        },
+        priceRange: "$$",
+        image: "https://www.connectagrapher.com/logo.png",
+        sameAs: [],
+      })}</script>
+    </Helmet>
     <div className="relative z-10">
       <AdminInlineEditor
         open={!!editorSection}
@@ -279,5 +324,6 @@ export default function Home() {
         </div>
       )}
     </div>
+    </>
   );
 }

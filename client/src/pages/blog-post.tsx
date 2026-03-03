@@ -27,6 +27,12 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
+function readingTime(html: string) {
+  const text = html.replace(/<[^>]+>/g, " ");
+  const words = text.trim().split(/\s+/).length;
+  return Math.max(1, Math.round(words / 200));
+}
+
 export default function BlogPostPage() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
@@ -102,15 +108,26 @@ export default function BlogPostPage() {
       <Helmet>
         <title>{seoTitle}</title>
         <meta name="description" content={seoDesc} />
+        <link rel="canonical" href={pageUrl} />
+        {/* Open Graph */}
         <meta property="og:title" content={seoTitle} />
         <meta property="og:description" content={seoDesc} />
         <meta property="og:type" content="article" />
         <meta property="og:url" content={pageUrl} />
+        <meta property="og:site_name" content={appName} />
         {post.coverImage && <meta property="og:image" content={post.coverImage} />}
+        {post.coverImage && <meta property="og:image:width" content="1200" />}
+        {post.coverImage && <meta property="og:image:height" content="630" />}
         <meta property="article:published_time" content={post.publishedAt || post.createdAt} />
         {post.tags?.map((tag) => (
           <meta key={tag} property="article:tag" content={tag} />
         ))}
+        {/* Twitter / X card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={seoTitle} />
+        <meta name="twitter:description" content={seoDesc} />
+        {post.coverImage && <meta name="twitter:image" content={post.coverImage} />}
+        {/* JSON-LD */}
         <script type="application/ld+json">{JSON.stringify({
           "@context": "https://schema.org",
           "@type": "BlogPosting",
@@ -119,7 +136,12 @@ export default function BlogPostPage() {
           datePublished: post.publishedAt || post.createdAt,
           dateModified: post.publishedAt || post.createdAt,
           image: post.coverImage,
-          publisher: { "@type": "Organization", name: appName },
+          url: pageUrl,
+          publisher: {
+            "@type": "Organization",
+            name: appName,
+            logo: { "@type": "ImageObject", url: "https://www.connectagrapher.com/logo.png" },
+          },
           mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
         })}</script>
       </Helmet>
@@ -166,11 +188,13 @@ export default function BlogPostPage() {
           </h1>
 
           {/* Meta */}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground border-b pb-6 mb-8">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground border-b pb-6 mb-8 flex-wrap">
             <span className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
               {formatDate(post.publishedAt || post.createdAt)}
             </span>
+            <span className="text-muted-foreground/40">|</span>
+            <span>{readingTime(post.content)} min read</span>
             <span className="text-muted-foreground/40">|</span>
             <span>{appName}</span>
           </div>

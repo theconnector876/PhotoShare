@@ -14,6 +14,7 @@ import {
   ImageIcon, UploadIcon, Eye, X,
   ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
   Clock, Loader2, Copy, ArrowUpDown, Download, GripVertical,
+  FolderPlus, Folder,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ interface Gallery {
   galleryImages: string[];
   selectedImages: string[];
   finalImages: string[];
+  imageFolders: Record<string, Record<string, string[]>>; // { gallery: { "Reception": [...] }, final: {...} }
   status: string;
   galleryDownloadEnabled: boolean;
   selectedDownloadEnabled: boolean;
@@ -47,16 +49,40 @@ type FileStatus = "queued" | "uploading" | "done" | "error" | "duplicate";
 interface FileItem {
   id: string;
   file: File;
-  preview: string;
+  preview: string; // small 128px canvas data URL — NOT an ObjectURL, no revoke needed
   status: FileStatus;
   progress: number;
   cloudUrl?: string;
   error?: string;
 }
 
-// ── Image compression ─────────────────────────────────────────────────────────
+// ── Thumbnail generation (memory-safe) ────────────────────────────────────────
+// Creates a small 128px preview as a canvas data URL.
+// The temporary ObjectURL is revoked immediately after img.onload — nothing lingers.
 
-function compressImage(file: File, maxDimension = 4096, quality = 0.88): Promise<File> {
+function generateThumb(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl); // revoked immediately — no persistent ObjectURL
+      const SIZE = 128;
+      const scale = Math.min(SIZE / img.width, SIZE / img.height, 1);
+      const canvas = document.createElement("canvas");
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.7));
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(""); };
+    img.src = objectUrl;
+  });
+}
+
+// ── Image compression ─────────────────────────────────────────────────────────
+// Capped at 2048px (down from 4096) to cut canvas memory usage by ~4×.
+
+function compressImage(file: File, maxDimension = 2048, quality = 0.85): Promise<File> {
   return new Promise((resolve) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
@@ -116,11 +142,11 @@ function uploadWithProgress(file: File, config: SignedConfig, onProgress: (pct: 
 function FileCard({ item }: { item: FileItem }) {
   return (
     <div className="relative rounded-xl overflow-hidden aspect-square bg-green-100 shadow ring-1 ring-green-200">
-      <img src={item.preview} alt={item.file.name} className="w-full h-full object-cover" />
+      {item.preview && <img src={item.preview} alt={item.file.name} className="w-full h-full object-cover" />}
       <div className={`absolute inset-0 flex flex-col items-center justify-center ${
-        item.status === "queued" ? "bg-black/30"
+        item.status === "queued"    ? "bg-black/30"
         : item.status === "uploading" ? "bg-black/25"
-        : item.status === "done" ? "bg-green-700/65"
+        : item.status === "done"      ? "bg-green-700/65"
         : item.status === "duplicate" ? "bg-amber-500/80"
         : "bg-red-500/70"
       }`}>
@@ -155,7 +181,7 @@ function FileCard({ item }: { item: FileItem }) {
   );
 }
 
-function UploadPanel({ items, onClose, canClose }: { items: FileItem[]; onClose: () => void; canClose: boolean }) {
+function UploadPanel({ items, onClose, canClose, onCancel }: { items: FileItem[]; onClose: () => void; canClose: boolean; onCancel: () => void }) {
   const done       = items.filter((i) => i.status === "done").length;
   const errors     = items.filter((i) => i.status === "error").length;
   const duplicates = items.filter((i) => i.status === "duplicate").length;
@@ -192,21 +218,22 @@ function UploadPanel({ items, onClose, canClose }: { items: FileItem[]; onClose:
                 : "All photos saved to Connectagrapher"
               : "Saving photos to Connectagrapher…"}
           </p>
-          <Button size="sm"
-            className={canClose ? "bg-green-700 hover:bg-green-800 text-white shrink-0" : "shrink-0"}
-            variant={canClose ? "default" : "outline"}
-            onClick={onClose} disabled={!canClose}>
-            {canClose ? "Done" : <><Loader2 className="w-3 h-3 animate-spin mr-1.5" />Uploading</>}
-          </Button>
+          {canClose ? (
+            <Button size="sm" className="bg-green-700 hover:bg-green-800 text-white shrink-0" onClick={onClose}>
+              Done
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" className="shrink-0 border-red-200 text-red-600 hover:bg-red-50" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-// ── Image section (extracted outside AdminGalleries to avoid remount issues) ──
-// Uses a native <label htmlFor> to trigger the file input — no programmatic
-// .click() needed, which avoids browser user-gesture restrictions.
+// ── Image section ──────────────────────────────────────────────────────────────
 
 interface ImageSectionProps {
   gallery: Gallery;
@@ -223,27 +250,62 @@ interface ImageSectionProps {
   onDedup: (gallery: Gallery, type: ImageType) => void;
   onFilesSelected: (files: File[], gallery: Gallery, type: ImageType) => void;
   onPreview: (url: string) => void;
+  // Folder props
+  activeFolder: string;           // "" = All
+  uploadFolder: string;           // folder new uploads go to ("" = no folder)
+  newFolderInput: string;
+  onFolderView: (folder: string) => void;
+  onUploadFolderChange: (folder: string) => void;
+  onNewFolderInputChange: (v: string) => void;
+  onCreateFolder: (name: string) => void;
 }
 
 function ImageSection({
   gallery, type, sortOrder, onSortChange,
   dragSrc, dragOver, onDragStart, onDragOver, onDrop, onDragEnd,
   onRemove, onDedup, onFilesSelected, onPreview,
+  activeFolder, uploadFolder, newFolderInput,
+  onFolderView, onUploadFolderChange, onNewFolderInputChange, onCreateFolder,
 }: ImageSectionProps) {
   const fileInputId = `fu-${gallery.id}-${type}`;
+  const [showFolderInput, setShowFolderInput] = useState(false);
 
-  const rawImages =
-    type === "gallery" ? gallery.galleryImages || []
+  const allImages =
+    type === "gallery"  ? gallery.galleryImages  || []
     : type === "selected" ? gallery.selectedImages || []
     : gallery.finalImages || [];
 
-  const images = [...rawImages];
-  if (sortOrder === "az") images.sort((a, b) => (a.split("/").pop() ?? "").localeCompare(b.split("/").pop() ?? ""));
-  if (sortOrder === "za") images.sort((a, b) => (b.split("/").pop() ?? "").localeCompare(a.split("/").pop() ?? ""));
+  const typeFolders = ((gallery.imageFolders || {}) as Record<string, Record<string, string[]>>)[type] || {};
+  const folderNames = Object.keys(typeFolders).sort();
+
+  // Determine images to show based on active folder
+  let imagesToShow = [...allImages];
+  if (activeFolder) {
+    imagesToShow = typeFolders[activeFolder] || [];
+  }
+
+  // Sort (only in All view — folder view order is preserved)
+  if (!activeFolder) {
+    if (sortOrder === "az") imagesToShow = [...imagesToShow].sort((a, b) => (a.split("/").pop() ?? "").localeCompare(b.split("/").pop() ?? ""));
+    if (sortOrder === "za") imagesToShow = [...imagesToShow].sort((a, b) => (b.split("/").pop() ?? "").localeCompare(a.split("/").pop() ?? ""));
+  }
+
+  const handleCreateFolder = () => {
+    const name = newFolderInput.trim();
+    if (!name) return;
+    onCreateFolder(name);
+    onFolderView(name);
+    onUploadFolderChange(name);
+    setShowFolderInput(false);
+    onNewFolderInputChange("");
+  };
+
+  // Map from displayed index back to allImages index for drag-drop
+  // Only meaningful in All view
+  const getAbsoluteIndex = (displayIndex: number) => displayIndex; // all view = same
 
   return (
     <div>
-      {/* Hidden file input — triggered via <label htmlFor> below (no programmatic .click()) */}
       <input
         id={fileInputId}
         type="file"
@@ -258,12 +320,11 @@ function ImageSection({
         }}
       />
 
-      {/* Section toolbar */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      {/* Section header */}
+      <div className="flex flex-wrap items-center gap-2 mb-2">
         <h4 className="text-sm font-semibold capitalize text-green-800 mr-auto">
-          {type} Images ({rawImages.length})
+          {type} Images ({allImages.length})
         </h4>
-        {/* Sort */}
         <Select value={sortOrder} onValueChange={onSortChange}>
           <SelectTrigger className="h-7 text-xs w-36 border-green-200">
             <ArrowUpDown className="w-3 h-3 mr-1 shrink-0 opacity-60" />
@@ -275,42 +336,117 @@ function ImageSection({
             <SelectItem value="za">Name Z → A</SelectItem>
           </SelectContent>
         </Select>
-        {/* Dedup */}
         <Button size="sm" variant="outline"
           className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 px-2"
           onClick={() => onDedup(gallery, type)}>
           Remove Dupes
         </Button>
-        {/* Upload — plain label so click always reaches the file input */}
         <label htmlFor={fileInputId}
           className="inline-flex items-center h-7 text-xs px-2 rounded-md border border-green-200 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none">
           <UploadIcon className="w-3 h-3 mr-1" /> Upload
         </label>
       </div>
 
+      {/* Folder tabs */}
+      {folderNames.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-2 pb-2 border-b border-green-100">
+          <button
+            onClick={() => onFolderView("")}
+            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
+              activeFolder === "" ? "bg-green-700 text-white" : "bg-green-100 text-green-700 hover:bg-green-200"
+            }`}
+          >
+            All ({allImages.length})
+          </button>
+          {folderNames.map((folder) => (
+            <button
+              key={folder}
+              onClick={() => onFolderView(folder)}
+              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                activeFolder === folder ? "bg-green-700 text-white" : "bg-green-100 text-green-700 hover:bg-green-200"
+              }`}
+            >
+              <Folder className="w-3 h-3" />
+              {folder} ({typeFolders[folder]?.length || 0})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Upload destination + new folder */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span className="text-xs text-green-600 font-medium shrink-0">Upload to:</span>
+        <Select value={uploadFolder} onValueChange={onUploadFolderChange}>
+          <SelectTrigger className="h-7 text-xs border-green-200 w-44">
+            <SelectValue placeholder="No folder (general)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">No folder (general)</SelectItem>
+            {folderNames.map((f) => (
+              <SelectItem key={f} value={f}>
+                <span className="flex items-center gap-1"><Folder className="w-3 h-3" />{f}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {showFolderInput ? (
+          <div className="flex items-center gap-1">
+            <Input
+              value={newFolderInput}
+              onChange={(e) => onNewFolderInputChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreateFolder();
+                if (e.key === "Escape") { setShowFolderInput(false); onNewFolderInputChange(""); }
+              }}
+              placeholder="Folder name…"
+              className="h-7 text-xs border-green-200 w-32"
+              autoFocus
+            />
+            <Button size="sm" className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white px-2" onClick={handleCreateFolder}>
+              Add
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 px-1" onClick={() => { setShowFolderInput(false); onNewFolderInputChange(""); }}>
+              <X className="w-3 h-3" />
+            </Button>
+          </div>
+        ) : (
+          <Button size="sm" variant="outline"
+            className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 px-2 shrink-0"
+            onClick={() => setShowFolderInput(true)}>
+            <FolderPlus className="w-3 h-3 mr-1" /> New Folder
+          </Button>
+        )}
+      </div>
+
       {/* Image grid or empty drop zone */}
-      {images.length === 0 ? (
+      {imagesToShow.length === 0 ? (
         <label
           htmlFor={fileInputId}
           className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-green-200 py-8 text-sm text-green-600 hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer"
         >
           <UploadIcon className="w-6 h-6 opacity-60" />
-          Tap to upload photos from your device
+          {activeFolder
+            ? `No photos in "${activeFolder}" yet — tap to upload`
+            : "Tap to upload photos from your device"}
         </label>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-          {images.map((url, i) => {
-            const dragging = dragSrc?.galleryId === gallery.id && dragSrc?.type === type && dragSrc?.index === i;
-            const over     = dragOver?.galleryId === gallery.id && dragOver?.type === type && dragOver?.index === i;
+          {imagesToShow.map((url, i) => {
+            const absIdx = getAbsoluteIndex(i);
+            const canDrag = !activeFolder; // disable drag in folder view (indices don't align)
+            const dragging = canDrag && dragSrc?.galleryId === gallery.id && dragSrc?.type === type && dragSrc?.index === absIdx;
+            const over     = canDrag && dragOver?.galleryId === gallery.id && dragOver?.type === type && dragOver?.index === absIdx;
             return (
               <div
                 key={`${url}-${i}`}
-                draggable
-                onDragStart={() => onDragStart(gallery.id, type, i)}
-                onDragOver={(e) => onDragOver(e, gallery.id, type, i)}
-                onDrop={() => onDrop(gallery, type, i)}
-                onDragEnd={onDragEnd}
-                className={`relative group aspect-square rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing transition-all shadow-sm ${
+                draggable={canDrag}
+                onDragStart={canDrag ? () => onDragStart(gallery.id, type, absIdx) : undefined}
+                onDragOver={canDrag ? (e) => onDragOver(e, gallery.id, type, absIdx) : undefined}
+                onDrop={canDrag ? () => onDrop(gallery, type, absIdx) : undefined}
+                onDragEnd={canDrag ? onDragEnd : undefined}
+                className={`relative group aspect-square rounded-lg overflow-hidden border-2 transition-all shadow-sm ${
+                  canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default"
+                } ${
                   dragging ? "opacity-40 scale-95 border-green-400"
                   : over    ? "border-green-500 scale-[1.03] shadow-md"
                   : "bg-green-100 border-green-200"
@@ -319,9 +455,11 @@ function ImageSection({
                 <img src={url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                   onClick={() => onPreview(url)}
                   onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.15"; }} />
-                <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <GripVertical className="w-3.5 h-3.5 text-white drop-shadow" />
-                </div>
+                {canDrag && (
+                  <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <GripVertical className="w-3.5 h-3.5 text-white drop-shadow" />
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
                   <button onClick={(e) => { e.stopPropagation(); onPreview(url); }}
                     className="p-1.5 bg-white/90 rounded-full shadow">
@@ -342,7 +480,7 @@ function ImageSection({
               </div>
             );
           })}
-          {/* Add-more tile — label triggers file input natively */}
+          {/* Add-more tile */}
           <label
             htmlFor={fileInputId}
             className="aspect-square rounded-lg border-2 border-dashed border-green-200 flex flex-col items-center justify-center text-green-500 hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer"
@@ -371,6 +509,18 @@ export function AdminGalleries() {
   const [sortState, setSortState]       = useState<Record<string, string>>({});
   const [dragSrc, setDragSrc]           = useState<{ galleryId: string; type: ImageType; index: number } | null>(null);
   const [dragOver, setDragOver]         = useState<{ galleryId: string; type: ImageType; index: number } | null>(null);
+
+  // Folder state — key is `galleryId::type`
+  const [activeFolderView, setActiveFolderView] = useState<Record<string, string>>({});
+  const [uploadDestFolder, setUploadDestFolder] = useState<Record<string, string>>({});
+  const [newFolderInputs, setNewFolderInputs]   = useState<Record<string, string>>({});
+
+  // Ref for upload destination — lets handleFilesSelected always read the latest
+  // value without including the state object in useCallback deps (avoids re-renders)
+  const uploadDestFolderRef = useRef<Record<string, string>>({});
+
+  // Cancel flag for uploads
+  const cancelRef = useRef(false);
 
   const { data: galleries, isLoading } = useQuery<Gallery[]>({
     queryKey: ["/api/admin/galleries"],
@@ -402,10 +552,17 @@ export function AdminGalleries() {
   });
 
   const updateSettingsMutation = useMutation({
-    mutationFn: ({ galleryId, settings }: { galleryId: string; settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string } }) =>
+    mutationFn: ({ galleryId, settings }: { galleryId: string; settings: object }) =>
       apiRequest("PATCH", `/api/admin/gallery/${galleryId}/settings`, settings),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] }),
     onError: () => toast({ title: "Failed to update settings", variant: "destructive" }),
+  });
+
+  const updateFoldersMutation = useMutation({
+    mutationFn: ({ galleryId, folders }: { galleryId: string; folders: Record<string, Record<string, string[]>> }) =>
+      apiRequest("PATCH", `/api/admin/gallery/${galleryId}/folders`, { folders }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] }),
+    onError: () => toast({ title: "Failed to save folder assignments", variant: "destructive" }),
   });
 
   // ── Drag handlers ────────────────────────────────────────────────────────────
@@ -441,7 +598,17 @@ export function AdminGalleries() {
       : type === "selected" ? gallery.selectedImages || []
       : gallery.finalImages || [];
     updateImagesMutation.mutate({ galleryId: gallery.id, images: images.filter((u) => u !== url), type });
-  }, [updateImagesMutation]);
+
+    // Also remove from any folder mapping
+    const currentFolders = (gallery.imageFolders || {}) as Record<string, Record<string, string[]>>;
+    const typeFolders = { ...(currentFolders[type] || {}) };
+    let changed = false;
+    for (const fname of Object.keys(typeFolders)) {
+      const filtered = typeFolders[fname].filter((u) => u !== url);
+      if (filtered.length !== typeFolders[fname].length) { typeFolders[fname] = filtered; changed = true; }
+    }
+    if (changed) updateFoldersMutation.mutate({ galleryId: gallery.id, folders: { ...currentFolders, [type]: typeFolders } });
+  }, [updateImagesMutation, updateFoldersMutation]);
 
   const handleDedup = useCallback((gallery: Gallery, type: ImageType) => {
     const images = type === "gallery" ? gallery.galleryImages || []
@@ -455,14 +622,51 @@ export function AdminGalleries() {
     );
   }, [updateImagesMutation, toast]);
 
-  // ── File upload ───────────────────────────────────────────────────────────
+  // ── Folder handlers ──────────────────────────────────────────────────────────
+
+  const fKey = (galleryId: string, type: ImageType) => `${galleryId}::${type}`;
+
+  const handleFolderView = useCallback((galleryId: string, type: ImageType, folder: string) => {
+    setActiveFolderView((prev) => ({ ...prev, [fKey(galleryId, type)]: folder }));
+  }, []);
+
+  const handleUploadFolderChange = useCallback((galleryId: string, type: ImageType, folder: string) => {
+    const key = fKey(galleryId, type);
+    setUploadDestFolder((prev) => ({ ...prev, [key]: folder }));
+    uploadDestFolderRef.current[key] = folder;
+  }, []);
+
+  const handleNewFolderInputChange = useCallback((galleryId: string, type: ImageType, v: string) => {
+    setNewFolderInputs((prev) => ({ ...prev, [fKey(galleryId, type)]: v }));
+  }, []);
+
+  const handleCreateFolder = useCallback((gallery: Gallery, type: ImageType, name: string) => {
+    const currentFolders = (gallery.imageFolders || {}) as Record<string, Record<string, string[]>>;
+    const typeFolders = { ...(currentFolders[type] || {}) };
+    if (!typeFolders[name]) {
+      typeFolders[name] = [];
+      updateFoldersMutation.mutate({ galleryId: gallery.id, folders: { ...currentFolders, [type]: typeFolders } });
+    }
+    // State/ref updates are handled by ImageSection calling onFolderView + onUploadFolderChange
+    const key = fKey(gallery.id, type);
+    setUploadDestFolder((prev) => ({ ...prev, [key]: name }));
+    uploadDestFolderRef.current[key] = name;
+    setActiveFolderView((prev) => ({ ...prev, [key]: name }));
+    setNewFolderInputs((prev) => ({ ...prev, [key]: "" }));
+  }, [updateFoldersMutation]);
+
+  // ── File upload ───────────────────────────────────────────────────────────────
 
   const updateItem = useCallback((id: string, patch: Partial<FileItem>) => {
     setFileItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
-  // Called by ImageSection when the user picks files via the <label> → <input>
   const handleFilesSelected = useCallback(async (files: File[], gallery: Gallery, type: ImageType) => {
+    cancelRef.current = false;
+
+    // Generate small 128px thumbnail previews (memory-safe: ObjectURLs revoked immediately)
+    const thumbs = await Promise.all(files.map(generateThumb));
+
     const existingNames = new Set(
       [...(gallery.galleryImages || []), ...(gallery.selectedImages || []), ...(gallery.finalImages || [])]
         .map((url) => url.split("/").pop()?.split("?")[0]?.toLowerCase() ?? "")
@@ -473,7 +677,13 @@ export function AdminGalleries() {
       const fp = `${file.name.toLowerCase()}::${file.size}`;
       const isDuplicate = existingNames.has(file.name.toLowerCase()) || seenInBatch.has(fp);
       seenInBatch.add(fp);
-      return { id: `${Date.now()}-${i}`, file, preview: URL.createObjectURL(file), status: isDuplicate ? "duplicate" : "queued", progress: 0 };
+      return {
+        id: `${Date.now()}-${i}`,
+        file,
+        preview: thumbs[i], // small data URL — no ObjectURL kept alive
+        status: isDuplicate ? "duplicate" : "queued",
+        progress: 0,
+      };
     });
     setFileItems(items);
     setShowUploadPanel(true);
@@ -489,8 +699,13 @@ export function AdminGalleries() {
       return;
     }
 
+    // Read destination folder from ref (always current, no stale closure)
+    const destFolder = uploadDestFolderRef.current[fKey(gallery.id, type)] || "";
+    const uploadedUrls: string[] = [];
+
     const queue = items.filter((i) => i.status !== "duplicate");
     async function processNext(): Promise<void> {
+      if (cancelRef.current) return;
       const item = queue.shift();
       if (!item) return;
       updateItem(item.id, { status: "uploading", progress: 0 });
@@ -498,24 +713,41 @@ export function AdminGalleries() {
         const compressed = await compressImage(item.file);
         const url = await uploadWithProgress(compressed, config, (pct) => updateItem(item.id, { progress: pct }));
         updateItem(item.id, { status: "done", progress: 100, cloudUrl: url });
+        uploadedUrls.push(url);
         await addImageMutation.mutateAsync({ galleryId: gallery.id, imageURL: url, type });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
       } catch (err: unknown) {
+        if (cancelRef.current) return;
         const msg = err instanceof Error ? err.message : "Upload failed";
         updateItem(item.id, { status: "error", error: msg });
       }
       return processNext();
     }
-    await Promise.all(Array.from({ length: 3 }, processNext));
-  }, [addImageMutation, queryClient, updateItem]);
+    // 2 concurrent uploads (down from 3 — lower peak canvas memory pressure)
+    await Promise.all(Array.from({ length: 2 }, processNext));
 
-  const closeUploadPanel = () => {
-    fileItems.forEach((i) => URL.revokeObjectURL(i.preview));
+    // After all done, save folder assignments if a folder was chosen
+    if (destFolder && uploadedUrls.length > 0 && !cancelRef.current) {
+      const latestGalleries = queryClient.getQueryData<Gallery[]>(["/api/admin/galleries"]);
+      const latestGallery   = latestGalleries?.find((g) => g.id === gallery.id);
+      const currentFolders  = ((latestGallery?.imageFolders || {}) as Record<string, Record<string, string[]>>);
+      const typeFolders     = { ...(currentFolders[type] || {}) };
+      if (!typeFolders[destFolder]) typeFolders[destFolder] = [];
+      const existing = new Set(typeFolders[destFolder]);
+      uploadedUrls.forEach((u) => { if (!existing.has(u)) typeFolders[destFolder].push(u); });
+      await updateFoldersMutation.mutateAsync({ galleryId: gallery.id, folders: { ...currentFolders, [type]: typeFolders } });
+    }
+  }, [addImageMutation, queryClient, updateItem, updateFoldersMutation]);
+
+  const handleCancel = useCallback(() => { cancelRef.current = true; }, []);
+
+  const closeUploadPanel = useCallback(() => {
+    cancelRef.current = true;
     setFileItems([]);
     setShowUploadPanel(false);
-  };
+  }, []);
 
-  const allFinished = fileItems.length > 0 && fileItems.every((i) => i.status === "done" || i.status === "error" || i.status === "duplicate");
+  const allFinished = fileItems.length > 0 && fileItems.every((i) => ["done", "error", "duplicate"].includes(i.status));
 
   const statusColor = (s: string) =>
     s === "pending" ? "bg-orange-500" : s === "active" ? "bg-blue-500"
@@ -536,7 +768,7 @@ export function AdminGalleries() {
             <ImageIcon className="w-5 h-5" /> Gallery Management
           </CardTitle>
           <CardDescription className="text-green-600">
-            Upload, drag to reorder, and manage client gallery photos.
+            Upload photos, organise into folders (e.g. Reception, Ceremony), drag to reorder.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
@@ -588,7 +820,11 @@ export function AdminGalleries() {
                           <div className="text-xs text-green-600 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
                             <span>Code: <strong>{gallery.accessCode}</strong></span>
                             <span>{formatDate(gallery.createdAt)}</span>
-                            <span>{gallery.galleryImages?.length || 0} gallery · {gallery.selectedImages?.length || 0} selected · {gallery.finalImages?.length || 0} final</span>
+                            <span>
+                              {gallery.galleryImages?.length || 0} gallery ·{" "}
+                              {gallery.selectedImages?.length || 0} selected ·{" "}
+                              {gallery.finalImages?.length || 0} final
+                            </span>
                           </div>
                         </div>
                         <div className="flex gap-2 shrink-0">
@@ -670,6 +906,13 @@ export function AdminGalleries() {
                               onDedup={handleDedup}
                               onFilesSelected={handleFilesSelected}
                               onPreview={setPreviewImage}
+                              activeFolder={activeFolderView[fKey(gallery.id, type)] || ""}
+                              uploadFolder={uploadDestFolder[fKey(gallery.id, type)] || ""}
+                              newFolderInput={newFolderInputs[fKey(gallery.id, type)] || ""}
+                              onFolderView={(folder) => handleFolderView(gallery.id, type, folder)}
+                              onUploadFolderChange={(folder) => handleUploadFolderChange(gallery.id, type, folder)}
+                              onNewFolderInputChange={(v) => handleNewFolderInputChange(gallery.id, type, v)}
+                              onCreateFolder={(name) => handleCreateFolder(gallery, type, name)}
                             />
                           ))}
                         </div>
@@ -684,7 +927,7 @@ export function AdminGalleries() {
       </Card>
 
       {showUploadPanel && fileItems.length > 0 && (
-        <UploadPanel items={fileItems} onClose={closeUploadPanel} canClose={allFinished} />
+        <UploadPanel items={fileItems} onClose={closeUploadPanel} canClose={allFinished} onCancel={handleCancel} />
       )}
 
       <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>

@@ -1047,6 +1047,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: update image folder mapping
+  app.patch('/api/admin/gallery/:id/folders', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { folders } = req.body; // { gallery: { "Reception": ["url1"] }, final: {...} }
+      if (!folders || typeof folders !== 'object') return res.status(400).json({ error: 'folders object required' });
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
+      const updated = await storage.updateGallery(gallery.id, { imageFolders: folders });
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating gallery folders:', error);
+      res.status(500).json({ error: 'Failed to update folders' });
+    }
+  });
+
+  // Photographer: update image folder mapping
+  app.patch('/api/photographer/gallery/:id/folders', isAuthenticated, isPhotographerApproved, async (req, res) => {
+    try {
+      const { folders } = req.body;
+      if (!folders || typeof folders !== 'object') return res.status(400).json({ error: 'folders object required' });
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
+      const updated = await storage.updateGallery(gallery.id, { imageFolders: folders });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to update folders' });
+    }
+  });
+
   app.put('/api/admin/gallery-images', isAdmin, async (req, res) => {
     try {
       const galleryImageSchema = z.object({
@@ -1054,7 +1083,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imageURL: z.string(),
         type: z.enum(['gallery', 'selected', 'final'])
       });
-      
+
       const { galleryId, imageURL, type } = galleryImageSchema.parse(req.body);
 
       // Fixed: Use getGalleryById instead of getGalleryByBookingId
@@ -2851,6 +2880,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ error: 'Failed to update social config' });
     }
+  });
+
+  // ── SEO: sitemap.xml ────────────────────────────────────────────────────────
+  app.get('/sitemap.xml', async (_req, res) => {
+    try {
+      const BASE = 'https://www.connectagrapher.com';
+      const staticPages = [
+        { url: '/', priority: '1.0', changefreq: 'weekly' },
+        { url: '/portfolio', priority: '0.9', changefreq: 'weekly' },
+        { url: '/blog', priority: '0.9', changefreq: 'daily' },
+        { url: '/about', priority: '0.7', changefreq: 'monthly' },
+        { url: '/contact', priority: '0.7', changefreq: 'monthly' },
+        { url: '/booking', priority: '0.8', changefreq: 'monthly' },
+      ];
+      const posts = await storage.getBlogPosts(1, 500);
+      const postEntries = posts.map((p) => ({
+        url: `/blog/${p.slug}`,
+        priority: '0.8',
+        changefreq: 'weekly',
+        lastmod: (p.updatedAt || p.publishedAt || p.createdAt)?.toISOString().split('T')[0],
+      }));
+      const allEntries = [...staticPages, ...postEntries];
+      const xml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        ...allEntries.map((e) => [
+          '  <url>',
+          `    <loc>${BASE}${e.url}</loc>`,
+          e.lastmod ? `    <lastmod>${e.lastmod}</lastmod>` : '',
+          `    <changefreq>${e.changefreq}</changefreq>`,
+          `    <priority>${e.priority}</priority>`,
+          '  </url>',
+        ].filter(Boolean).join('\n')),
+        '</urlset>',
+      ].join('\n');
+      res.header('Content-Type', 'application/xml');
+      res.send(xml);
+    } catch (error) {
+      res.status(500).send('<?xml version="1.0"?><urlset/>');
+    }
+  });
+
+  // ── SEO: robots.txt ─────────────────────────────────────────────────────────
+  app.get('/robots.txt', (_req, res) => {
+    res.header('Content-Type', 'text/plain');
+    res.send([
+      'User-agent: *',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /dashboard',
+      'Disallow: /photographer',
+      'Disallow: /api/',
+      '',
+      'Sitemap: https://www.connectagrapher.com/sitemap.xml',
+    ].join('\n'));
   });
 
   const httpServer = createServer(app);
