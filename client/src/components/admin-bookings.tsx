@@ -516,10 +516,11 @@ export function AdminBookings() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, currency = "USD") => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -785,13 +786,13 @@ export function AdminBookings() {
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-green-600">
-                          {formatCurrency(booking.totalPrice)}
+                          {formatCurrency(booking.totalPrice, booking.currency || "USD")}
                         </div>
                         <div className="text-sm text-gray-500">
-                          Deposit: {booking.depositPaid ? "✓ Paid" : "Pending"} ({formatCurrency(booking.depositAmount)})
+                          Deposit: {booking.depositPaid ? "✓ Paid" : "Pending"} ({formatCurrency(booking.depositAmount, booking.currency || "USD")})
                         </div>
                         <div className="text-sm text-gray-500">
-                          Balance: {booking.balancePaid ? "✓ Paid" : "Pending"} ({formatCurrency(booking.balanceDue)})
+                          Balance: {booking.balancePaid ? "✓ Paid" : "Pending"} ({formatCurrency(booking.balanceDue, booking.currency || "USD")})
                         </div>
                       </div>
                     </div>
@@ -933,14 +934,14 @@ export function AdminBookings() {
                     </div>
                     <div>
                       <Label>Transportation Fee</Label>
-                      <p>{formatCurrency(selectedBooking.transportationFee)}</p>
+                      <p>{formatCurrency(selectedBooking.transportationFee, selectedBooking.currency || "USD")}</p>
                     </div>
                     <div>
                       <Label>Total Price</Label>
-                      <p className="text-lg font-bold text-green-600">{formatCurrency(selectedBooking.totalPrice)}</p>
+                      <p className="text-lg font-bold text-green-600">{formatCurrency(selectedBooking.totalPrice, selectedBooking.currency || "USD")}</p>
                       {selectedBooking.couponCode && (
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Coupon <span className="font-mono font-semibold">{selectedBooking.couponCode}</span> — saved {formatCurrency(selectedBooking.discountAmount || 0)}
+                          Coupon <span className="font-mono font-semibold">{selectedBooking.couponCode}</span> — saved {formatCurrency(selectedBooking.discountAmount || 0, selectedBooking.currency || "USD")}
                         </p>
                       )}
                     </div>
@@ -960,7 +961,7 @@ export function AdminBookings() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Deposit Amount</Label>
-                      <p className="mb-2">{formatCurrency(selectedBooking.depositAmount)} - {selectedBooking.depositPaid ? "✓ Paid" : "Pending"}</p>
+                      <p className="mb-2">{formatCurrency(selectedBooking.depositAmount, selectedBooking.currency || "USD")} - {selectedBooking.depositPaid ? "✓ Paid" : "Pending"}</p>
                       {!selectedBooking.depositPaid && (
                         <div className="flex gap-2 flex-wrap">
                           <Button
@@ -1005,7 +1006,7 @@ export function AdminBookings() {
                     </div>
                     <div>
                       <Label>Balance Due</Label>
-                      <p className="mb-2">{formatCurrency(selectedBooking.balanceDue)} - {selectedBooking.balancePaid ? "✓ Paid" : "Pending"}</p>
+                      <p className="mb-2">{formatCurrency(selectedBooking.balanceDue, selectedBooking.currency || "USD")} - {selectedBooking.balancePaid ? "✓ Paid" : "Pending"}</p>
                       {selectedBooking.depositPaid && !selectedBooking.balancePaid && (
                         <div className="flex gap-2 flex-wrap">
                           <Button

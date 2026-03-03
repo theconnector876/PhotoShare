@@ -13,6 +13,7 @@ interface Booking {
   packageType: string;
   shootDate: string;
   status: string;
+  currency: string;
   totalPrice: number;
   depositAmount: number;
   balanceDue: number;
@@ -90,7 +91,8 @@ export function PaymentSuccess() {
     );
   }
 
-  const formatPrice = (amount: number) => `$${amount.toFixed(2)}`;
+  const formatPrice = (amount: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: booking?.currency || 'USD', maximumFractionDigits: 0 }).format(amount);
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",

@@ -10,7 +10,7 @@ export default function Payment() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [checkoutUrl, setCheckoutUrl] = useState("");
-  const [booking, setBooking] = useState<any>(null);
+  const [booking, setBooking] = useState<any & { currency?: string }>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Get booking ID from URL params - use window.location.search for query params
@@ -98,6 +98,8 @@ export default function Payment() {
   }
 
   const amount = paymentType === 'balance' ? booking.balanceDue : booking.depositAmount;
+  const currency = booking.currency || 'USD';
+  const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 py-8">
@@ -137,15 +139,15 @@ export default function Payment() {
                 </div>
                 <div className="flex justify-between">
                   <span>Total Amount:</span>
-                  <span>${booking.totalPrice.toFixed(2)}</span>
+                  <span>{fmt(booking.totalPrice)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Deposit:</span>
-                  <span>${booking.depositAmount.toFixed(2)} {booking.depositPaid ? '✓ Paid' : ''}</span>
+                  <span>{fmt(booking.depositAmount)} {booking.depositPaid ? '✓ Paid' : ''}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Balance:</span>
-                  <span>${booking.balanceDue.toFixed(2)} {booking.balancePaid ? '✓ Paid' : ''}</span>
+                  <span>{fmt(booking.balanceDue)} {booking.balancePaid ? '✓ Paid' : ''}</span>
                 </div>
               </div>
             </div>
@@ -156,7 +158,7 @@ export default function Payment() {
                 {paymentType === 'balance' ? 'Final Payment Amount' : 'Deposit Amount'}
               </p>
               <p className="text-2xl font-bold text-primary">
-                ${amount.toFixed(2)}
+                {fmt(amount)}
               </p>
             </div>
 
@@ -182,7 +184,7 @@ export default function Payment() {
               onClick={() => { window.location.href = checkoutUrl; }}
             >
               <CreditCard className="w-4 h-4 mr-2" />
-              Pay ${amount.toFixed(2)}
+              Pay {fmt(amount)}
             </Button>
 
             {/* Contact */}

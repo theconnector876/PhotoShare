@@ -32,8 +32,40 @@ if (lemonSqueezyEnabled) {
 // connectagrapher.com → Vercel (not LS), so checkout URLs must be proxied.
 // The proxy (registered below) intercepts /checkout/* and serves LS checkout HTML
 // using the X-Forwarded-Host trick to get LS to serve HTML without redirecting.
+// NOTE: The LS store base currency is JMD — all customPrice values must be in JMD cents.
 const LS_NATIVE_HOST = 'connectagrapherpayment.lemonsqueezy.com';
 const LS_STORE_HOST = 'connectagrapher.com';
+
+// ── Exchange Rate Cache ──────────────────────────────────────────────────────
+// Fetches live USD-based rates from open.er-api.com; falls back to admin config.
+let _rateCache: { rates: Record<string, number>; fetchedAt: number } | null = null;
+const RATE_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+async function fetchExchangeRates(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (_rateCache && (now - _rateCache.fetchedAt) < RATE_CACHE_TTL) return _rateCache.rates;
+  try {
+    const r = await fetch('https://open.er-api.com/v6/latest/USD');
+    if (r.ok) {
+      const d = await r.json() as any;
+      const rates = { JMD: d.rates.JMD, GBP: d.rates.GBP, CAD: d.rates.CAD, EUR: d.rates.EUR };
+      _rateCache = { rates, fetchedAt: now };
+      return rates;
+    }
+  } catch (e) {
+    console.warn('[exchange-rates] live fetch failed:', (e as any).message);
+  }
+  // Fallback: admin-configured rates stored in siteConfigs
+  try {
+    const row = await storage.getSiteConfig('exchange_rates');
+    if (row?.config) {
+      const rates = row.config as Record<string, number>;
+      _rateCache = { rates, fetchedAt: now };
+      return rates;
+    }
+  } catch {}
+  return { JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 };
+}
 
 function normalizeLsUrl(url: string): string {
   try {
@@ -1362,17 +1394,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create Lemon Squeezy checkout with proper format
       const storeId = process.env.LEMONSQUEEZY_STORE_ID!;
       const variantId = process.env.LEMONSQUEEZY_VARIANT_ID!;
-      
-      // Convert amount to cents (Lemon Squeezy requires cents)
-      const tipCents = (paymentType === 'balance' && tipAmount > 0)
-        ? Math.round(Number(tipAmount) * 100) : 0;
-      const customPriceInCents = Math.round(amount * 100) + tipCents;
+
+      // LS store is JMD-based — convert amounts to JMD before passing customPrice
+      const bookingCurrency = (booking as any).currency || 'USD';
+      const rates = await fetchExchangeRates();
+      const jmdRate = (rates.JMD as number) ?? 157;
+
+      const toJmd = (usdOrNative: number) =>
+        bookingCurrency === 'JMD' ? usdOrNative : Math.round(usdOrNative * jmdRate);
+
+      const amountJmd = toJmd(amount);
+      const tipJmd = (paymentType === 'balance' && tipAmount > 0)
+        ? toJmd(Math.round(Number(tipAmount))) : 0;
+      const customPriceInCents = Math.round(amountJmd * 100) + Math.round(tipJmd * 100);
 
       const newCheckout = {
         customPrice: customPriceInCents,
         productOptions: {
-          name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment${tipCents > 0 ? ' + Tip' : ''}`,
-          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}${tipCents > 0 ? ` (includes $${(tipCents / 100).toFixed(2)} tip)` : ''}`,
+          name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment${tipJmd > 0 ? ' + Tip' : ''}`,
+          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}${tipJmd > 0 ? ` (includes tip)` : ''}`,
           redirectUrl: `https://www.connectagrapher.com/payment-success?booking=${bookingId}&type=${paymentType}`,
         },
         checkoutOptions: {
@@ -1388,7 +1428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             payment_type: paymentType,
             service_type: booking.serviceType,
             total_amount: String(booking.totalPrice),
-            tip_amount: String(tipCents / 100),
+            tip_amount: String(tipJmd),
           }
         },
       };
@@ -1467,6 +1507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         packageType: booking.packageType,
         shootDate: booking.shootDate,
         status: booking.status,
+        currency: (booking as any).currency || 'USD',
         totalPrice: booking.totalPrice,
         depositAmount: serverDepositAmount, // Server-calculated for consistency
         balanceDue: serverBalanceDue, // Server-calculated for consistency
@@ -3073,6 +3114,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ ok: true });
     } catch (err: any) {
       res.status(400).json({ error: err.message });
+    }
+  });
+
+  // ── Exchange Rates ───────────────────────────────────────────────────────────
+  app.get('/api/exchange-rates', async (_req, res) => {
+    try {
+      const rates = await fetchExchangeRates();
+      res.json({ base: 'USD', rates, source: _rateCache ? 'cache' : 'live' });
+    } catch (e) {
+      res.json({ base: 'USD', rates: { JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 }, source: 'default' });
+    }
+  });
+
+  app.get('/api/admin/exchange-rates', isAdmin, async (_req, res) => {
+    try {
+      const row = await storage.getSiteConfig('exchange_rates');
+      res.json(row?.config ?? { JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 });
+    } catch {
+      res.json({ JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 });
+    }
+  });
+
+  app.put('/api/admin/exchange-rates', isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        JMD: z.number().positive(),
+        GBP: z.number().positive(),
+        CAD: z.number().positive(),
+        EUR: z.number().positive(),
+      });
+      const rates = schema.parse(req.body);
+      await storage.upsertSiteConfig('exchange_rates', rates);
+      // Bust the in-memory cache so next fetch uses new fallback
+      _rateCache = null;
+      res.json({ success: true, rates });
+    } catch (e) {
+      if (e instanceof z.ZodError) return res.status(400).json({ error: 'Invalid rates', details: e.errors });
+      res.status(500).json({ error: 'Failed to save exchange rates' });
     }
   });
 

@@ -74355,6 +74355,33 @@ if (lemonSqueezyEnabled) {
 }
 var LS_NATIVE_HOST = "connectagrapherpayment.lemonsqueezy.com";
 var LS_STORE_HOST = "connectagrapher.com";
+var _rateCache = null;
+var RATE_CACHE_TTL = 60 * 60 * 1e3;
+async function fetchExchangeRates() {
+  const now = Date.now();
+  if (_rateCache && now - _rateCache.fetchedAt < RATE_CACHE_TTL) return _rateCache.rates;
+  try {
+    const r2 = await fetch("https://open.er-api.com/v6/latest/USD");
+    if (r2.ok) {
+      const d = await r2.json();
+      const rates = { JMD: d.rates.JMD, GBP: d.rates.GBP, CAD: d.rates.CAD, EUR: d.rates.EUR };
+      _rateCache = { rates, fetchedAt: now };
+      return rates;
+    }
+  } catch (e) {
+    console.warn("[exchange-rates] live fetch failed:", e.message);
+  }
+  try {
+    const row = await storage.getSiteConfig("exchange_rates");
+    if (row?.config) {
+      const rates = row.config;
+      _rateCache = { rates, fetchedAt: now };
+      return rates;
+    }
+  } catch {
+  }
+  return { JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 };
+}
 function normalizeLsUrl(url) {
   try {
     const u = new URL(url);
@@ -75475,13 +75502,18 @@ async function registerRoutes(app2) {
       }
       const storeId = process.env.LEMONSQUEEZY_STORE_ID;
       const variantId = process.env.LEMONSQUEEZY_VARIANT_ID;
-      const tipCents = paymentType === "balance" && tipAmount > 0 ? Math.round(Number(tipAmount) * 100) : 0;
-      const customPriceInCents = Math.round(amount * 100) + tipCents;
+      const bookingCurrency = booking.currency || "USD";
+      const rates = await fetchExchangeRates();
+      const jmdRate = rates.JMD ?? 157;
+      const toJmd = (usdOrNative) => bookingCurrency === "JMD" ? usdOrNative : Math.round(usdOrNative * jmdRate);
+      const amountJmd = toJmd(amount);
+      const tipJmd = paymentType === "balance" && tipAmount > 0 ? toJmd(Math.round(Number(tipAmount))) : 0;
+      const customPriceInCents = Math.round(amountJmd * 100) + Math.round(tipJmd * 100);
       const newCheckout = {
         customPrice: customPriceInCents,
         productOptions: {
-          name: `Photography ${paymentType === "deposit" ? "Deposit" : "Balance"} Payment${tipCents > 0 ? " + Tip" : ""}`,
-          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}${tipCents > 0 ? ` (includes $${(tipCents / 100).toFixed(2)} tip)` : ""}`,
+          name: `Photography ${paymentType === "deposit" ? "Deposit" : "Balance"} Payment${tipJmd > 0 ? " + Tip" : ""}`,
+          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}${tipJmd > 0 ? ` (includes tip)` : ""}`,
           redirectUrl: `https://www.connectagrapher.com/payment-success?booking=${bookingId}&type=${paymentType}`
         },
         checkoutOptions: {
@@ -75497,7 +75529,7 @@ async function registerRoutes(app2) {
             payment_type: paymentType,
             service_type: booking.serviceType,
             total_amount: String(booking.totalPrice),
-            tip_amount: String(tipCents / 100)
+            tip_amount: String(tipJmd)
           }
         }
       };
@@ -75556,6 +75588,7 @@ async function registerRoutes(app2) {
         packageType: booking.packageType,
         shootDate: booking.shootDate,
         status: booking.status,
+        currency: booking.currency || "USD",
         totalPrice: booking.totalPrice,
         depositAmount: serverDepositAmount,
         // Server-calculated for consistency
@@ -76935,6 +76968,39 @@ Thank you!`
       res.json({ ok: true });
     } catch (err) {
       res.status(400).json({ error: err.message });
+    }
+  });
+  app2.get("/api/exchange-rates", async (_req, res) => {
+    try {
+      const rates = await fetchExchangeRates();
+      res.json({ base: "USD", rates, source: _rateCache ? "cache" : "live" });
+    } catch (e) {
+      res.json({ base: "USD", rates: { JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 }, source: "default" });
+    }
+  });
+  app2.get("/api/admin/exchange-rates", isAdmin, async (_req, res) => {
+    try {
+      const row = await storage.getSiteConfig("exchange_rates");
+      res.json(row?.config ?? { JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 });
+    } catch {
+      res.json({ JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 });
+    }
+  });
+  app2.put("/api/admin/exchange-rates", isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        JMD: z.number().positive(),
+        GBP: z.number().positive(),
+        CAD: z.number().positive(),
+        EUR: z.number().positive()
+      });
+      const rates = schema.parse(req.body);
+      await storage.upsertSiteConfig("exchange_rates", rates);
+      _rateCache = null;
+      res.json({ success: true, rates });
+    } catch (e) {
+      if (e instanceof z.ZodError) return res.status(400).json({ error: "Invalid rates", details: e.errors });
+      res.status(500).json({ error: "Failed to save exchange rates" });
     }
   });
   app2.get("/robots.txt", (_req, res) => {

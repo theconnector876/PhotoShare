@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { defaultPricingConfig, type PricingConfig } from "@shared/pricing";
+import { SUPPORTED_CURRENCIES, CURRENCY_NAMES, CURRENCY_SYMBOLS, type Currency } from "@shared/currency";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const TIERS = ["bronze", "silver", "gold", "platinum"] as const;
 type Tier = (typeof TIERS)[number];
@@ -88,6 +90,29 @@ export function AdminPricing() {
 
   return (
     <div className="space-y-4">
+      {/* Currency selector */}
+      <Card>
+        <CardContent className="p-4 flex items-center gap-4">
+          <Label className="text-sm font-medium shrink-0">Pricing Currency</Label>
+          <Select
+            value={pricing.currency ?? 'USD'}
+            onValueChange={(v) => set("currency", v as Currency)}
+          >
+            <SelectTrigger className="w-40 h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SUPPORTED_CURRENCIES.filter(c => c === 'USD' || c === 'JMD').map(c => (
+                <SelectItem key={c} value={c}>
+                  {CURRENCY_SYMBOLS[c]} {CURRENCY_NAMES[c]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">Determines the currency shown in the booking calculator and charged at payment.</p>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="photoshoot">
         <TabsList className="grid w-full grid-cols-5 h-auto">
           <TabsTrigger value="photoshoot" className="text-xs sm:text-sm">Photoshoot</TabsTrigger>

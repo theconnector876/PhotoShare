@@ -48,6 +48,7 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
   });
 
   const [config, setConfig] = useState<SiteConfig>(defaultSiteConfig);
+  const [exchangeRates, setExchangeRates] = useState({ JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 });
   const [layoutHomeOrder, setLayoutHomeOrder] = useState("");
   const [layoutHomeHidden, setLayoutHomeHidden] = useState("");
   const [layoutAboutOrder, setLayoutAboutOrder] = useState("");
@@ -99,6 +100,18 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
       return next;
     });
   };
+
+  // ── Exchange Rates query + mutation ─────────────────────────────────────────
+  const { data: rateData } = useQuery<{ JMD: number; GBP: number; CAD: number; EUR: number }>({
+    queryKey: ["/api/admin/exchange-rates"],
+    onSuccess: (d) => setExchangeRates(d),
+  } as any);
+
+  const saveRatesMutation = useMutation({
+    mutationFn: (rates: typeof exchangeRates) => apiRequest("PUT", "/api/admin/exchange-rates", rates),
+    onSuccess: () => toast({ title: "Exchange rates saved!" }),
+    onError: () => toast({ title: "Failed to save rates", variant: "destructive" }),
+  });
 
   const saveMutation = useMutation({
     mutationFn: async (payload: SiteConfig) => {
@@ -674,6 +687,42 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                   </div>
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Exchange Rates fallback (used when live API is unavailable) */}
+      {showSection("site-exchange-rates") && (
+        <Card id="site-exchange-rates">
+          <CardHeader>
+            <CardTitle className="text-sm">Exchange Rate Fallbacks</CardTitle>
+            <CardDescription className="text-xs">
+              Rates per 1 USD — used as fallback when live rates are unavailable. Live rates are fetched automatically every hour from open.er-api.com.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {(["JMD", "GBP", "CAD", "EUR"] as const).map((cur) => (
+              <div key={cur} className="space-y-1">
+                <Label className="text-xs text-muted-foreground">1 USD → {cur}</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={exchangeRates[cur]}
+                  onChange={(e) => setExchangeRates(prev => ({ ...prev, [cur]: Number(e.target.value) }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+            ))}
+            <div className="col-span-2 sm:col-span-4 flex justify-end">
+              <Button
+                size="sm"
+                onClick={() => saveRatesMutation.mutate(exchangeRates)}
+                disabled={saveRatesMutation.isPending}
+              >
+                {saveRatesMutation.isPending ? "Saving…" : "Save Rates"}
+              </Button>
             </div>
           </CardContent>
         </Card>

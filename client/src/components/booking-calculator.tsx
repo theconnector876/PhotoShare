@@ -19,6 +19,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useCurrency } from "@/context/currency";
+import { CURRENCY_NAMES, type Currency } from "@shared/currency";
 
 const createBookingFormSchema = (isLoggedIn: boolean) => {
   const base = z.object({
@@ -58,6 +60,8 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const { user } = useAuth();
   const isLoggedIn = !!user;
+  const { format } = useCurrency();
+  const pricingCurrency = (pricingConfig.currency || 'USD') as Currency;
 
   // Coupon state
   const [couponInput, setCouponInput] = useState("");
@@ -117,6 +121,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
         transportationFee: calculation.transportationFee,
         addons: calculation.addons,
         totalPrice: calculation.totalPrice, // server will apply discount based on coupon code
+        currency: pricingCurrency,
         couponCode: couponData?.code || undefined,
         photographerId: photographerId || undefined,
       };
@@ -646,17 +651,17 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
         <Card className="bg-gradient-to-r from-primary to-secondary rounded-xl p-8 text-white text-center mb-4 animate-glow">
           <div className="text-lg mb-2">Total Investment</div>
           {couponData && (
-            <div className="text-2xl line-through opacity-60 mb-1">${calculation.totalPrice}</div>
+            <div className="text-2xl line-through opacity-60 mb-1">{format(calculation.totalPrice, pricingCurrency)}</div>
           )}
           <div className="text-5xl font-bold counter-animation" data-testid="total-price">
-            ${finalPrice}
+            {format(finalPrice, pricingCurrency)}
           </div>
           {couponData && (
             <div className="text-sm opacity-90 mt-2 bg-white/20 rounded-full px-3 py-1 inline-block">
-              🎉 {couponData.discountType === 'percentage' ? `${couponData.discountValue}% off` : `$${couponData.discountValue} off`} applied
+              🎉 {couponData.discountType === 'percentage' ? `${couponData.discountValue}% off` : `${format(couponData.discountValue, pricingCurrency)} off`} applied
             </div>
           )}
-          {!couponData && <div className="text-sm opacity-90 mt-2">All pricing in USD</div>}
+          {!couponData && <div className="text-sm opacity-90 mt-2">Pricing in {CURRENCY_NAMES[pricingCurrency]}</div>}
         </Card>
 
         {/* Coupon Code */}
@@ -1177,9 +1182,9 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                 data-testid="button-submit-booking"
               >
                 <i className="fas fa-calendar-check mr-2"></i>
-                {createBookingMutation.isPending 
-                  ? 'Processing...' 
-                  : `Confirm Booking - $${finalPrice}`
+                {createBookingMutation.isPending
+                  ? 'Processing...'
+                  : `Confirm Booking - ${format(finalPrice, pricingCurrency)}`
                 }
               </Button>
             </form>
