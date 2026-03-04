@@ -3258,6 +3258,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Photographer custom packages ──────────────────────────────────────────────
+  app.get('/api/photographer/custom-packages', isPhotographerApproved, async (req, res) => {
+    try {
+      const pkgs = await storage.getCustomPackagesByCreator((req.user as any).id);
+      res.json(pkgs);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/photographer/custom-packages', isPhotographerApproved, async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        serviceType: z.string().min(1),
+        totalPrice: z.number().int().positive(),
+        depositAmount: z.number().int().min(0).optional().default(0),
+        currency: z.string().length(3).optional().default('USD'),
+      });
+      const data = schema.parse(req.body);
+      const pkg = await storage.createCustomPackage({
+        ...data,
+        createdBy: (req.user as any).id,
+        isActive: true,
+      });
+      res.json(pkg);
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch('/api/photographer/custom-packages/:id', isPhotographerApproved, async (req, res) => {
+    try {
+      const pkg = await storage.getCustomPackageById(req.params.id);
+      if (!pkg || pkg.createdBy !== (req.user as any).id) return res.status(404).json({ error: 'Not found' });
+      const schema = z.object({
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        serviceType: z.string().optional(),
+        totalPrice: z.number().int().positive().optional(),
+        depositAmount: z.number().int().min(0).optional(),
+        currency: z.string().length(3).optional(),
+        isActive: z.boolean().optional(),
+      });
+      const data = schema.parse(req.body);
+      const updated = await storage.updateCustomPackage(req.params.id, data);
+      res.json(updated);
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/photographer/custom-packages/:id', isPhotographerApproved, async (req, res) => {
+    try {
+      const pkg = await storage.getCustomPackageById(req.params.id);
+      if (!pkg || pkg.createdBy !== (req.user as any).id) return res.status(404).json({ error: 'Not found' });
+      await storage.deleteCustomPackage(req.params.id);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Booking Terms ────────────────────────────────────────────────────────────
   // Public: get terms for a booking (photographer custom or platform default)
   app.get('/api/booking-terms', async (req, res) => {

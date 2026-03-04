@@ -198,6 +198,7 @@ export interface IStorage {
 
   // Custom package operations
   getAllCustomPackages(): Promise<import('@shared/schema').CustomPackage[]>;
+  getCustomPackagesByCreator(createdBy: string): Promise<import('@shared/schema').CustomPackage[]>;
   getCustomPackageById(id: string): Promise<import('@shared/schema').CustomPackage | undefined>;
   createCustomPackage(data: Omit<import('@shared/schema').CustomPackage, 'id' | 'createdAt'>): Promise<import('@shared/schema').CustomPackage>;
   updateCustomPackage(id: string, data: Partial<import('@shared/schema').CustomPackage>): Promise<import('@shared/schema').CustomPackage | undefined>;
@@ -1378,6 +1379,10 @@ export class DatabaseStorage implements IStorage {
 
   async getAllCustomPackages(): Promise<CustomPackage[]> {
     return db.select().from(customPackages).orderBy(desc(customPackages.createdAt));
+  }
+
+  async getCustomPackagesByCreator(createdBy: string): Promise<CustomPackage[]> {
+    return db.select().from(customPackages).where(eq(customPackages.createdBy, createdBy)).orderBy(desc(customPackages.createdAt));
   }
 
   async getCustomPackageById(id: string): Promise<CustomPackage | undefined> {

@@ -365,14 +365,15 @@ export function AdminPricing() {
 interface NewPkgForm {
   name: string;
   description: string;
-  serviceType: string;
+  serviceType: string;   // "photoshoot" | "wedding" | "event" | "other"
+  serviceTypeOther: string; // free-text when serviceType === "other"
   totalPrice: string;
   depositAmount: string;
   currency: string;
 }
 
 const EMPTY_FORM: NewPkgForm = {
-  name: "", description: "", serviceType: "photoshoot",
+  name: "", description: "", serviceType: "photoshoot", serviceTypeOther: "",
   totalPrice: "", depositAmount: "0", currency: "USD",
 };
 
@@ -386,12 +387,14 @@ function CustomPackagesSection() {
     queryFn: async () => (await apiRequest("GET", "/api/admin/custom-packages")).json(),
   });
 
+  const resolvedServiceType = form.serviceType === "other" ? form.serviceTypeOther.trim() : form.serviceType;
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/admin/custom-packages", {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        serviceType: form.serviceType,
+        serviceType: resolvedServiceType,
         totalPrice: Math.round(parseFloat(form.totalPrice) * 100),
         depositAmount: Math.round(parseFloat(form.depositAmount || "0") * 100),
         currency: form.currency,
@@ -434,7 +437,7 @@ function CustomPackagesSection() {
     toast({ title: "Link copied!" });
   };
 
-  const canSubmit = form.name.trim() && form.serviceType && parseFloat(form.totalPrice) > 0;
+  const canSubmit = form.name.trim() && resolvedServiceType && parseFloat(form.totalPrice) > 0;
 
   return (
     <>
@@ -529,14 +532,23 @@ function CustomPackagesSection() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Service type *</Label>
-                <Select value={form.serviceType} onValueChange={v => setForm(p => ({ ...p, serviceType: v }))}>
+                <Select value={form.serviceType} onValueChange={v => setForm(p => ({ ...p, serviceType: v, serviceTypeOther: "" }))}>
                   <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="photoshoot">Photoshoot</SelectItem>
                     <SelectItem value="wedding">Wedding</SelectItem>
                     <SelectItem value="event">Event</SelectItem>
+                    <SelectItem value="other">Other…</SelectItem>
                   </SelectContent>
                 </Select>
+                {form.serviceType === "other" && (
+                  <Input
+                    className="mt-1.5 h-8 text-sm"
+                    placeholder="e.g. Maternity, Newborn…"
+                    value={form.serviceTypeOther}
+                    onChange={e => setForm(p => ({ ...p, serviceTypeOther: e.target.value }))}
+                  />
+                )}
               </div>
               <div>
                 <Label className="text-xs">Currency</Label>

@@ -218,6 +218,10 @@ export default function PhotographerDashboard() {
   // Pricing
   const [pricingForm, setPricingForm] = useState<PricingConfig>(defaultPricingConfig);
 
+  // Custom packages
+  const [showCreatePkg, setShowCreatePkg] = useState(false);
+  const [pkgForm, setPkgForm] = useState({ name: "", description: "", serviceType: "photoshoot", serviceTypeOther: "", totalPrice: "", depositAmount: "0", currency: "USD" });
+
   // Contract Terms
   const [customTerms, setCustomTerms] = useState<BookingTerms | null>(null);
 
@@ -258,6 +262,13 @@ export default function PhotographerDashboard() {
     queryKey: ["/api/photographer/booking-terms"],
     enabled: !!user,
     retry: false,
+  });
+
+  interface CustomPackageItem { id: string; name: string; description: string | null; serviceType: string; totalPrice: number; depositAmount: number; currency: string; isActive: boolean; createdAt: string; }
+  const { data: myPackages = [] } = useQuery<CustomPackageItem[]>({
+    queryKey: ["/api/photographer/custom-packages"],
+    queryFn: async () => (await apiRequest("GET", "/api/photographer/custom-packages")).json(),
+    enabled: !!user,
   });
 
   const { data: userBookings } = useQuery<UserBooking[]>({
@@ -372,6 +383,50 @@ export default function PhotographerDashboard() {
       toast({ title: "Contract terms saved" });
     },
     onError: (e: Error) => toast({ title: "Failed to save terms", description: e.message, variant: "destructive" }),
+  });
+
+  const pkgResolvedServiceType = pkgForm.serviceType === "other" ? pkgForm.serviceTypeOther.trim() : pkgForm.serviceType;
+  const EMPTY_PKG_FORM = { name: "", description: "", serviceType: "photoshoot", serviceTypeOther: "", totalPrice: "", depositAmount: "0", currency: "USD" };
+
+  const createPkgMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/photographer/custom-packages", {
+        name: pkgForm.name.trim(),
+        description: pkgForm.description.trim() || undefined,
+        serviceType: pkgResolvedServiceType,
+        totalPrice: Math.round(parseFloat(pkgForm.totalPrice) * 100),
+        depositAmount: Math.round(parseFloat(pkgForm.depositAmount || "0") * 100),
+        currency: pkgForm.currency,
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photographer/custom-packages"] });
+      toast({ title: "Package created" });
+      setShowCreatePkg(false);
+      setPkgForm(EMPTY_PKG_FORM);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const togglePkgMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      await apiRequest("PATCH", `/api/photographer/custom-packages/${id}`, { isActive });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/photographer/custom-packages"] }),
+    onError: () => toast({ title: "Failed to update package", variant: "destructive" }),
+  });
+
+  const deletePkgMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/photographer/custom-packages/${id}`, undefined);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photographer/custom-packages"] });
+      toast({ title: "Package deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete package", variant: "destructive" }),
   });
 
   const updateBookingStatusMutation = useMutation({
@@ -1717,6 +1772,131 @@ export default function PhotographerDashboard() {
                     {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
                   </Button>
                 </div>
+
+                {/* ── Custom Private Packages ── */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold">Custom Private Packages</CardTitle>
+                      <Button size="sm" variant="outline" onClick={() => setShowCreatePkg(true)}>
+                        <Plus className="w-3.5 h-3.5 mr-1" />New Package
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      One-off packages not listed publicly. Share via a unique booking link.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-2 pt-0">
+                    {myPackages.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-3">No custom packages yet.</p>
+                    ) : (
+                      myPackages.map(pkg => (
+                        <div key={pkg.id} className={`border rounded-lg p-3 flex items-start gap-2 ${!pkg.isActive ? "opacity-50" : ""}`}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{pkg.name}</span>
+                              <Badge variant="outline" className="text-xs">{pkg.serviceType}</Badge>
+                              <Badge variant={pkg.isActive ? "default" : "secondary"} className="text-xs">
+                                {pkg.isActive ? "Active" : "Inactive"}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">{pkg.currency} {(pkg.totalPrice / 100).toLocaleString()}</span>
+                            </div>
+                            {pkg.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{pkg.description}</p>}
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <Button
+                              size="icon" variant="ghost" className="h-7 w-7" title="Copy booking link"
+                              onClick={() => {
+                                const url = `${window.location.origin}/booking?pkg=${pkg.id}&photographer=${user?.id}`;
+                                navigator.clipboard.writeText(url).then(() => toast({ title: "Link copied!" })).catch(() => toast({ title: "Copy failed", description: url }));
+                              }}
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              size="icon" variant="ghost" className="h-7 w-7"
+                              title={pkg.isActive ? "Deactivate" : "Activate"}
+                              onClick={() => togglePkgMutation.mutate({ id: pkg.id, isActive: !pkg.isActive })}
+                              disabled={togglePkgMutation.isPending}
+                            >
+                              {pkg.isActive
+                                ? <span className="text-green-600 text-xs font-bold">ON</span>
+                                : <span className="text-muted-foreground text-xs font-bold">OFF</span>}
+                            </Button>
+                            <Button
+                              size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600"
+                              title="Delete"
+                              onClick={() => deletePkgMutation.mutate(pkg.id)}
+                              disabled={deletePkgMutation.isPending}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* ── Create package dialog ── */}
+                <Dialog open={showCreatePkg} onOpenChange={open => { if (!open) { setShowCreatePkg(false); setPkgForm(EMPTY_PKG_FORM); } }}>
+                  <DialogContent className="max-w-md">
+                    <div className="font-semibold text-base pb-1">New Custom Package</div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs">Package name *</Label>
+                        <Input className="mt-1 h-8 text-sm" placeholder="e.g. VIP Maternity Session" value={pkgForm.name} onChange={e => setPkgForm(p => ({ ...p, name: e.target.value }))} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Description (optional)</Label>
+                        <Textarea className="mt-1 text-sm resize-none" rows={2} placeholder="Brief description shown on the booking page" value={pkgForm.description} onChange={e => setPkgForm(p => ({ ...p, description: e.target.value }))} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Service type *</Label>
+                          <Select value={pkgForm.serviceType} onValueChange={v => setPkgForm(p => ({ ...p, serviceType: v, serviceTypeOther: "" }))}>
+                            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="photoshoot">Photoshoot</SelectItem>
+                              <SelectItem value="wedding">Wedding</SelectItem>
+                              <SelectItem value="event">Event</SelectItem>
+                              <SelectItem value="other">Other…</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {pkgForm.serviceType === "other" && (
+                            <Input className="mt-1.5 h-8 text-sm" placeholder="e.g. Maternity, Newborn…" value={pkgForm.serviceTypeOther} onChange={e => setPkgForm(p => ({ ...p, serviceTypeOther: e.target.value }))} />
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs">Currency</Label>
+                          <Select value={pkgForm.currency} onValueChange={v => setPkgForm(p => ({ ...p, currency: v }))}>
+                            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="USD">$ USD</SelectItem>
+                              <SelectItem value="JMD">J$ JMD</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Total price *</Label>
+                          <Input type="number" min={0} step="0.01" className="mt-1 h-8 text-sm" placeholder="0.00" value={pkgForm.totalPrice} onChange={e => setPkgForm(p => ({ ...p, totalPrice: e.target.value }))} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Deposit amount</Label>
+                          <Input type="number" min={0} step="0.01" className="mt-1 h-8 text-sm" placeholder="0.00" value={pkgForm.depositAmount} onChange={e => setPkgForm(p => ({ ...p, depositAmount: e.target.value }))} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end pt-2">
+                      <Button variant="outline" size="sm" onClick={() => { setShowCreatePkg(false); setPkgForm(EMPTY_PKG_FORM); }}>Cancel</Button>
+                      <Button size="sm" disabled={!pkgForm.name.trim() || !pkgResolvedServiceType || !(parseFloat(pkgForm.totalPrice) > 0) || createPkgMutation.isPending} onClick={() => createPkgMutation.mutate()}>
+                        {createPkgMutation.isPending ? "Creating…" : "Create Package"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
 
                 {/* ── Contract Terms ── */}
                 <Card>
