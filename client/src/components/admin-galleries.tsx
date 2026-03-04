@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, Component, type ReactNode, type ErrorInfo } from "react";
+import { useState, useRef, useCallback, Component, type ReactNode, type ErrorInfo, useEffect } from "react";
 
 // ── Error Boundary ─────────────────────────────────────────────────────────────
 class GalleryErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -68,67 +68,15 @@ type FileStatus = "queued" | "uploading" | "done" | "error" | "duplicate";
 interface FileItem {
   id: string;
   file: File;
-  preview: string; // small 128px canvas data URL — NOT an ObjectURL, no revoke needed
   status: FileStatus;
   progress: number;
   cloudUrl?: string;
   error?: string;
 }
 
-// ── Thumbnail generation (memory-safe) ────────────────────────────────────────
-// Creates a small 128px preview as a canvas data URL.
-// The temporary ObjectURL is revoked immediately after img.onload — nothing lingers.
-
-function generateThumb(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl); // revoked immediately — no persistent ObjectURL
-      const SIZE = 128;
-      const scale = Math.min(SIZE / img.width, SIZE / img.height, 1);
-      const canvas = document.createElement("canvas");
-      canvas.width  = Math.round(img.width  * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/jpeg", 0.7));
-    };
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(""); };
-    img.src = objectUrl;
-  });
-}
-
-// ── Image compression ─────────────────────────────────────────────────────────
-// Capped at 2048px (down from 4096) to cut canvas memory usage by ~4×.
-
-function compressImage(file: File, maxDimension = 2048, quality = 0.85): Promise<File> {
-  return new Promise((resolve) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      let { width: w, height: h } = img;
-      if (w > maxDimension || h > maxDimension) {
-        if (w >= h) { h = Math.round((h / w) * maxDimension); w = maxDimension; }
-        else        { w = Math.round((w / h) * maxDimension); h = maxDimension; }
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) { resolve(file); return; }
-          resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
-        },
-        "image/jpeg", quality
-      );
-    };
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
-    img.src = objectUrl;
-  });
-}
-
 // ── Cloudinary upload ─────────────────────────────────────────────────────────
+// No browser-side compression — originals are uploaded directly.
+// Cloudinary handles resizing/compression via URL transforms on delivery.
 
 function uploadWithProgress(file: File, config: SignedConfig, onProgress: (pct: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -156,45 +104,139 @@ function uploadWithProgress(file: File, config: SignedConfig, onProgress: (pct: 
   });
 }
 
+// Sends one chunk via XHR so we get per-byte progress even for large files.
+const CHUNK_SIZE = 20 * 1024 * 1024; // 20 MB per chunk
+
+function uploadChunkXHR(
+  chunk: Blob, byteStart: number, totalSize: number,
+  uploadId: string, config: SignedConfig,
+  onBytesLoaded: (totalLoaded: number) => void,
+): Promise<{ secureUrl?: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) onBytesLoaded(byteStart + e.loaded);
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status === 200 || xhr.status === 308) {
+        try { resolve({ secureUrl: (JSON.parse(xhr.responseText) as { secure_url?: string }).secure_url }); }
+        catch { resolve({}); }
+      } else {
+        try { const e = JSON.parse(xhr.responseText) as { error?: { message?: string } }; reject(new Error(e?.error?.message || `Chunk failed (${xhr.status})`)); }
+        catch { reject(new Error(`Chunk failed (${xhr.status})`)); }
+      }
+    });
+    xhr.addEventListener("error", () => reject(new Error("Network error")));
+    const fd = new FormData();
+    fd.append("file", chunk);
+    fd.append("api_key", config.apiKey);
+    fd.append("timestamp", String(config.timestamp));
+    fd.append("signature", config.signature);
+    const byteEnd = byteStart + chunk.size - 1;
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`);
+    xhr.setRequestHeader("X-Unique-Upload-Id", uploadId);
+    xhr.setRequestHeader("Content-Range", `bytes ${byteStart}-${byteEnd}/${totalSize}`);
+    xhr.send(fd);
+  });
+}
+
+// Unified upload: single XHR for small files, chunked for large ones.
+async function uploadFile(
+  file: File, config: SignedConfig, onProgress: (pct: number) => void,
+): Promise<string> {
+  if (file.size <= CHUNK_SIZE) {
+    return uploadWithProgress(file, config, onProgress);
+  }
+  const uploadId = crypto.randomUUID();
+  const total = file.size;
+  const chunks = Math.ceil(total / CHUNK_SIZE);
+  let secureUrl = "";
+  for (let i = 0; i < chunks; i++) {
+    const start = i * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, total);
+    const result = await uploadChunkXHR(
+      file.slice(start, end), start, total, uploadId, config,
+      (loaded) => onProgress(Math.round((loaded / total) * 100)),
+    );
+    if (result.secureUrl) secureUrl = result.secureUrl;
+  }
+  if (!secureUrl) throw new Error("Upload incomplete — no URL returned");
+  return secureUrl;
+}
+
 // ── Upload panel ──────────────────────────────────────────────────────────────
 
-function FileCard({ item }: { item: FileItem }) {
+// Single row in the upload panel — no image preview, just status + progress.
+function FileRow({ item }: { item: FileItem }) {
+  const sizeMB = item.file.size < 1024 * 1024
+    ? `${(item.file.size / 1024).toFixed(0)} KB`
+    : `${(item.file.size / (1024 * 1024)).toFixed(1)} MB`;
   return (
-    <div className="relative rounded-xl overflow-hidden aspect-square bg-green-100 shadow ring-1 ring-green-200">
-      {item.preview && <img src={item.preview} alt={item.file.name} className="w-full h-full object-cover" />}
-      <div className={`absolute inset-0 flex flex-col items-center justify-center ${
-        item.status === "queued"    ? "bg-black/30"
-        : item.status === "uploading" ? "bg-black/25"
-        : item.status === "done"      ? "bg-green-700/65"
-        : item.status === "duplicate" ? "bg-amber-500/80"
-        : "bg-red-500/70"
-      }`}>
-        {item.status === "queued"    && <Clock className="w-6 h-6 text-white/80" />}
-        {item.status === "uploading" && (
-          <div className="flex flex-col items-center gap-1.5 px-3 w-full">
-            <Loader2 className="w-6 h-6 text-white animate-spin" />
-            <div className="w-full bg-white/30 rounded-full h-1">
-              <div className="bg-yellow-400 rounded-full h-1 transition-all" style={{ width: `${item.progress}%` }} />
-            </div>
-            <span className="text-white text-xs font-semibold">{item.progress}%</span>
-          </div>
-        )}
-        {item.status === "done"      && <CheckCircle2 className="w-9 h-9 text-white drop-shadow-md" />}
-        {item.status === "duplicate" && (
-          <div className="flex flex-col items-center gap-1 px-2 text-center">
-            <Copy className="w-6 h-6 text-white" />
-            <span className="text-white text-[10px] leading-tight font-semibold">Already in gallery</span>
-          </div>
-        )}
-        {item.status === "error" && (
-          <div className="flex flex-col items-center gap-1 px-2 text-center">
-            <AlertCircle className="w-6 h-6 text-white" />
-            <span className="text-white text-[10px] leading-tight">{item.error}</span>
-          </div>
-        )}
+    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-green-100 last:border-0">
+      <div className="w-5 shrink-0 flex items-center justify-center">
+        {item.status === "queued"    && <Clock className="w-4 h-4 text-green-400" />}
+        {item.status === "uploading" && <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />}
+        {item.status === "done"      && <CheckCircle2 className="w-4 h-4 text-green-600" />}
+        {item.status === "duplicate" && <Copy className="w-4 h-4 text-amber-500" />}
+        {item.status === "error"     && <AlertCircle className="w-4 h-4 text-red-500" />}
       </div>
-      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-2 pt-3 pb-1.5">
-        <p className="text-white text-[10px] truncate font-medium">{item.file.name}</p>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2">
+          <span className="text-xs font-medium text-gray-700 truncate">{item.file.name}</span>
+          <span className="text-[10px] text-gray-400 shrink-0">{sizeMB}</span>
+        </div>
+        {item.status === "uploading" && (
+          <div className="mt-1 w-full bg-gray-200 rounded-full h-1">
+            <div className="bg-yellow-400 rounded-full h-1 transition-all duration-100" style={{ width: `${item.progress}%` }} />
+          </div>
+        )}
+        {item.status === "error"     && <p className="text-[10px] text-red-500 truncate">{item.error}</p>}
+        {item.status === "duplicate" && <p className="text-[10px] text-amber-600">Already in gallery — skipped</p>}
+      </div>
+      {item.status === "uploading" && (
+        <span className="text-xs text-gray-400 tabular-nums w-8 text-right shrink-0">{item.progress}%</span>
+      )}
+    </div>
+  );
+}
+
+// Virtual list — only renders visible rows so 2000+ items stay performant.
+const ITEM_H = 52; // px, matches FileRow height
+const PANEL_LIST_H = 360; // px max visible area
+
+function VirtualFileList({ items }: { items: FileItem[] }) {
+  const [scrollTop, setScrollTop] = useState(0);
+  const containerH = Math.min(items.length * ITEM_H, PANEL_LIST_H);
+  const visibleCount = Math.ceil(PANEL_LIST_H / ITEM_H) + 2;
+  const startIdx = Math.max(0, Math.floor(scrollTop / ITEM_H) - 1);
+  const endIdx   = Math.min(startIdx + visibleCount, items.length);
+
+  // Auto-scroll to first uploading item
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const firstActive = items.findIndex((i) => i.status === "uploading");
+    if (firstActive >= 0 && listRef.current) {
+      const targetScroll = firstActive * ITEM_H;
+      if (targetScroll > scrollTop + PANEL_LIST_H - ITEM_H * 2) {
+        listRef.current.scrollTop = targetScroll - ITEM_H;
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
+  return (
+    <div
+      ref={listRef}
+      className="overflow-y-auto bg-green-50"
+      style={{ height: containerH }}
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+    >
+      <div style={{ height: items.length * ITEM_H, position: "relative" }}>
+        {items.slice(startIdx, endIdx).map((item, i) => (
+          <div key={item.id} style={{ position: "absolute", top: (startIdx + i) * ITEM_H, width: "100%", height: ITEM_H }}>
+            <FileRow item={item} />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -204,6 +246,8 @@ function UploadPanel({ items, onClose, canClose, onCancel }: { items: FileItem[]
   const done       = items.filter((i) => i.status === "done").length;
   const errors     = items.filter((i) => i.status === "error").length;
   const duplicates = items.filter((i) => i.status === "duplicate").length;
+  const uploading  = items.filter((i) => i.status === "uploading").length;
+  const queued     = items.filter((i) => i.status === "queued").length;
   const uploadable = items.filter((i) => i.status !== "duplicate");
   const total      = uploadable.length;
   const overallPct = total === 0 ? 100
@@ -217,18 +261,26 @@ function UploadPanel({ items, onClose, canClose, onCancel }: { items: FileItem[]
           <DialogTitle className="text-base font-semibold mb-1.5">
             {canClose
               ? `Done — ${done} saved${duplicates > 0 ? `, ${duplicates} skipped` : ""}${errors > 0 ? `, ${errors} failed` : ""}`
-              : `Saving ${done} / ${total} photos…`}
+              : `Uploading ${done} / ${total} photos…`}
           </DialogTitle>
           <div className="flex items-center gap-3">
             <Progress value={overallPct} className="flex-1 h-1.5 bg-white/20 [&>div]:bg-yellow-400 [&>div]:transition-all" />
             <span className="text-xs text-white/70 tabular-nums w-8 text-right">{overallPct}%</span>
           </div>
         </div>
-        <div className="max-h-[55vh] overflow-y-auto p-4 bg-green-50">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {items.map((item) => <FileCard key={item.id} item={item} />)}
-          </div>
+
+        {/* Stats bar */}
+        <div className="flex gap-4 px-4 py-2 bg-white border-b border-green-100 text-xs">
+          <span className="text-green-700"><strong>{items.length}</strong> files</span>
+          {queued    > 0 && <span className="text-gray-500">{queued} waiting</span>}
+          {uploading > 0 && <span className="text-yellow-600">{uploading} uploading</span>}
+          {done      > 0 && <span className="text-green-600">{done} done</span>}
+          {errors    > 0 && <span className="text-red-600">{errors} failed</span>}
+          {duplicates > 0 && <span className="text-amber-600">{duplicates} skipped</span>}
         </div>
+
+        <VirtualFileList items={items} />
+
         <div className="px-5 py-3 border-t border-green-100 bg-white flex items-center justify-between gap-3">
           <p className="text-xs text-green-700 leading-snug">
             {canClose
@@ -591,6 +643,10 @@ export function AdminGalleries() {
   // Cancel flag for uploads
   const cancelRef = useRef(false);
 
+  // Cached upload signature — refreshed automatically if > 30 minutes old
+  const uploadConfigRef    = useRef<SignedConfig | null>(null);
+  const uploadConfigTimeRef = useRef<number>(0);
+
   const { data: galleries, isLoading, isError, error, refetch } = useQuery<Gallery[]>({
     queryKey: ["/api/admin/galleries"],
     retry: false,
@@ -730,12 +786,24 @@ export function AdminGalleries() {
     setFileItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
+  // Returns a fresh (or cached) upload signature, auto-refreshing every 30 min.
+  const getUploadConfig = useCallback(async (): Promise<SignedConfig> => {
+    const now = Date.now();
+    if (uploadConfigRef.current && now - uploadConfigTimeRef.current < 30 * 60 * 1000) {
+      return uploadConfigRef.current;
+    }
+    const res = await fetch("/api/admin/upload-signature", { method: "POST", credentials: "include" });
+    if (!res.ok) { const err = await res.json().catch(() => ({})) as { error?: string }; throw new Error(err.error || `Error ${res.status}`); }
+    const config = await res.json() as SignedConfig;
+    uploadConfigRef.current = config;
+    uploadConfigTimeRef.current = now;
+    return config;
+  }, []);
+
   const handleFilesSelected = useCallback(async (files: File[], gallery: Gallery, type: ImageType) => {
     cancelRef.current = false;
 
-    // Generate small 128px thumbnail previews (memory-safe: ObjectURLs revoked immediately)
-    const thumbs = await Promise.all(files.map(generateThumb));
-
+    // Build file items immediately — no thumbnail generation, no compression.
     const existingNames = new Set(
       [...(gallery.galleryImages || []), ...(gallery.selectedImages || []), ...(gallery.finalImages || [])]
         .map((url) => url.split("/").pop()?.split("?")[0]?.toLowerCase() ?? "")
@@ -746,29 +814,19 @@ export function AdminGalleries() {
       const fp = `${file.name.toLowerCase()}::${file.size}`;
       const isDuplicate = existingNames.has(file.name.toLowerCase()) || seenInBatch.has(fp);
       seenInBatch.add(fp);
-      return {
-        id: `${Date.now()}-${i}`,
-        file,
-        preview: thumbs[i], // small data URL — no ObjectURL kept alive
-        status: isDuplicate ? "duplicate" : "queued",
-        progress: 0,
-      };
+      return { id: `${Date.now()}-${i}`, file, status: isDuplicate ? "duplicate" : "queued", progress: 0 };
     });
     setFileItems(items);
     setShowUploadPanel(true);
 
-    let config: SignedConfig;
-    try {
-      const res = await fetch("/api/admin/upload-signature", { method: "POST", credentials: "include" });
-      if (!res.ok) { const err = await res.json().catch(() => ({})) as { error?: string }; throw new Error(err.error || `Error ${res.status}`); }
-      config = await res.json() as SignedConfig;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      items.forEach((item) => updateItem(item.id, { status: "error", error: msg }));
+    // Warm the signature cache before starting
+    try { await getUploadConfig(); }
+    catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Could not get upload credentials";
+      setFileItems((prev) => prev.map((item) => item.status === "queued" ? { ...item, status: "error", error: msg } : item));
       return;
     }
 
-    // Read destination folder from ref (always current, no stale closure)
     const destFolder = uploadDestFolderRef.current[fKey(gallery.id, type)] || "";
     const uploadedUrls: string[] = [];
 
@@ -779,8 +837,9 @@ export function AdminGalleries() {
       if (!item) return;
       updateItem(item.id, { status: "uploading", progress: 0 });
       try {
-        const compressed = await compressImage(item.file);
-        const url = await uploadWithProgress(compressed, config, (pct) => updateItem(item.id, { progress: pct }));
+        // Fetch config here — auto-refreshes if signature has aged > 30 min
+        const config = await getUploadConfig();
+        const url = await uploadFile(item.file, config, (pct) => updateItem(item.id, { progress: pct }));
         updateItem(item.id, { status: "done", progress: 100, cloudUrl: url });
         uploadedUrls.push(url);
         await addImageMutation.mutateAsync({ galleryId: gallery.id, imageURL: url, type });
@@ -792,8 +851,8 @@ export function AdminGalleries() {
       }
       return processNext();
     }
-    // 2 concurrent uploads (down from 3 — lower peak canvas memory pressure)
-    await Promise.all(Array.from({ length: 2 }, processNext));
+    // 6 concurrent uploads
+    await Promise.all(Array.from({ length: 6 }, processNext));
 
     // After all done, save folder assignments if a folder was chosen
     if (destFolder && uploadedUrls.length > 0 && !cancelRef.current) {
@@ -806,7 +865,7 @@ export function AdminGalleries() {
       uploadedUrls.forEach((u) => { if (!existing.has(u)) typeFolders[destFolder].push(u); });
       await updateFoldersMutation.mutateAsync({ galleryId: gallery.id, folders: { ...currentFolders, [type]: typeFolders } });
     }
-  }, [addImageMutation, queryClient, updateItem, updateFoldersMutation]);
+  }, [addImageMutation, queryClient, updateItem, updateFoldersMutation, getUploadConfig]);
 
   const handleCancel = useCallback(() => { cancelRef.current = true; }, []);
 
