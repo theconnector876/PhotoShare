@@ -1050,7 +1050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Update gallery settings (download toggles, status)
+  // Update gallery settings (download toggles, status, watermark)
   app.patch('/api/admin/gallery/:id/settings', isAdmin, async (req, res) => {
     try {
       const schema = z.object({
@@ -1058,6 +1058,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         selectedDownloadEnabled: z.boolean().optional(),
         finalDownloadEnabled: z.boolean().optional(),
         status: z.enum(['pending', 'active', 'selection', 'editing', 'completed']).optional(),
+        watermarkSettings: z.record(z.any()).optional(),
       });
       const settings = schema.parse(req.body);
       const gallery = await storage.updateGallerySettings(req.params.id, settings);
@@ -1076,6 +1077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         selectedDownloadEnabled: z.boolean().optional(),
         finalDownloadEnabled: z.boolean().optional(),
         status: z.enum(['pending', 'active', 'selection', 'editing', 'completed']).optional(),
+        watermarkSettings: z.record(z.any()).optional(),
       });
       const settings = schema.parse(req.body);
       const gallery = await storage.getGalleryById(req.params.id);

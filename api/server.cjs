@@ -62098,6 +62098,8 @@ var galleries = pgTable("galleries", {
   imageComments: jsonb("image_comments").default({}),
   // Folder/subcategory mapping: { gallery: { "Reception": ["url1"], ... }, final: { ... } }
   imageFolders: jsonb("image_folders").default({}),
+  // Watermark settings: { enabled: {gallery,selected,final}, type, text, imageUrl, imagePublicId, opacity, scale }
+  watermarkSettings: jsonb("watermark_settings").default({}),
   createdAt: timestamp("created_at").defaultNow()
 });
 var contactMessages = pgTable("contact_messages", {
@@ -75330,7 +75332,8 @@ async function registerRoutes(app2) {
         galleryDownloadEnabled: z.boolean().optional(),
         selectedDownloadEnabled: z.boolean().optional(),
         finalDownloadEnabled: z.boolean().optional(),
-        status: z.enum(["pending", "active", "selection", "editing", "completed"]).optional()
+        status: z.enum(["pending", "active", "selection", "editing", "completed"]).optional(),
+        watermarkSettings: z.record(z.any()).optional()
       });
       const settings = schema.parse(req.body);
       const gallery = await storage.updateGallerySettings(req.params.id, settings);
@@ -75346,7 +75349,8 @@ async function registerRoutes(app2) {
         galleryDownloadEnabled: z.boolean().optional(),
         selectedDownloadEnabled: z.boolean().optional(),
         finalDownloadEnabled: z.boolean().optional(),
-        status: z.enum(["pending", "active", "selection", "editing", "completed"]).optional()
+        status: z.enum(["pending", "active", "selection", "editing", "completed"]).optional(),
+        watermarkSettings: z.record(z.any()).optional()
       });
       const settings = schema.parse(req.body);
       const gallery = await storage.getGalleryById(req.params.id);

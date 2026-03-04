@@ -134,6 +134,8 @@ export const galleries = pgTable("galleries", {
   imageComments: jsonb("image_comments").default({}),
   // Folder/subcategory mapping: { gallery: { "Reception": ["url1"], ... }, final: { ... } }
   imageFolders: jsonb("image_folders").default({}),
+  // Watermark settings: { enabled: {gallery,selected,final}, type, text, imageUrl, imagePublicId, opacity, scale }
+  watermarkSettings: jsonb("watermark_settings").default({}),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

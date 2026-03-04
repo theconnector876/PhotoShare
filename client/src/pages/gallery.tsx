@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Key, Eye, Heart, Download, Check, Lock, ChevronLeft, ChevronRight, X, MessageSquare, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useParams } from "wouter";
+import { getWatermarkedUrl } from "@/lib/cloudinary-watermark";
 
 const galleryAccessSchema = z.object({
   email: z.string().email("Valid email is required"),
@@ -34,6 +35,7 @@ interface Gallery {
   finalDownloadEnabled: boolean;
   clientComment: string | null;
   imageComments: Record<string, string>;
+  watermarkSettings?: Record<string, any>;
   createdAt: Date;
 }
 
@@ -275,6 +277,9 @@ export default function Gallery() {
   const lightboxImage = lightboxIndex !== null ? currentImages[lightboxIndex] : null;
   const isSelected = lightboxImage ? selectedImages.includes(lightboxImage) : false;
 
+  // Apply Cloudinary watermark transform if enabled for current view mode
+  const wm = (url: string) => getWatermarkedUrl(url, viewMode, gallery?.watermarkSettings);
+
   return (
     <div className="pt-20 pb-20 relative z-10">
       {/* ── Lightbox ── */}
@@ -300,7 +305,7 @@ export default function Gallery() {
 
           {/* Image */}
           <img
-            src={lightboxImage}
+            src={wm(lightboxImage)}
             alt={`Image ${lightboxIndex + 1}`}
             className="max-h-[72vh] max-w-[85vw] object-contain rounded-lg pointer-events-none select-none"
             draggable={false}
@@ -419,7 +424,7 @@ export default function Gallery() {
                 data-testid={`gallery-image-${index}`}
               >
                 <img
-                  src={imageUrl}
+                  src={wm(imageUrl)}
                   alt={`Gallery image ${index + 1}`}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 pointer-events-none"
                   draggable={false}

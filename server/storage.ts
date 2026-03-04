@@ -93,7 +93,7 @@ export interface IStorage {
   getGalleryByBookingId(bookingId: string): Promise<Gallery | undefined>;
   updateGallery(id: string, data: Partial<Gallery>): Promise<Gallery | undefined>;
   updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined>;
-  updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string }): Promise<Gallery | undefined>;
+  updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string; watermarkSettings?: Record<string, any> }): Promise<Gallery | undefined>;
   updateGalleryComment(id: string, comment: string): Promise<Gallery | undefined>;
   updateImageComment(id: string, imageUrl: string, comment: string): Promise<Gallery | undefined>;
   deleteUser(id: string): Promise<boolean>;
