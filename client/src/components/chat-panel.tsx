@@ -328,7 +328,7 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
               conversationId={selectedId}
               currentUserId={currentUserId}
               onBack={mobileView === "chat" ? handleBack : undefined}
-              isReadOnly={selectedConv?.currentUserRole === 'observer'}
+              isReadOnly={!isAdmin && selectedConv?.currentUserRole === 'observer'}
               conversationTitle={selectedConv ? getConvTitle(selectedConv, currentUserId) : undefined}
               conversationType={selectedConv?.type}
               participants={selectedConv?.participants as any}

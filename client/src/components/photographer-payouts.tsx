@@ -87,7 +87,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
 
   const { data: payoutHistory = [] } = useQuery<Payout[]>({
     queryKey: ["/api/photographer/payouts"],
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   const { data: payoutConfig } = useQuery<{ percentage: number }>({

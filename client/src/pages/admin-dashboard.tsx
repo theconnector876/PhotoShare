@@ -58,7 +58,7 @@ export function AdminDashboard() {
   // Fetch dashboard statistics
   const { data: bookings } = useQuery<any[]>({
     queryKey: ["/api/admin/bookings"],
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   const { data: galleries } = useQuery<any[]>({
@@ -67,7 +67,7 @@ export function AdminDashboard() {
 
   const { data: contacts } = useQuery<any[]>({
     queryKey: ["/api/admin/contacts"],
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   const { data: catalogues } = useQuery<any[]>({
@@ -80,12 +80,12 @@ export function AdminDashboard() {
 
   const { data: pendingPhotographers } = useQuery<any[]>({
     queryKey: ["/api/admin/photographers/pending"],
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   const { data: inboundEmails } = useQuery<any[]>({
     queryKey: ["/api/admin/inbound-emails"],
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   const { data: unreadChatData } = useQuery<{ count: number }>({

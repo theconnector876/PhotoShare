@@ -210,7 +210,7 @@ export function AdminBookings() {
   const { data: bookings, isLoading } = useQuery<Booking[]>({
     queryKey: ["/api/admin/bookings"],
     retry: false,
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   const { data: galleries } = useQuery<Gallery[]>({

@@ -1366,9 +1366,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Booking not found' });
       }
 
-      // CRITICAL: Only allow payments for confirmed or pending bookings
-      if (booking.status !== 'confirmed' && booking.status !== 'pending') {
-        return res.status(400).json({ error: 'Booking must be confirmed or pending to process payment' });
+      // Allow deposits for pending/confirmed; allow balance payments also for completed bookings
+      const allowedForDeposit = ['confirmed', 'pending'].includes(booking.status);
+      const allowedForBalance = ['confirmed', 'pending', 'completed'].includes(booking.status);
+      if (paymentType === 'deposit' && !allowedForDeposit) {
+        return res.status(400).json({ error: 'Booking must be confirmed or pending to pay deposit' });
+      }
+      if (paymentType === 'balance' && !allowedForBalance) {
+        return res.status(400).json({ error: 'Booking must be confirmed, pending, or completed to pay balance' });
       }
 
       // Calculate amounts server-side to ensure integrity
@@ -2530,13 +2535,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
 
       const role = await storage.getUserRoleInConversation(id, userId);
-      if (role === 'observer') {
-        return res.status(403).json({ error: 'View-only mode for this conversation.' });
+      // Admins can always send regardless of observer/participant status
+      if (!isAdminUser) {
+        if (role === 'observer') {
+          return res.status(403).json({ error: 'View-only mode for this conversation.' });
+        }
+        if (!role) {
+          return res.status(403).json({ error: 'Not a participant' });
+        }
       }
-      if (!role && !isAdminUser) {
-        return res.status(403).json({ error: 'Not a participant' });
-      }
-      // role === null && isAdminUser → allow (backward compat for old support convs)
 
       const msgSchema = z.object({
         body: z.string().min(1),

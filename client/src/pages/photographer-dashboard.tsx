@@ -261,13 +261,14 @@ export default function PhotographerDashboard() {
     queryKey: ["/api/photographer/bookings"],
     enabled: !!user,
     retry: false,
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   const { data: userGalleries } = useQuery<UserGallery[]>({
     queryKey: ["/api/photographer/galleries"],
     enabled: !!user,
     retry: false,
+    refetchInterval: 10000,
   });
 
   const { data: myCatalogues = [] } = useQuery<UserCatalogue[]>({
@@ -714,7 +715,7 @@ export default function PhotographerDashboard() {
       </aside>
 
       {/* ── Main area ── */}
-      <div className={`flex-1 flex flex-col md:ml-56 ${activeTab === "chat" ? "h-screen overflow-hidden" : "min-h-screen"}`}>
+      <div className={`flex-1 flex flex-col md:ml-56 ${activeTab === "chat" ? "h-[calc(100dvh-60px)] md:h-screen overflow-hidden" : "min-h-screen"}`}>
 
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-10 bg-white border-b px-4 h-14 flex items-center justify-between">

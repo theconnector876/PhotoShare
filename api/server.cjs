@@ -75555,8 +75555,13 @@ async function registerRoutes(app2) {
       if (!booking) {
         return res.status(404).json({ error: "Booking not found" });
       }
-      if (booking.status !== "confirmed" && booking.status !== "pending") {
-        return res.status(400).json({ error: "Booking must be confirmed or pending to process payment" });
+      const allowedForDeposit = ["confirmed", "pending"].includes(booking.status);
+      const allowedForBalance = ["confirmed", "pending", "completed"].includes(booking.status);
+      if (paymentType === "deposit" && !allowedForDeposit) {
+        return res.status(400).json({ error: "Booking must be confirmed or pending to pay deposit" });
+      }
+      if (paymentType === "balance" && !allowedForBalance) {
+        return res.status(400).json({ error: "Booking must be confirmed, pending, or completed to pay balance" });
       }
       const serverDepositAmount = Math.round(booking.totalPrice * 0.5);
       const serverBalanceDue = booking.totalPrice - serverDepositAmount;
@@ -76529,11 +76534,13 @@ Thank you!`
       const isAdminUser = req.user?.isAdmin;
       const { id } = req.params;
       const role = await storage.getUserRoleInConversation(id, userId);
-      if (role === "observer") {
-        return res.status(403).json({ error: "View-only mode for this conversation." });
-      }
-      if (!role && !isAdminUser) {
-        return res.status(403).json({ error: "Not a participant" });
+      if (!isAdminUser) {
+        if (role === "observer") {
+          return res.status(403).json({ error: "View-only mode for this conversation." });
+        }
+        if (!role) {
+          return res.status(403).json({ error: "Not a participant" });
+        }
       }
       const msgSchema = z.object({
         body: z.string().min(1),

@@ -91,7 +91,7 @@ export function AdminPayouts() {
 
   const { data: payouts = [], isLoading } = useQuery<PayoutRow[]>({
     queryKey: ["/api/admin/payouts"],
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   const { data: payoutConfig } = useQuery<{ percentage: number }>({
