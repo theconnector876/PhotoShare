@@ -62287,11 +62287,14 @@ var customPackages = pgTable("custom_packages", {
   name: text("name").notNull(),
   description: text("description"),
   serviceType: text("service_type").notNull(),
-  // photoshoot, wedding, event
+  // photoshoot, wedding, event, or custom
   totalPrice: integer("total_price").notNull(),
-  // in cents / smallest unit
+  // sum of line item prices, in cents
   depositAmount: integer("deposit_amount").notNull().default(0),
+  // 0 = 50% auto-split
   currency: varchar("currency", { length: 3 }).default("USD"),
+  lineItems: jsonb("line_items").default([]),
+  // [{name: string, price: number (cents)}]
   isActive: boolean("is_active").notNull().default(true),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow()
@@ -74830,6 +74833,7 @@ async function registerRoutes(app2) {
       console.log("Booking request received for:", safeBookingData.email);
       const validatedData = bookingWithAccountSchema.parse(req.body);
       const { password: validatedPassword, confirmPassword: validatedConfirmPassword, customPackageId, ...bookingData } = validatedData;
+      let customPkgDepositAmount = null;
       if (customPackageId) {
         const pkg = await storage.getCustomPackageById(customPackageId);
         if (!pkg || !pkg.isActive) {
@@ -74838,7 +74842,8 @@ async function registerRoutes(app2) {
         bookingData.totalPrice = pkg.totalPrice;
         bookingData.serviceType = pkg.serviceType;
         bookingData.currency = pkg.currency || "USD";
-        bookingData.packageType = bookingData.packageType || "custom";
+        bookingData.packageType = "custom";
+        if (pkg.depositAmount > 0) customPkgDepositAmount = pkg.depositAmount;
       }
       const normalizedEmail = normalizeEmail(bookingData.email);
       let user = await storage.getUserByEmail(normalizedEmail);
@@ -74892,7 +74897,7 @@ async function registerRoutes(app2) {
         }
       }
       const discountedTotal = bookingData.totalPrice - discountAmount;
-      const depositAmount = Math.round(discountedTotal * 0.5);
+      const depositAmount = customPkgDepositAmount ?? Math.round(discountedTotal * 0.5);
       const balanceDue = discountedTotal - depositAmount;
       const bookingWithAmounts = {
         ...bookingData,
@@ -77144,13 +77149,15 @@ Thank you!`
   });
   app2.post("/api/admin/custom-packages", isAdmin, async (req, res) => {
     try {
+      const lineItemSchema = z.object({ name: z.string(), price: z.number().int().min(0) });
       const schema = z.object({
         name: z.string().min(1),
         description: z.string().optional(),
         serviceType: z.string().min(1),
         totalPrice: z.number().int().positive(),
         depositAmount: z.number().int().min(0).optional().default(0),
-        currency: z.string().length(3).optional().default("USD")
+        currency: z.string().length(3).optional().default("USD"),
+        lineItems: z.array(lineItemSchema).optional().default([])
       });
       const data = schema.parse(req.body);
       const pkg = await storage.createCustomPackage({
@@ -77166,6 +77173,7 @@ Thank you!`
   });
   app2.patch("/api/admin/custom-packages/:id", isAdmin, async (req, res) => {
     try {
+      const lineItemSchema = z.object({ name: z.string(), price: z.number().int().min(0) });
       const schema = z.object({
         name: z.string().min(1).optional(),
         description: z.string().optional(),
@@ -77173,6 +77181,7 @@ Thank you!`
         totalPrice: z.number().int().positive().optional(),
         depositAmount: z.number().int().min(0).optional(),
         currency: z.string().length(3).optional(),
+        lineItems: z.array(lineItemSchema).optional(),
         isActive: z.boolean().optional()
       });
       const data = schema.parse(req.body);
@@ -77211,13 +77220,15 @@ Thank you!`
   });
   app2.post("/api/photographer/custom-packages", isPhotographerApproved, async (req, res) => {
     try {
+      const lineItemSchema = z.object({ name: z.string(), price: z.number().int().min(0) });
       const schema = z.object({
         name: z.string().min(1),
         description: z.string().optional(),
         serviceType: z.string().min(1),
         totalPrice: z.number().int().positive(),
         depositAmount: z.number().int().min(0).optional().default(0),
-        currency: z.string().length(3).optional().default("USD")
+        currency: z.string().length(3).optional().default("USD"),
+        lineItems: z.array(lineItemSchema).optional().default([])
       });
       const data = schema.parse(req.body);
       const pkg = await storage.createCustomPackage({
@@ -77235,6 +77246,7 @@ Thank you!`
     try {
       const pkg = await storage.getCustomPackageById(req.params.id);
       if (!pkg || pkg.createdBy !== req.user.id) return res.status(404).json({ error: "Not found" });
+      const lineItemSchema = z.object({ name: z.string(), price: z.number().int().min(0) });
       const schema = z.object({
         name: z.string().min(1).optional(),
         description: z.string().optional(),
@@ -77242,6 +77254,7 @@ Thank you!`
         totalPrice: z.number().int().positive().optional(),
         depositAmount: z.number().int().min(0).optional(),
         currency: z.string().length(3).optional(),
+        lineItems: z.array(lineItemSchema).optional(),
         isActive: z.boolean().optional()
       });
       const data = schema.parse(req.body);

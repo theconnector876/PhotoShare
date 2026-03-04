@@ -220,7 +220,7 @@ export default function PhotographerDashboard() {
 
   // Custom packages
   const [showCreatePkg, setShowCreatePkg] = useState(false);
-  const [pkgForm, setPkgForm] = useState({ name: "", description: "", serviceType: "photoshoot", serviceTypeOther: "", totalPrice: "", depositAmount: "0", currency: "USD" });
+  const [pkgForm, setPkgForm] = useState({ name: "", description: "", serviceType: "photoshoot", serviceTypeOther: "", items: [{ name: "", price: "" }] as { name: string; price: string }[], depositAmount: "", currency: "USD" });
 
   // Contract Terms
   const [customTerms, setCustomTerms] = useState<BookingTerms | null>(null);
@@ -386,17 +386,23 @@ export default function PhotographerDashboard() {
   });
 
   const pkgResolvedServiceType = pkgForm.serviceType === "other" ? pkgForm.serviceTypeOther.trim() : pkgForm.serviceType;
-  const EMPTY_PKG_FORM = { name: "", description: "", serviceType: "photoshoot", serviceTypeOther: "", totalPrice: "", depositAmount: "0", currency: "USD" };
+  const EMPTY_PKG_FORM = { name: "", description: "", serviceType: "photoshoot", serviceTypeOther: "", items: [{ name: "", price: "" }] as { name: string; price: string }[], depositAmount: "", currency: "USD" };
+
+  const pkgComputedTotal = pkgForm.items.reduce((s, it) => { const v = parseFloat(it.price); return s + (isNaN(v) ? 0 : v); }, 0);
+  const pkgLineItemsForApi = pkgForm.items.filter(it => it.name.trim()).map(it => ({ name: it.name.trim(), price: Math.round((parseFloat(it.price) || 0) * 100) }));
 
   const createPkgMutation = useMutation({
     mutationFn: async () => {
+      const totalCents = Math.round(pkgComputedTotal * 100);
+      if (totalCents <= 0) throw new Error("Add at least one item with a price");
       const res = await apiRequest("POST", "/api/photographer/custom-packages", {
         name: pkgForm.name.trim(),
         description: pkgForm.description.trim() || undefined,
         serviceType: pkgResolvedServiceType,
-        totalPrice: Math.round(parseFloat(pkgForm.totalPrice) * 100),
+        totalPrice: totalCents,
         depositAmount: Math.round(parseFloat(pkgForm.depositAmount || "0") * 100),
         currency: pkgForm.currency,
+        lineItems: pkgLineItemsForApi,
       });
       if (!res.ok) throw new Error((await res.json()).error || "Failed");
       return res.json();
@@ -1840,16 +1846,16 @@ export default function PhotographerDashboard() {
 
                 {/* ── Create package dialog ── */}
                 <Dialog open={showCreatePkg} onOpenChange={open => { if (!open) { setShowCreatePkg(false); setPkgForm(EMPTY_PKG_FORM); } }}>
-                  <DialogContent className="max-w-md">
+                  <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                     <div className="font-semibold text-base pb-1">New Custom Package</div>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div>
                         <Label className="text-xs">Package name *</Label>
                         <Input className="mt-1 h-8 text-sm" placeholder="e.g. VIP Maternity Session" value={pkgForm.name} onChange={e => setPkgForm(p => ({ ...p, name: e.target.value }))} />
                       </div>
                       <div>
                         <Label className="text-xs">Description (optional)</Label>
-                        <Textarea className="mt-1 text-sm resize-none" rows={2} placeholder="Brief description shown on the booking page" value={pkgForm.description} onChange={e => setPkgForm(p => ({ ...p, description: e.target.value }))} />
+                        <Textarea className="mt-1 text-sm resize-none" rows={2} placeholder="Shown to the client on the booking page" value={pkgForm.description} onChange={e => setPkgForm(p => ({ ...p, description: e.target.value }))} />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -1878,20 +1884,58 @@ export default function PhotographerDashboard() {
                           </Select>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs">Total price *</Label>
-                          <Input type="number" min={0} step="0.01" className="mt-1 h-8 text-sm" placeholder="0.00" value={pkgForm.totalPrice} onChange={e => setPkgForm(p => ({ ...p, totalPrice: e.target.value }))} />
+
+                      {/* Line items */}
+                      <div>
+                        <Label className="text-xs">What's included *</Label>
+                        <p className="text-[11px] text-muted-foreground mb-2">Add each item. Leave price blank or 0 to show "Included".</p>
+                        <div className="space-y-2">
+                          {pkgForm.items.map((item, idx) => {
+                            const sym = pkgForm.currency === "JMD" ? "J$" : "$";
+                            return (
+                              <div key={idx} className="flex gap-2 items-center">
+                                <Input className="h-8 text-sm flex-1" placeholder="e.g. 2-hour session"
+                                  value={item.name} onChange={e => setPkgForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], name: e.target.value }; return { ...p, items }; })} />
+                                <div className="flex items-center gap-1 w-28 shrink-0">
+                                  <span className="text-sm text-muted-foreground">{sym}</span>
+                                  <Input type="number" min={0} step="0.01" className="h-8 text-sm" placeholder="0.00"
+                                    value={item.price} onChange={e => setPkgForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], price: e.target.value }; return { ...p, items }; })} />
+                                </div>
+                                {pkgForm.items.length > 1 && (
+                                  <button onClick={() => setPkgForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }))} className="text-muted-foreground hover:text-red-500 shrink-0">
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div>
-                          <Label className="text-xs">Deposit amount</Label>
-                          <Input type="number" min={0} step="0.01" className="mt-1 h-8 text-sm" placeholder="0.00" value={pkgForm.depositAmount} onChange={e => setPkgForm(p => ({ ...p, depositAmount: e.target.value }))} />
+                        <Button type="button" variant="ghost" size="sm" className="mt-2 h-7 text-xs"
+                          onClick={() => setPkgForm(p => ({ ...p, items: [...p.items, { name: "", price: "" }] }))}>
+                          <Plus className="w-3 h-3 mr-1" />Add item
+                        </Button>
+                        {pkgComputedTotal > 0 && (
+                          <p className="text-sm font-medium mt-2">
+                            Total: {pkgForm.currency === "JMD" ? "J$" : "$"}{pkgComputedTotal.toFixed(2)} {pkgForm.currency}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Deposit */}
+                      <div className="max-w-[180px]">
+                        <Label className="text-xs">Deposit amount (optional)</Label>
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="text-sm text-muted-foreground">{pkgForm.currency === "JMD" ? "J$" : "$"}</span>
+                          <Input type="number" min={0} step="0.01" className="h-8 text-sm"
+                            placeholder={pkgComputedTotal > 0 ? `${(pkgComputedTotal * 0.5).toFixed(2)} (50%)` : "0.00"}
+                            value={pkgForm.depositAmount} onChange={e => setPkgForm(p => ({ ...p, depositAmount: e.target.value }))} />
                         </div>
+                        <p className="text-[11px] text-muted-foreground mt-1">Leave blank for 50% auto-split</p>
                       </div>
                     </div>
-                    <div className="flex gap-2 justify-end pt-2">
+                    <div className="flex gap-2 justify-end pt-3">
                       <Button variant="outline" size="sm" onClick={() => { setShowCreatePkg(false); setPkgForm(EMPTY_PKG_FORM); }}>Cancel</Button>
-                      <Button size="sm" disabled={!pkgForm.name.trim() || !pkgResolvedServiceType || !(parseFloat(pkgForm.totalPrice) > 0) || createPkgMutation.isPending} onClick={() => createPkgMutation.mutate()}>
+                      <Button size="sm" disabled={!pkgForm.name.trim() || !pkgResolvedServiceType || pkgComputedTotal <= 0 || createPkgMutation.isPending} onClick={() => createPkgMutation.mutate()}>
                         {createPkgMutation.isPending ? "Creating…" : "Create Package"}
                       </Button>
                     </div>

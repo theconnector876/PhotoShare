@@ -391,10 +391,11 @@ export const customPackages = pgTable("custom_packages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
-  serviceType: text("service_type").notNull(), // photoshoot, wedding, event
-  totalPrice: integer("total_price").notNull(), // in cents / smallest unit
-  depositAmount: integer("deposit_amount").notNull().default(0),
+  serviceType: text("service_type").notNull(), // photoshoot, wedding, event, or custom
+  totalPrice: integer("total_price").notNull(), // sum of line item prices, in cents
+  depositAmount: integer("deposit_amount").notNull().default(0), // 0 = 50% auto-split
   currency: varchar("currency", { length: 3 }).default("USD"),
+  lineItems: jsonb("line_items").default([]), // [{name: string, price: number (cents)}]
   isActive: boolean("is_active").notNull().default(true),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),

@@ -491,6 +491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { password: validatedPassword, confirmPassword: validatedConfirmPassword, customPackageId, ...bookingData } = validatedData;
 
       // If a custom package is specified, override price/serviceType from the package
+      let customPkgDepositAmount: number | null = null;
       if (customPackageId) {
         const pkg = await storage.getCustomPackageById(customPackageId);
         if (!pkg || !pkg.isActive) {
@@ -499,7 +500,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bookingData.totalPrice = pkg.totalPrice;
         bookingData.serviceType = pkg.serviceType;
         bookingData.currency = pkg.currency || 'USD';
-        bookingData.packageType = bookingData.packageType || 'custom';
+        bookingData.packageType = 'custom';
+        if (pkg.depositAmount > 0) customPkgDepositAmount = pkg.depositAmount;
       }
       
       // Check if user already exists with this email
@@ -566,8 +568,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const discountedTotal = bookingData.totalPrice - discountAmount;
 
-      // Calculate deposit and balance amounts (50% split on discounted total)
-      const depositAmount = Math.round(discountedTotal * 0.5);
+      // Use custom package deposit if set, otherwise 50% split
+      const depositAmount = customPkgDepositAmount ?? Math.round(discountedTotal * 0.5);
       const balanceDue = discountedTotal - depositAmount;
 
       // Create the booking with calculated amounts
@@ -3194,6 +3196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/admin/custom-packages – create
   app.post('/api/admin/custom-packages', isAdmin, async (req, res) => {
     try {
+      const lineItemSchema = z.object({ name: z.string(), price: z.number().int().min(0) });
       const schema = z.object({
         name: z.string().min(1),
         description: z.string().optional(),
@@ -3201,6 +3204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalPrice: z.number().int().positive(),
         depositAmount: z.number().int().min(0).optional().default(0),
         currency: z.string().length(3).optional().default('USD'),
+        lineItems: z.array(lineItemSchema).optional().default([]),
       });
       const data = schema.parse(req.body);
       const pkg = await storage.createCustomPackage({
@@ -3218,6 +3222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PATCH /api/admin/custom-packages/:id – update (name, isActive, etc.)
   app.patch('/api/admin/custom-packages/:id', isAdmin, async (req, res) => {
     try {
+      const lineItemSchema = z.object({ name: z.string(), price: z.number().int().min(0) });
       const schema = z.object({
         name: z.string().min(1).optional(),
         description: z.string().optional(),
@@ -3225,6 +3230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalPrice: z.number().int().positive().optional(),
         depositAmount: z.number().int().min(0).optional(),
         currency: z.string().length(3).optional(),
+        lineItems: z.array(lineItemSchema).optional(),
         isActive: z.boolean().optional(),
       });
       const data = schema.parse(req.body);
@@ -3270,6 +3276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/photographer/custom-packages', isPhotographerApproved, async (req, res) => {
     try {
+      const lineItemSchema = z.object({ name: z.string(), price: z.number().int().min(0) });
       const schema = z.object({
         name: z.string().min(1),
         description: z.string().optional(),
@@ -3277,6 +3284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalPrice: z.number().int().positive(),
         depositAmount: z.number().int().min(0).optional().default(0),
         currency: z.string().length(3).optional().default('USD'),
+        lineItems: z.array(lineItemSchema).optional().default([]),
       });
       const data = schema.parse(req.body);
       const pkg = await storage.createCustomPackage({
@@ -3295,6 +3303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const pkg = await storage.getCustomPackageById(req.params.id);
       if (!pkg || pkg.createdBy !== (req.user as any).id) return res.status(404).json({ error: 'Not found' });
+      const lineItemSchema = z.object({ name: z.string(), price: z.number().int().min(0) });
       const schema = z.object({
         name: z.string().min(1).optional(),
         description: z.string().optional(),
@@ -3302,6 +3311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalPrice: z.number().int().positive().optional(),
         depositAmount: z.number().int().min(0).optional(),
         currency: z.string().length(3).optional(),
+        lineItems: z.array(lineItemSchema).optional(),
         isActive: z.boolean().optional(),
       });
       const data = schema.parse(req.body);
