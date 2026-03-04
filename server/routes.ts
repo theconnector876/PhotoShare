@@ -3033,6 +3033,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingPayouts = await storage.getPhotographerPayouts(userId);
       let totalAmount = 0;
       const validatedIds: string[] = [];
+      const bookingSnapshots: Array<{
+        id: string; clientName: string; serviceType: string; shootDate: string;
+        totalPrice: number; depositPaid: boolean; balancePaid: boolean;
+        grossPaid: number; platformFee: number; photographerCut: number;
+      }> = [];
 
       for (const bid of bookingIds) {
         const booking = await storage.getBooking(bid);
@@ -3045,9 +3050,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         if (alreadyCovered) continue;
         const depositAmt = Math.round(booking.totalPrice * 0.5);
-        const paid = (booking.depositPaid ? depositAmt : 0) + (booking.balancePaid ? (booking.totalPrice - depositAmt) : 0);
-        totalAmount += Math.round(paid * payoutPct / 100);
+        const grossPaid = (booking.depositPaid ? depositAmt : 0) + (booking.balancePaid ? (booking.totalPrice - depositAmt) : 0);
+        const photographerCut = Math.round(grossPaid * payoutPct / 100);
+        const platformFee = grossPaid - photographerCut;
+        totalAmount += photographerCut;
         validatedIds.push(bid);
+        bookingSnapshots.push({
+          id: bid,
+          clientName: booking.clientName,
+          serviceType: booking.serviceType,
+          shootDate: booking.shootDate,
+          totalPrice: booking.totalPrice,
+          depositPaid: booking.depositPaid ?? false,
+          balancePaid: booking.balancePaid ?? false,
+          grossPaid,
+          platformFee,
+          photographerCut,
+        });
       }
 
       if (validatedIds.length === 0) {
@@ -3060,7 +3079,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: totalAmount,
         currency,
         payoutMethod: (payoutDetails as any).method,
-        payoutDetails: payoutDetails as Record<string, unknown>,
+        payoutDetails: {
+          ...(payoutDetails as Record<string, unknown>),
+          bookingsSnapshot: bookingSnapshots,
+          payoutPct,
+        },
       });
 
       res.json(payout);
@@ -3086,9 +3109,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: z.enum(['pending', 'processing', 'completed', 'rejected']),
         adminNotes: z.string().optional(),
         referenceNumber: z.string().optional(),
+        receiptUrl: z.string().url().optional(),
       });
-      const { status, adminNotes, referenceNumber } = schema.parse(req.body);
-      const updated = await storage.updatePayoutStatus(req.params.id, status, adminNotes, referenceNumber);
+      const { status, adminNotes, referenceNumber, receiptUrl } = schema.parse(req.body);
+      const updated = await storage.updatePayoutStatus(req.params.id, status, adminNotes, referenceNumber, receiptUrl);
       if (!updated) return res.status(404).json({ error: 'Payout not found' });
       res.json(updated);
     } catch (err: any) {

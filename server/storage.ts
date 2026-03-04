@@ -191,7 +191,7 @@ export interface IStorage {
   createPayoutRequest(data: { photographerId: string; bookingIds: string[]; amount: number; currency: string; payoutMethod: string; payoutDetails: Record<string, unknown> }): Promise<Payout>;
   getPhotographerPayouts(photographerId: string): Promise<Payout[]>;
   getAllPayouts(): Promise<(Payout & { photographerName: string | null; photographerEmail: string | null })[]>;
-  updatePayoutStatus(id: string, status: string, adminNotes?: string, referenceNumber?: string): Promise<Payout | undefined>;
+  updatePayoutStatus(id: string, status: string, adminNotes?: string, referenceNumber?: string, receiptUrl?: string): Promise<Payout | undefined>;
   getPendingPayoutCount(): Promise<number>;
 }
 
@@ -1320,10 +1320,11 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async updatePayoutStatus(id: string, status: string, adminNotes?: string, referenceNumber?: string): Promise<Payout | undefined> {
+  async updatePayoutStatus(id: string, status: string, adminNotes?: string, referenceNumber?: string, receiptUrl?: string): Promise<Payout | undefined> {
     const updateData: Partial<Payout> = { status };
     if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
     if (referenceNumber !== undefined) updateData.referenceNumber = referenceNumber;
+    if (receiptUrl !== undefined) updateData.receiptUrl = receiptUrl;
     if (status === 'completed' || status === 'processing') updateData.processedAt = new Date();
 
     const [updated] = await db

@@ -62,6 +62,7 @@ export const payouts = pgTable("payouts", {
   payoutDetails: jsonb("payout_details").default({}), // snapshot of bank/card details
   adminNotes: text("admin_notes"),
   referenceNumber: text("reference_number"),
+  receiptUrl: text("receipt_url"),
   requestedAt: timestamp("requested_at").defaultNow(),
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow(),

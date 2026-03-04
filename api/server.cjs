@@ -62023,6 +62023,7 @@ var payouts = pgTable("payouts", {
   // snapshot of bank/card details
   adminNotes: text("admin_notes"),
   referenceNumber: text("reference_number"),
+  receiptUrl: text("receipt_url"),
   requestedAt: timestamp("requested_at").defaultNow(),
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow()
@@ -68879,10 +68880,11 @@ var DatabaseStorage = class {
       photographerEmail: r2.email
     }));
   }
-  async updatePayoutStatus(id, status, adminNotes, referenceNumber) {
+  async updatePayoutStatus(id, status, adminNotes, referenceNumber, receiptUrl) {
     const updateData = { status };
     if (adminNotes !== void 0) updateData.adminNotes = adminNotes;
     if (referenceNumber !== void 0) updateData.referenceNumber = referenceNumber;
+    if (receiptUrl !== void 0) updateData.receiptUrl = receiptUrl;
     if (status === "completed" || status === "processing") updateData.processedAt = /* @__PURE__ */ new Date();
     const [updated] = await db.update(payouts).set(updateData).where(eq(payouts.id, id)).returning();
     return updated;
@@ -76973,6 +76975,7 @@ Thank you!`
       const existingPayouts = await storage.getPhotographerPayouts(userId);
       let totalAmount = 0;
       const validatedIds = [];
+      const bookingSnapshots = [];
       for (const bid of bookingIds) {
         const booking = await storage.getBooking(bid);
         if (!booking || booking.photographerId !== userId) continue;
@@ -76983,9 +76986,23 @@ Thank you!`
         );
         if (alreadyCovered) continue;
         const depositAmt = Math.round(booking.totalPrice * 0.5);
-        const paid = (booking.depositPaid ? depositAmt : 0) + (booking.balancePaid ? booking.totalPrice - depositAmt : 0);
-        totalAmount += Math.round(paid * payoutPct / 100);
+        const grossPaid = (booking.depositPaid ? depositAmt : 0) + (booking.balancePaid ? booking.totalPrice - depositAmt : 0);
+        const photographerCut = Math.round(grossPaid * payoutPct / 100);
+        const platformFee = grossPaid - photographerCut;
+        totalAmount += photographerCut;
         validatedIds.push(bid);
+        bookingSnapshots.push({
+          id: bid,
+          clientName: booking.clientName,
+          serviceType: booking.serviceType,
+          shootDate: booking.shootDate,
+          totalPrice: booking.totalPrice,
+          depositPaid: booking.depositPaid ?? false,
+          balancePaid: booking.balancePaid ?? false,
+          grossPaid,
+          platformFee,
+          photographerCut
+        });
       }
       if (validatedIds.length === 0) {
         return res.status(400).json({ error: "No eligible completed bookings found. Bookings must be completed with payment received and not already paid out." });
@@ -76996,7 +77013,11 @@ Thank you!`
         amount: totalAmount,
         currency,
         payoutMethod: payoutDetails.method,
-        payoutDetails
+        payoutDetails: {
+          ...payoutDetails,
+          bookingsSnapshot: bookingSnapshots,
+          payoutPct
+        }
       });
       res.json(payout);
     } catch (err) {
@@ -77016,10 +77037,11 @@ Thank you!`
       const schema = z.object({
         status: z.enum(["pending", "processing", "completed", "rejected"]),
         adminNotes: z.string().optional(),
-        referenceNumber: z.string().optional()
+        referenceNumber: z.string().optional(),
+        receiptUrl: z.string().url().optional()
       });
-      const { status, adminNotes, referenceNumber } = schema.parse(req.body);
-      const updated = await storage.updatePayoutStatus(req.params.id, status, adminNotes, referenceNumber);
+      const { status, adminNotes, referenceNumber, receiptUrl } = schema.parse(req.body);
+      const updated = await storage.updatePayoutStatus(req.params.id, status, adminNotes, referenceNumber, receiptUrl);
       if (!updated) return res.status(404).json({ error: "Payout not found" });
       res.json(updated);
     } catch (err) {

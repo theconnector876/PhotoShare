@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BanknoteIcon, Clock, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { BanknoteIcon, Clock, CheckCircle2, XCircle, Loader2, AlertCircle, ChevronDown, ChevronUp, ImageIcon, ExternalLink } from "lucide-react";
 import type { Booking } from "@shared/schema";
 
 interface PayoutDetails {
@@ -27,6 +28,19 @@ interface PayoutDetails {
   notes?: string;
 }
 
+interface BookingSnapshot {
+  id: string;
+  clientName: string;
+  serviceType: string;
+  shootDate: string;
+  totalPrice: number;
+  depositPaid: boolean;
+  balancePaid: boolean;
+  grossPaid: number;
+  platformFee: number;
+  photographerCut: number;
+}
+
 interface Payout {
   id: string;
   bookingIds: string[];
@@ -34,8 +48,10 @@ interface Payout {
   currency: string;
   status: string;
   payoutMethod: string | null;
+  payoutDetails: Record<string, any> | null;
   adminNotes: string | null;
   referenceNumber: string | null;
+  receiptUrl: string | null;
   requestedAt: string;
   processedAt: string | null;
 }
@@ -51,11 +67,16 @@ function formatAmount(amount: number, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount / 100);
 }
 
+function fmt(cents: number, currency: string) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(cents / 100);
+}
+
 export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
   const { toast } = useToast();
 
   const [form, setForm] = useState<PayoutDetails>({ method: "bank" });
   const [selectedBookingIds, setSelectedBookingIds] = useState<string[]>([]);
+  const [expandedPayoutId, setExpandedPayoutId] = useState<string | null>(null);
 
   const { data: savedDetails } = useQuery<PayoutDetails>({
     queryKey: ["/api/photographer/payout-details"],
@@ -219,11 +240,18 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
           ) : (
             payoutHistory.map(p => {
               const cfg = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.pending;
+              const isExpanded = expandedPayoutId === p.id;
+              const details = p.payoutDetails as Record<string, any> | null;
+              const snapshots: BookingSnapshot[] = details?.bookingsSnapshot ?? [];
+              const pct: number = details?.payoutPct ?? payoutPct;
+              const totalGross = snapshots.reduce((s, b) => s + b.grossPaid, 0);
+              const totalFee = snapshots.reduce((s, b) => s + b.platformFee, 0);
+
               return (
                 <Card key={p.id}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <Badge variant={cfg.variant} className="gap-1">
                             {cfg.icon} {cfg.label}
@@ -242,10 +270,94 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                           <p className="text-xs italic text-muted-foreground mt-1">"{p.adminNotes}"</p>
                         )}
                       </div>
-                      <p className="text-xl font-bold text-green-700 shrink-0">
-                        {formatAmount(p.amount, p.currency)}
-                      </p>
+                      <div className="text-right shrink-0 flex flex-col items-end gap-2">
+                        <p className="text-xl font-bold text-green-700">
+                          {formatAmount(p.amount, p.currency)}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setExpandedPayoutId(isExpanded ? null : p.id)}
+                        >
+                          {isExpanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+                          {isExpanded ? "Hide" : "View receipt"}
+                        </Button>
+                      </div>
                     </div>
+
+                    {/* Expandable receipt section */}
+                    {isExpanded && (
+                      <div className="mt-4 space-y-4 border-t pt-4">
+
+                        {/* Connectagrapher receipt breakdown */}
+                        {snapshots.length > 0 ? (
+                          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm">
+                            <p className="font-semibold text-blue-800 text-xs uppercase tracking-wide mb-2">
+                              Connectagrapher Receipt
+                            </p>
+                            <div className="space-y-2">
+                              {snapshots.map(b => (
+                                <div key={b.id} className="flex justify-between text-xs border-b border-blue-100 pb-1">
+                                  <div>
+                                    <p className="font-medium">{b.clientName}</p>
+                                    <p className="text-muted-foreground capitalize">{b.serviceType} · {b.shootDate}</p>
+                                    <div className="flex gap-1 mt-0.5">
+                                      {b.depositPaid && <span className="text-[10px] bg-white border rounded px-1">Deposit</span>}
+                                      {b.balancePaid && <span className="text-[10px] bg-white border rounded px-1">Balance</span>}
+                                    </div>
+                                  </div>
+                                  <div className="text-right space-y-0.5 shrink-0 pl-3">
+                                    <p className="text-muted-foreground">Collected: {fmt(b.grossPaid, p.currency)}</p>
+                                    <p className="text-orange-700">Fee ({100 - pct}%): −{fmt(b.platformFee, p.currency)}</p>
+                                    <p className="font-semibold text-green-700">Your cut ({pct}%): {fmt(b.photographerCut, p.currency)}</p>
+                                  </div>
+                                </div>
+                              ))}
+                              <Separator />
+                              <div className="flex justify-between text-sm font-semibold">
+                                <span>Total</span>
+                                <div className="text-right space-y-0.5">
+                                  <p className="text-muted-foreground text-xs">Collected: {fmt(totalGross, p.currency)}</p>
+                                  <p className="text-orange-700 text-xs">Platform fee: −{fmt(totalFee, p.currency)}</p>
+                                  <p className="text-green-700">Your payout: {fmt(p.amount, p.currency)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">
+                            No detailed breakdown available for this payout.
+                          </p>
+                        )}
+
+                        {/* Bank receipt from admin */}
+                        {p.receiptUrl && (
+                          <div className="p-3 bg-green-50 border border-green-100 rounded-lg">
+                            <p className="text-xs font-semibold text-green-800 uppercase tracking-wide mb-2">Bank Transfer Receipt</p>
+                            {p.receiptUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                              <img
+                                src={p.receiptUrl}
+                                alt="Bank receipt"
+                                className="max-h-48 rounded border object-contain w-full"
+                              />
+                            ) : null}
+                            <a
+                              href={p.receiptUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-2"
+                            >
+                              <ImageIcon className="w-3 h-3" /> Open receipt <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+
+                        {!p.receiptUrl && (
+                          <p className="text-xs text-muted-foreground italic">No bank receipt uploaded yet.</p>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
