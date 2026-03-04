@@ -33,7 +33,7 @@ import {
   ImageIcon, UploadIcon, Eye, X,
   ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
   Clock, Loader2, Copy, ArrowUpDown, Download, GripVertical,
-  FolderPlus, Folder,
+  FolderPlus, Folder, Trash2,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -105,7 +105,9 @@ function uploadWithProgress(file: File, config: SignedConfig, onProgress: (pct: 
 }
 
 // Sends one chunk via XHR so we get per-byte progress even for large files.
-const CHUNK_SIZE = 20 * 1024 * 1024; // 20 MB per chunk
+// 9 MB per chunk — safely under Cloudinary's 10 MB single-upload limit.
+// Any file larger than 9 MB is split into chunks, bypassing the limit.
+const CHUNK_SIZE = 9 * 1024 * 1024;
 
 function uploadChunkXHR(
   chunk: Blob, byteStart: number, totalSize: number,
@@ -140,11 +142,12 @@ function uploadChunkXHR(
   });
 }
 
-// Unified upload: single XHR for small files, chunked for large ones.
+// Unified upload: single XHR for files ≤ 9 MB, chunked for larger files.
+// Chunked uploads bypass Cloudinary's 10 MB per-request limit.
 async function uploadFile(
   file: File, config: SignedConfig, onProgress: (pct: number) => void,
 ): Promise<string> {
-  if (file.size <= CHUNK_SIZE) {
+  if (file.size < CHUNK_SIZE) {
     return uploadWithProgress(file, config, onProgress);
   }
   const uploadId = crypto.randomUUID();
@@ -242,7 +245,17 @@ function VirtualFileList({ items }: { items: FileItem[] }) {
   );
 }
 
-function UploadPanel({ items, onClose, canClose, onCancel }: { items: FileItem[]; onClose: () => void; canClose: boolean; onCancel: () => void }) {
+function formatEta(seconds: number): string {
+  if (seconds <= 5)  return "almost done";
+  if (seconds < 60)  return `~${seconds}s remaining`;
+  const m = Math.floor(seconds / 60), s = seconds % 60;
+  return s > 0 ? `~${m}m ${s}s remaining` : `~${m}m remaining`;
+}
+
+function UploadPanel({ items, onClose, canClose, onCancel, onRetry, startTime }: {
+  items: FileItem[]; onClose: () => void; canClose: boolean;
+  onCancel: () => void; onRetry: () => void; startTime: number | null;
+}) {
   const done       = items.filter((i) => i.status === "done").length;
   const errors     = items.filter((i) => i.status === "error").length;
   const duplicates = items.filter((i) => i.status === "duplicate").length;
@@ -253,12 +266,33 @@ function UploadPanel({ items, onClose, canClose, onCancel }: { items: FileItem[]
   const overallPct = total === 0 ? 100
     : Math.round(uploadable.reduce((s, i) => s + (i.status === "done" ? 100 : i.progress), 0) / total);
 
+  // Tick every second to keep ETA fresh
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (canClose) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [canClose]);
+
+  // ETA calculation
+  let etaText = "";
+  if (!canClose && startTime && overallPct > 0 && overallPct < 100) {
+    void tick; // depend on tick so it re-computes each second
+    const elapsedMs = Date.now() - startTime;
+    const totalBytes = uploadable.reduce((s, i) => s + i.file.size, 0);
+    const doneBytes  = items.filter((i) => i.status === "done").reduce((s, i) => s + i.file.size, 0);
+    const partBytes  = items.filter((i) => i.status === "uploading").reduce((s, i) => s + i.file.size * i.progress / 100, 0);
+    const uploadedBytes = doneBytes + partBytes;
+    const rate = uploadedBytes / (elapsedMs / 1000); // bytes/sec
+    if (rate > 0) etaText = formatEta(Math.round((totalBytes - uploadedBytes) / rate));
+  }
+
   return (
     <Dialog open onOpenChange={(open) => { if (!open && canClose) onClose(); }}>
       <DialogContent className="max-w-lg w-[95vw] p-0 overflow-hidden rounded-2xl gap-0"
         onInteractOutside={(e) => { if (!canClose) e.preventDefault(); }}>
         <div className="bg-gradient-to-r from-green-800 to-green-700 px-5 py-4 text-white">
-          <DialogTitle className="text-base font-semibold mb-1.5">
+          <DialogTitle className="text-base font-semibold mb-1">
             {canClose
               ? `Done — ${done} saved${duplicates > 0 ? `, ${duplicates} skipped` : ""}${errors > 0 ? `, ${errors} failed` : ""}`
               : `Uploading ${done} / ${total} photos…`}
@@ -267,6 +301,9 @@ function UploadPanel({ items, onClose, canClose, onCancel }: { items: FileItem[]
             <Progress value={overallPct} className="flex-1 h-1.5 bg-white/20 [&>div]:bg-yellow-400 [&>div]:transition-all" />
             <span className="text-xs text-white/70 tabular-nums w-8 text-right">{overallPct}%</span>
           </div>
+          {etaText && (
+            <p className="text-xs text-white/60 mt-1">{etaText}</p>
+          )}
         </div>
 
         {/* Stats bar */}
@@ -284,20 +321,27 @@ function UploadPanel({ items, onClose, canClose, onCancel }: { items: FileItem[]
         <div className="px-5 py-3 border-t border-green-100 bg-white flex items-center justify-between gap-3">
           <p className="text-xs text-green-700 leading-snug">
             {canClose
-              ? errors > 0 ? `${errors} photo${errors > 1 ? "s" : ""} could not be saved — please try again`
+              ? errors > 0 ? `${errors} photo${errors > 1 ? "s" : ""} failed — click Try Again to retry`
                 : duplicates > 0 ? `${duplicates} duplicate${duplicates > 1 ? "s" : ""} skipped · all others saved`
                 : "All photos saved to Connectagrapher"
               : "Saving photos to Connectagrapher…"}
           </p>
-          {canClose ? (
-            <Button size="sm" className="bg-green-700 hover:bg-green-800 text-white shrink-0" onClick={onClose}>
-              Done
-            </Button>
-          ) : (
-            <Button size="sm" variant="outline" className="shrink-0 border-red-200 text-red-600 hover:bg-red-50" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
+          <div className="flex gap-2 shrink-0">
+            {canClose && errors > 0 && (
+              <Button size="sm" variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50" onClick={onRetry}>
+                Try Again
+              </Button>
+            )}
+            {canClose ? (
+              <Button size="sm" className="bg-green-700 hover:bg-green-800 text-white" onClick={onClose}>
+                Done
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -318,6 +362,7 @@ interface ImageSectionProps {
   onDrop: (gallery: Gallery, type: ImageType, dropIndex: number) => void;
   onDragEnd: () => void;
   onRemove: (gallery: Gallery, type: ImageType, url: string) => void;
+  onRemoveMany: (gallery: Gallery, type: ImageType, urls: string[]) => void;
   onDedup: (gallery: Gallery, type: ImageType) => void;
   onFilesSelected: (files: File[], gallery: Gallery, type: ImageType) => void;
   onPreview: (url: string) => void;
@@ -334,7 +379,7 @@ interface ImageSectionProps {
 function ImageSection({
   gallery, type, sortOrder, onSortChange,
   dragSrc, dragOver, onDragStart, onDragOver, onDrop, onDragEnd,
-  onRemove, onDedup, onFilesSelected, onPreview,
+  onRemove, onRemoveMany, onDedup, onFilesSelected, onPreview,
   activeFolder, uploadFolder, newFolderInput,
   onFolderView, onUploadFolderChange, onNewFolderInputChange, onCreateFolder,
 }: ImageSectionProps) {
@@ -342,6 +387,65 @@ function ImageSection({
   const [showFolderInput, setShowFolderInput] = useState(false);
   const [fileDragOver, setFileDragOver] = useState(false);
   const dragCounterRef = useRef(0); // track nested enter/leave events
+
+  // ── Multi-select ──────────────────────────────────────────────────────────
+  const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
+  const lastSelectedIdxRef = useRef<number | null>(null);
+
+  // Clear selection when switching folders
+  useEffect(() => {
+    setSelectedUrls(new Set());
+    lastSelectedIdxRef.current = null;
+  }, [activeFolder]);
+
+  // Escape key clears selection
+  useEffect(() => {
+    if (selectedUrls.size === 0) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setSelectedUrls(new Set()); lastSelectedIdxRef.current = null; }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedUrls.size]);
+
+  const handleImageClick = (e: React.MouseEvent, url: string, idx: number) => {
+    if (e.shiftKey) {
+      // Range select from last selected index to current
+      const from = lastSelectedIdxRef.current ?? idx;
+      const lo = Math.min(from, idx), hi = Math.max(from, idx);
+      setSelectedUrls((prev) => {
+        const next = new Set(prev);
+        for (let i = lo; i <= hi; i++) { const u = imagesToShow[i]; if (u) next.add(u); }
+        return next;
+      });
+    } else if (e.metaKey || e.ctrlKey) {
+      // Toggle individual
+      setSelectedUrls((prev) => {
+        const next = new Set(prev);
+        if (next.has(url)) next.delete(url); else next.add(url);
+        return next;
+      });
+      lastSelectedIdxRef.current = idx;
+    } else if (selectedUrls.size > 0) {
+      // In selection mode — plain click toggles
+      setSelectedUrls((prev) => {
+        const next = new Set(prev);
+        if (next.has(url)) next.delete(url); else next.add(url);
+        return next;
+      });
+      lastSelectedIdxRef.current = idx;
+    } else {
+      // No selection active — open preview
+      onPreview(url);
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    const urls = Array.from(selectedUrls);
+    onRemoveMany(gallery, type, urls);
+    setSelectedUrls(new Set());
+    lastSelectedIdxRef.current = null;
+  };
 
   const isFileDrag = (e: React.DragEvent) =>
     e.dataTransfer.types.length > 0 &&
@@ -426,28 +530,54 @@ function ImageSection({
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <h4 className="text-sm font-semibold capitalize text-green-800 mr-auto">
           {type} Images ({allImages.length})
+          {selectedUrls.size > 0 && (
+            <span className="ml-2 text-blue-600 font-normal text-xs">· {selectedUrls.size} selected</span>
+          )}
         </h4>
-        <Select value={sortOrder} onValueChange={onSortChange}>
-          <SelectTrigger className="h-7 text-xs w-36 border-green-200">
-            <ArrowUpDown className="w-3 h-3 mr-1 shrink-0 opacity-60" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="original">Original order</SelectItem>
-            <SelectItem value="az">Name A → Z</SelectItem>
-            <SelectItem value="za">Name Z → A</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button size="sm" variant="outline"
-          className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 px-2"
-          onClick={() => onDedup(gallery, type)}>
-          Remove Dupes
-        </Button>
-        <label htmlFor={fileInputId}
-          className="inline-flex items-center h-7 text-xs px-2 rounded-md border border-green-200 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none">
-          <UploadIcon className="w-3 h-3 mr-1" /> Upload
-        </label>
+
+        {selectedUrls.size > 0 ? (
+          /* Selection-mode toolbar */
+          <>
+            <Button size="sm" variant="outline"
+              className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50 px-2"
+              onClick={handleDeleteSelected}>
+              <Trash2 className="w-3 h-3 mr-1" /> Delete {selectedUrls.size}
+            </Button>
+            <Button size="sm" variant="ghost"
+              className="h-7 text-xs text-gray-500 px-2"
+              onClick={() => { setSelectedUrls(new Set()); lastSelectedIdxRef.current = null; }}>
+              <X className="w-3 h-3 mr-1" /> Clear
+            </Button>
+          </>
+        ) : (
+          /* Normal toolbar */
+          <>
+            <Select value={sortOrder} onValueChange={onSortChange}>
+              <SelectTrigger className="h-7 text-xs w-36 border-green-200">
+                <ArrowUpDown className="w-3 h-3 mr-1 shrink-0 opacity-60" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="original">Original order</SelectItem>
+                <SelectItem value="az">Name A → Z</SelectItem>
+                <SelectItem value="za">Name Z → A</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline"
+              className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 px-2"
+              onClick={() => onDedup(gallery, type)}>
+              Remove Dupes
+            </Button>
+            <label htmlFor={fileInputId}
+              className="inline-flex items-center h-7 text-xs px-2 rounded-md border border-green-200 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none">
+              <UploadIcon className="w-3 h-3 mr-1" /> Upload
+            </label>
+          </>
+        )}
       </div>
+      {selectedUrls.size > 0 && (
+        <p className="text-[10px] text-gray-400 mb-2">Shift+click for range · Cmd/Ctrl+click to toggle · Esc to clear</p>
+      )}
 
       {/* Folder tabs */}
       {folderNames.length > 0 && (
@@ -553,9 +683,10 @@ function ImageSection({
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
           {imagesToShow.map((url, i) => {
             const absIdx = getAbsoluteIndex(i);
-            const canDrag = !activeFolder; // disable drag in folder view (indices don't align)
-            const dragging = canDrag && dragSrc?.galleryId === gallery.id && dragSrc?.type === type && dragSrc?.index === absIdx;
-            const over     = canDrag && dragOver?.galleryId === gallery.id && dragOver?.type === type && dragOver?.index === absIdx;
+            const canDrag = !activeFolder && selectedUrls.size === 0; // disable drag in folder view or when selecting
+            const dragging  = canDrag && dragSrc?.galleryId === gallery.id && dragSrc?.type === type && dragSrc?.index === absIdx;
+            const over      = canDrag && dragOver?.galleryId === gallery.id && dragOver?.type === type && dragOver?.index === absIdx;
+            const isSelected = selectedUrls.has(url);
             return (
               <div
                 key={`${url}-${i}`}
@@ -564,39 +695,53 @@ function ImageSection({
                 onDragOver={canDrag ? (e) => onDragOver(e, gallery.id, type, absIdx) : undefined}
                 onDrop={canDrag ? () => onDrop(gallery, type, absIdx) : undefined}
                 onDragEnd={canDrag ? onDragEnd : undefined}
-                className={`relative group aspect-square rounded-lg overflow-hidden border-2 transition-all shadow-sm ${
-                  canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-                } ${
-                  dragging ? "opacity-40 scale-95 border-green-400"
-                  : over    ? "border-green-500 scale-[1.03] shadow-md"
+                onClick={(e) => handleImageClick(e, url, i)}
+                className={`relative group aspect-square rounded-lg overflow-hidden border-2 transition-all shadow-sm cursor-pointer ${
+                  isSelected  ? "border-blue-500 ring-2 ring-blue-300 scale-[0.97]"
+                  : dragging  ? "opacity-40 scale-95 border-green-400"
+                  : over      ? "border-green-500 scale-[1.03] shadow-md"
                   : "bg-green-100 border-green-200"
                 }`}
               >
                 <img src={url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  onClick={() => onPreview(url)}
                   onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.15"; }} />
+
+                {/* Selected overlay with checkmark */}
+                {isSelected && (
+                  <div className="absolute inset-0 bg-blue-600/30 flex items-start justify-end p-1.5 pointer-events-none">
+                    <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center shadow">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Drag handle (when not in selection mode) */}
                 {canDrag && (
                   <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                     <GripVertical className="w-3.5 h-3.5 text-white drop-shadow" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
-                  <button onClick={(e) => { e.stopPropagation(); onPreview(url); }}
-                    className="p-1.5 bg-white/90 rounded-full shadow">
-                    <Eye className="w-3 h-3 text-gray-700" />
-                  </button>
-                  {type === "final" && (
-                    <a href={url} download target="_blank" rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
+
+                {/* Hover actions (only when no selection active) */}
+                {selectedUrls.size === 0 && (
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+                    <button onClick={(e) => { e.stopPropagation(); onPreview(url); }}
                       className="p-1.5 bg-white/90 rounded-full shadow">
-                      <Download className="w-3 h-3 text-green-700" />
-                    </a>
-                  )}
-                  <button onClick={(e) => { e.stopPropagation(); onRemove(gallery, type, url); }}
-                    className="p-1.5 bg-white/90 rounded-full shadow">
-                    <X className="w-3 h-3 text-red-500" />
-                  </button>
-                </div>
+                      <Eye className="w-3 h-3 text-gray-700" />
+                    </button>
+                    {type === "final" && (
+                      <a href={url} download target="_blank" rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 bg-white/90 rounded-full shadow">
+                        <Download className="w-3 h-3 text-green-700" />
+                      </a>
+                    )}
+                    <button onClick={(e) => { e.stopPropagation(); onRemove(gallery, type, url); }}
+                      className="p-1.5 bg-white/90 rounded-full shadow">
+                      <X className="w-3 h-3 text-red-500" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -646,6 +791,14 @@ export function AdminGalleries() {
   // Cached upload signature — refreshed automatically if > 30 minutes old
   const uploadConfigRef    = useRef<SignedConfig | null>(null);
   const uploadConfigTimeRef = useRef<number>(0);
+
+  // ETA tracking
+  const [uploadStartTime, setUploadStartTime] = useState<number | null>(null);
+
+  // Retry support — store current gallery/type context + latest fileItems
+  const currentUploadCtxRef = useRef<{ gallery: Gallery; type: ImageType } | null>(null);
+  const fileItemsRef = useRef<FileItem[]>([]);
+  useEffect(() => { fileItemsRef.current = fileItems; }, [fileItems]);
 
   const { data: galleries, isLoading, isError, error, refetch } = useQuery<Gallery[]>({
     queryKey: ["/api/admin/galleries"],
@@ -735,6 +888,23 @@ export function AdminGalleries() {
     if (changed) updateFoldersMutation.mutate({ galleryId: gallery.id, folders: { ...currentFolders, [type]: typeFolders } });
   }, [updateImagesMutation, updateFoldersMutation]);
 
+  const handleRemoveManyImages = useCallback((gallery: Gallery, type: ImageType, urls: string[]) => {
+    const urlSet = new Set(urls);
+    const images = type === "gallery" ? gallery.galleryImages || []
+      : type === "selected" ? gallery.selectedImages || []
+      : gallery.finalImages || [];
+    updateImagesMutation.mutate({ galleryId: gallery.id, images: images.filter((u) => !urlSet.has(u)), type });
+    // Clean folders too
+    const currentFolders = (gallery.imageFolders || {}) as Record<string, Record<string, string[]>>;
+    const typeFolders = { ...(currentFolders[type] || {}) };
+    let changed = false;
+    for (const fname of Object.keys(typeFolders)) {
+      const filtered = typeFolders[fname].filter((u) => !urlSet.has(u));
+      if (filtered.length !== typeFolders[fname].length) { typeFolders[fname] = filtered; changed = true; }
+    }
+    if (changed) updateFoldersMutation.mutate({ galleryId: gallery.id, folders: { ...currentFolders, [type]: typeFolders } });
+  }, [updateImagesMutation, updateFoldersMutation]);
+
   const handleDedup = useCallback((gallery: Gallery, type: ImageType) => {
     const images = type === "gallery" ? gallery.galleryImages || []
       : type === "selected" ? gallery.selectedImages || []
@@ -800,44 +970,19 @@ export function AdminGalleries() {
     return config;
   }, []);
 
-  const handleFilesSelected = useCallback(async (files: File[], gallery: Gallery, type: ImageType) => {
+  // Shared upload runner used by both handleFilesSelected and retryFailed
+  const runUploadQueue = useCallback(async (queue: FileItem[], gallery: Gallery, type: ImageType) => {
     cancelRef.current = false;
-
-    // Build file items immediately — no thumbnail generation, no compression.
-    const existingNames = new Set(
-      [...(gallery.galleryImages || []), ...(gallery.selectedImages || []), ...(gallery.finalImages || [])]
-        .map((url) => url.split("/").pop()?.split("?")[0]?.toLowerCase() ?? "")
-    );
-    const seenInBatch = new Set<string>();
-
-    const items: FileItem[] = files.map((file, i) => {
-      const fp = `${file.name.toLowerCase()}::${file.size}`;
-      const isDuplicate = existingNames.has(file.name.toLowerCase()) || seenInBatch.has(fp);
-      seenInBatch.add(fp);
-      return { id: `${Date.now()}-${i}`, file, status: isDuplicate ? "duplicate" : "queued", progress: 0 };
-    });
-    setFileItems(items);
-    setShowUploadPanel(true);
-
-    // Warm the signature cache before starting
-    try { await getUploadConfig(); }
-    catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Could not get upload credentials";
-      setFileItems((prev) => prev.map((item) => item.status === "queued" ? { ...item, status: "error", error: msg } : item));
-      return;
-    }
-
+    setUploadStartTime(Date.now());
     const destFolder = uploadDestFolderRef.current[fKey(gallery.id, type)] || "";
     const uploadedUrls: string[] = [];
 
-    const queue = items.filter((i) => i.status !== "duplicate");
     async function processNext(): Promise<void> {
       if (cancelRef.current) return;
       const item = queue.shift();
       if (!item) return;
       updateItem(item.id, { status: "uploading", progress: 0 });
       try {
-        // Fetch config here — auto-refreshes if signature has aged > 30 min
         const config = await getUploadConfig();
         const url = await uploadFile(item.file, config, (pct) => updateItem(item.id, { progress: pct }));
         updateItem(item.id, { status: "done", progress: 100, cloudUrl: url });
@@ -846,15 +991,12 @@ export function AdminGalleries() {
         queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
       } catch (err: unknown) {
         if (cancelRef.current) return;
-        const msg = err instanceof Error ? err.message : "Upload failed";
-        updateItem(item.id, { status: "error", error: msg });
+        updateItem(item.id, { status: "error", error: err instanceof Error ? err.message : "Upload failed" });
       }
       return processNext();
     }
-    // 6 concurrent uploads
     await Promise.all(Array.from({ length: 6 }, processNext));
 
-    // After all done, save folder assignments if a folder was chosen
     if (destFolder && uploadedUrls.length > 0 && !cancelRef.current) {
       const latestGalleries = queryClient.getQueryData<Gallery[]>(["/api/admin/galleries"]);
       const latestGallery   = latestGalleries?.find((g) => g.id === gallery.id);
@@ -866,6 +1008,43 @@ export function AdminGalleries() {
       await updateFoldersMutation.mutateAsync({ galleryId: gallery.id, folders: { ...currentFolders, [type]: typeFolders } });
     }
   }, [addImageMutation, queryClient, updateItem, updateFoldersMutation, getUploadConfig]);
+
+  const handleFilesSelected = useCallback(async (files: File[], gallery: Gallery, type: ImageType) => {
+    currentUploadCtxRef.current = { gallery, type };
+
+    const existingNames = new Set(
+      [...(gallery.galleryImages || []), ...(gallery.selectedImages || []), ...(gallery.finalImages || [])]
+        .map((url) => url.split("/").pop()?.split("?")[0]?.toLowerCase() ?? "")
+    );
+    const seenInBatch = new Set<string>();
+    const items: FileItem[] = files.map((file, i) => {
+      const fp = `${file.name.toLowerCase()}::${file.size}`;
+      const isDuplicate = existingNames.has(file.name.toLowerCase()) || seenInBatch.has(fp);
+      seenInBatch.add(fp);
+      return { id: `${Date.now()}-${i}`, file, status: isDuplicate ? "duplicate" : "queued", progress: 0 };
+    });
+    setFileItems(items);
+    setShowUploadPanel(true);
+
+    try { await getUploadConfig(); }
+    catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Could not get upload credentials";
+      setFileItems((prev) => prev.map((item) => item.status === "queued" ? { ...item, status: "error", error: msg } : item));
+      return;
+    }
+    await runUploadQueue(items.filter((i) => i.status !== "duplicate"), gallery, type);
+  }, [getUploadConfig, runUploadQueue]);
+
+  const handleRetryFailed = useCallback(async () => {
+    const ctx = currentUploadCtxRef.current;
+    if (!ctx) return;
+    const failed = fileItemsRef.current.filter((i) => i.status === "error");
+    if (failed.length === 0) return;
+    // Reset failed items to queued
+    failed.forEach((item) => updateItem(item.id, { status: "queued", progress: 0, error: undefined }));
+    // Re-run upload for those items (use a copy since queue.shift() mutates)
+    await runUploadQueue([...failed].map((i) => ({ ...i, status: "queued" as FileStatus, progress: 0 })), ctx.gallery, ctx.type);
+  }, [runUploadQueue, updateItem]);
 
   const handleCancel = useCallback(() => { cancelRef.current = true; }, []);
 
@@ -1041,6 +1220,7 @@ export function AdminGalleries() {
                               onDrop={handleDrop}
                               onDragEnd={handleDragEnd}
                               onRemove={handleRemoveImage}
+                              onRemoveMany={handleRemoveManyImages}
                               onDedup={handleDedup}
                               onFilesSelected={handleFilesSelected}
                               onPreview={setPreviewImage}
@@ -1066,7 +1246,7 @@ export function AdminGalleries() {
       </Card>
 
       {showUploadPanel && fileItems.length > 0 && (
-        <UploadPanel items={fileItems} onClose={closeUploadPanel} canClose={allFinished} onCancel={handleCancel} />
+        <UploadPanel items={fileItems} onClose={closeUploadPanel} canClose={allFinished} onCancel={handleCancel} onRetry={handleRetryFailed} startTime={uploadStartTime} />
       )}
 
       <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
