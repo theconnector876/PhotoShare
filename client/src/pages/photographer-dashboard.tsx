@@ -261,6 +261,7 @@ export default function PhotographerDashboard() {
     queryKey: ["/api/photographer/bookings"],
     enabled: !!user,
     retry: false,
+    refetchInterval: 30000,
   });
 
   const { data: userGalleries } = useQuery<UserGallery[]>({
