@@ -438,9 +438,12 @@ function ImageSection({
     return () => window.removeEventListener("keydown", handler);
   }, [selectedUrls.size]);
 
+  // Plain click on image always opens preview.
+  // Shift+click = range select. Cmd/Ctrl+click = toggle.
+  // Circle button in top-right = primary way to select/deselect.
   const handleImageClick = (e: React.MouseEvent, url: string, idx: number) => {
     if (e.shiftKey) {
-      // Range select from last selected index to current
+      e.preventDefault();
       const from = lastSelectedIdxRef.current ?? idx;
       const lo = Math.min(from, idx), hi = Math.max(from, idx);
       setSelectedUrls((prev) => {
@@ -449,15 +452,7 @@ function ImageSection({
         return next;
       });
     } else if (e.metaKey || e.ctrlKey) {
-      // Toggle individual
-      setSelectedUrls((prev) => {
-        const next = new Set(prev);
-        if (next.has(url)) next.delete(url); else next.add(url);
-        return next;
-      });
-      lastSelectedIdxRef.current = idx;
-    } else if (selectedUrls.size > 0) {
-      // In selection mode — plain click toggles
+      e.preventDefault();
       setSelectedUrls((prev) => {
         const next = new Set(prev);
         if (next.has(url)) next.delete(url); else next.add(url);
@@ -465,9 +460,18 @@ function ImageSection({
       });
       lastSelectedIdxRef.current = idx;
     } else {
-      // No selection active — open preview
+      // Plain click — always open preview
       onPreview(url);
     }
+  };
+
+  const toggleSelect = (url: string, idx: number) => {
+    setSelectedUrls((prev) => {
+      const next = new Set(prev);
+      if (next.has(url)) next.delete(url); else next.add(url);
+      return next;
+    });
+    lastSelectedIdxRef.current = idx;
   };
 
   const handleDeleteSelected = () => {
@@ -606,7 +610,7 @@ function ImageSection({
         )}
       </div>
       {selectedUrls.size > 0 && (
-        <p className="text-[10px] text-gray-400 mb-2">Shift+click for range · Cmd/Ctrl+click to toggle · Esc to clear</p>
+        <p className="text-[10px] text-gray-400 mb-2">Click circle to select · Shift+click for range · Cmd/Ctrl+click to toggle · Esc to clear</p>
       )}
 
       {/* Folder tabs */}
@@ -726,8 +730,8 @@ function ImageSection({
                 onDrop={canDrag ? () => onDrop(gallery, type, absIdx) : undefined}
                 onDragEnd={canDrag ? onDragEnd : undefined}
                 onClick={(e) => handleImageClick(e, url, i)}
-                className={`relative group aspect-square rounded-lg overflow-hidden border-2 transition-all shadow-sm cursor-pointer ${
-                  isSelected  ? "border-blue-500 ring-2 ring-blue-300 scale-[0.97]"
+                className={`relative group aspect-square rounded-lg overflow-hidden border-2 transition-all shadow-sm cursor-pointer select-none ${
+                  isSelected  ? "border-blue-500 ring-2 ring-blue-300"
                   : dragging  ? "opacity-40 scale-95 border-green-400"
                   : over      ? "border-green-500 scale-[1.03] shadow-md"
                   : "bg-green-100 border-green-200"
@@ -736,42 +740,50 @@ function ImageSection({
                 <img src={url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                   onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.15"; }} />
 
-                {/* Selected overlay with checkmark */}
+                {/* Blue tint when selected */}
                 {isSelected && (
-                  <div className="absolute inset-0 bg-blue-600/30 flex items-start justify-end p-1.5 pointer-events-none">
-                    <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center shadow">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  </div>
+                  <div className="absolute inset-0 bg-blue-500/20 pointer-events-none" />
                 )}
 
-                {/* Drag handle (when not in selection mode) */}
+                {/* Select circle — top-right, visible on hover or when selected */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleSelect(url, i); }}
+                  className={`absolute top-1 right-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all shadow ${
+                    isSelected
+                      ? "bg-blue-600 border-blue-600 opacity-100"
+                      : "bg-white/80 border-gray-400 opacity-0 group-hover:opacity-100"
+                  }`}
+                >
+                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                </button>
+
+                {/* Drag handle (bottom-left, only when not selecting) */}
                 {canDrag && (
-                  <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                     <GripVertical className="w-3.5 h-3.5 text-white drop-shadow" />
                   </div>
                 )}
 
-                {/* Hover actions (only when no selection active) */}
-                {selectedUrls.size === 0 && (
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
-                    <button onClick={(e) => { e.stopPropagation(); onPreview(url); }}
+                {/* Hover actions — always available (preview, download, delete) */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+                  <button onClick={(e) => { e.stopPropagation(); onPreview(url); }}
+                    className="p-1.5 bg-white/90 rounded-full shadow">
+                    <Eye className="w-3 h-3 text-gray-700" />
+                  </button>
+                  {type === "final" && (
+                    <a href={url} download target="_blank" rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="p-1.5 bg-white/90 rounded-full shadow">
-                      <Eye className="w-3 h-3 text-gray-700" />
-                    </button>
-                    {type === "final" && (
-                      <a href={url} download target="_blank" rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-1.5 bg-white/90 rounded-full shadow">
-                        <Download className="w-3 h-3 text-green-700" />
-                      </a>
-                    )}
+                      <Download className="w-3 h-3 text-green-700" />
+                    </a>
+                  )}
+                  {selectedUrls.size === 0 && (
                     <button onClick={(e) => { e.stopPropagation(); onRemove(gallery, type, url); }}
                       className="p-1.5 bg-white/90 rounded-full shadow">
                       <X className="w-3 h-3 text-red-500" />
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           })}
