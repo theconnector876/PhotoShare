@@ -27,14 +27,16 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import {
   ImageIcon, UploadIcon, Eye, X,
   ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
   Clock, Loader2, Copy, ArrowUpDown, Download, GripVertical,
-  FolderPlus, Folder, Trash2,
+  FolderPlus, Folder, Trash2, Droplets, Save,
 } from "lucide-react";
+import { type WatermarkSettings, DEFAULT_WATERMARK_SETTINGS } from "@/lib/cloudinary-watermark";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,7 @@ interface Gallery {
   galleryDownloadEnabled: boolean;
   selectedDownloadEnabled: boolean;
   finalDownloadEnabled: boolean;
+  watermarkSettings?: Record<string, any>;
   createdAt: string;
 }
 
@@ -821,6 +824,11 @@ export function AdminGalleries() {
   const [dragSrc, setDragSrc]           = useState<{ galleryId: string; type: ImageType; index: number } | null>(null);
   const [dragOver, setDragOver]         = useState<{ galleryId: string; type: ImageType; index: number } | null>(null);
 
+  // Watermark state
+  const [watermarkForms, setWatermarkForms] = useState<Record<string, WatermarkSettings>>({});
+  const [watermarkPanelOpen, setWatermarkPanelOpen] = useState<Record<string, boolean>>({});
+  const [uploadingWatermarkImg, setUploadingWatermarkImg] = useState<Record<string, boolean>>({});
+
   // Folder state — key is `galleryId::type`
   const [activeFolderView, setActiveFolderView] = useState<Record<string, string>>({});
   const [uploadDestFolder, setUploadDestFolder] = useState<Record<string, string>>({});
@@ -849,6 +857,20 @@ export function AdminGalleries() {
     queryKey: ["/api/admin/galleries"],
     retry: false,
   });
+
+  // Sync watermark forms from gallery data (initialise only, don't overwrite edits)
+  useEffect(() => {
+    if (!galleries) return;
+    setWatermarkForms(prev => {
+      const next = { ...prev };
+      for (const g of galleries) {
+        if (!(g.id in next)) {
+          next[g.id] = { ...DEFAULT_WATERMARK_SETTINGS, ...(g.watermarkSettings ?? {}) } as WatermarkSettings;
+        }
+      }
+      return next;
+    });
+  }, [galleries]);
 
   const filteredGalleries = (galleries || []).filter((g) => {
     if (searchTerm) {
@@ -892,6 +914,40 @@ export function AdminGalleries() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] }),
     onError: () => toast({ title: "Failed to save folder assignments", variant: "destructive" }),
   });
+
+  // ── Watermark helpers ─────────────────────────────────────────────────────────
+
+  const uploadWatermarkImage = async (galleryId: string, file: File) => {
+    setUploadingWatermarkImg(prev => ({ ...prev, [galleryId]: true }));
+    try {
+      const res = await fetch("/api/admin/upload-signature", { method: "POST", credentials: "include" });
+      if (!res.ok) throw new Error("Upload signature failed");
+      const config: SignedConfig = await res.json();
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("api_key", config.apiKey);
+      fd.append("timestamp", String(config.timestamp));
+      fd.append("signature", config.signature);
+      const up = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`, { method: "POST", body: fd });
+      const data = await up.json();
+      setWatermarkForms(prev => ({
+        ...prev,
+        [galleryId]: { ...prev[galleryId], imageUrl: data.secure_url, imagePublicId: data.public_id },
+      }));
+      toast({ title: "Watermark image uploaded" });
+    } catch {
+      toast({ title: "Upload failed", variant: "destructive" });
+    } finally {
+      setUploadingWatermarkImg(prev => ({ ...prev, [galleryId]: false }));
+    }
+  };
+
+  const saveWatermarkSettings = (galleryId: string) => {
+    const settings = watermarkForms[galleryId];
+    if (!settings) return;
+    updateSettingsMutation.mutate({ galleryId, settings: { watermarkSettings: settings } });
+    toast({ title: "Watermark settings saved" });
+  };
 
   // ── Drag handlers ────────────────────────────────────────────────────────────
 
@@ -1273,6 +1329,148 @@ export function AdminGalleries() {
                               </label>
                             </div>
                           </div>
+
+                          {/* Watermark settings */}
+                          {(() => {
+                            const wm = watermarkForms[gallery.id] ?? DEFAULT_WATERMARK_SETTINGS;
+                            const isWmOpen = watermarkPanelOpen[gallery.id] ?? false;
+                            const isUploading = uploadingWatermarkImg[gallery.id] ?? false;
+                            const wmFileInputId = `wm-img-admin-${gallery.id}`;
+                            return (
+                              <div className="border border-green-100 rounded-xl overflow-hidden">
+                                <button
+                                  type="button"
+                                  className="w-full flex items-center justify-between px-3 py-2.5 bg-green-50/60 text-sm font-medium hover:bg-green-50 transition-colors text-green-800"
+                                  onClick={() => setWatermarkPanelOpen(prev => ({ ...prev, [gallery.id]: !isWmOpen }))}
+                                >
+                                  <div className="flex items-center gap-1.5">
+                                    <Droplets className="w-3.5 h-3.5 text-green-600" />
+                                    <span>Watermark Settings</span>
+                                    {(wm.enabled?.gallery || wm.enabled?.selected || wm.enabled?.final) && (
+                                      <span className="text-xs text-green-600 font-normal">(active)</span>
+                                    )}
+                                  </div>
+                                  {isWmOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                </button>
+
+                                {isWmOpen && (
+                                  <div className="p-4 space-y-4 bg-white">
+                                    {/* Per-category toggles */}
+                                    <div>
+                                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Enable per category</p>
+                                      <div className="grid grid-cols-3 gap-2">
+                                        {(["gallery", "selected", "final"] as const).map(cat => (
+                                          <div key={cat} className="flex items-center justify-between rounded border px-2 py-1.5">
+                                            <span className="text-xs capitalize">{cat}</span>
+                                            <Switch
+                                              checked={wm.enabled?.[cat] ?? false}
+                                              onCheckedChange={v => setWatermarkForms(prev => ({
+                                                ...prev,
+                                                [gallery.id]: { ...prev[gallery.id], enabled: { ...(prev[gallery.id]?.enabled ?? { gallery: false, selected: false, final: false }), [cat]: v } },
+                                              }))}
+                                            />
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* Type selector */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {(["text", "image"] as const).map(t => (
+                                        <button
+                                          key={t}
+                                          type="button"
+                                          onClick={() => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], type: t } }))}
+                                          className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors capitalize ${wm.type === t ? "bg-green-700 text-white border-green-700" : "border-muted-foreground/30 hover:bg-muted"}`}
+                                        >
+                                          {t === "text" ? "Text watermark" : "Image watermark"}
+                                        </button>
+                                      ))}
+                                    </div>
+
+                                    {/* Text input */}
+                                    {wm.type === "text" && (
+                                      <div>
+                                        <label className="text-xs font-medium text-muted-foreground block mb-1">Watermark text</label>
+                                        <Input
+                                          value={wm.text ?? ""}
+                                          onChange={e => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], text: e.target.value } }))}
+                                          placeholder="e.g. © Your Studio Name"
+                                          className="text-sm h-8"
+                                        />
+                                      </div>
+                                    )}
+
+                                    {/* Image upload */}
+                                    {wm.type === "image" && (
+                                      <div>
+                                        <label className="text-xs font-medium text-muted-foreground block mb-1">Watermark image (PNG/JPG)</label>
+                                        <div className="flex items-center gap-2">
+                                          {wm.imageUrl && (
+                                            <img src={wm.imageUrl} alt="watermark" className="h-10 w-auto rounded border object-contain bg-muted/30" />
+                                          )}
+                                          <Button size="sm" variant="outline" className="h-8 text-xs" asChild disabled={isUploading}>
+                                            <label htmlFor={wmFileInputId} className="cursor-pointer flex items-center gap-1">
+                                              {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <UploadIcon className="w-3 h-3" />}
+                                              {wm.imageUrl ? "Replace" : "Upload"}
+                                            </label>
+                                          </Button>
+                                          {wm.imageUrl && (
+                                            <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive hover:text-destructive" onClick={() =>
+                                              setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], imageUrl: "", imagePublicId: "" } }))
+                                            }>
+                                              <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                          )}
+                                          <input
+                                            id={wmFileInputId}
+                                            type="file"
+                                            accept="image/jpeg,image/png"
+                                            className="hidden"
+                                            onChange={e => {
+                                              const f = e.target.files?.[0];
+                                              if (f) uploadWatermarkImage(gallery.id, f);
+                                              e.target.value = "";
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Opacity slider */}
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <label className="text-xs font-medium text-muted-foreground">Opacity</label>
+                                        <span className="text-xs text-muted-foreground">{wm.opacity ?? 50}%</span>
+                                      </div>
+                                      <Slider
+                                        min={0} max={100} step={1}
+                                        value={[wm.opacity ?? 50]}
+                                        onValueChange={([v]) => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], opacity: v } }))}
+                                      />
+                                    </div>
+
+                                    {/* Scale slider */}
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <label className="text-xs font-medium text-muted-foreground">Size (% of image width)</label>
+                                        <span className="text-xs text-muted-foreground">{wm.scale ?? 30}%</span>
+                                      </div>
+                                      <Slider
+                                        min={5} max={80} step={1}
+                                        value={[wm.scale ?? 30]}
+                                        onValueChange={([v]) => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], scale: v } }))}
+                                      />
+                                    </div>
+
+                                    <Button size="sm" onClick={() => saveWatermarkSettings(gallery.id)} className="w-full h-8 text-xs bg-green-700 hover:bg-green-800 text-white">
+                                      <Save className="w-3 h-3 mr-1" /> Save Watermark Settings
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {/* Image sections */}
                           {(["gallery", "selected", "final"] as ImageType[]).map((type) => (
