@@ -745,10 +745,40 @@ function ImageSection({
                   <div className="absolute inset-0 bg-blue-500/20 pointer-events-none" />
                 )}
 
-                {/* Select circle — top-right, visible on hover or when selected */}
+                {/* Drag handle (bottom-left) */}
+                {canDrag && (
+                  <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <GripVertical className="w-3.5 h-3.5 text-white drop-shadow" />
+                  </div>
+                )}
+
+                {/* Hover actions — rendered before the select circle so circle stays on top */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 pointer-events-none">
+                  <button onClick={(e) => { e.stopPropagation(); onPreview(url); }}
+                    className="p-1.5 bg-white/90 rounded-full shadow pointer-events-auto">
+                    <Eye className="w-3 h-3 text-gray-700" />
+                  </button>
+                  {type === "final" && (
+                    <a href={url} download target="_blank" rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1.5 bg-white/90 rounded-full shadow pointer-events-auto">
+                      <Download className="w-3 h-3 text-green-700" />
+                    </a>
+                  )}
+                  {selectedUrls.size === 0 && (
+                    <button onClick={(e) => { e.stopPropagation(); onRemove(gallery, type, url); }}
+                      className="p-1.5 bg-white/90 rounded-full shadow pointer-events-auto">
+                      <X className="w-3 h-3 text-red-500" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Select circle — rendered last so it's always on top of the overlay */}
                 <button
+                  draggable={false}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); toggleSelect(url, i); }}
-                  className={`absolute top-1 right-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all shadow ${
+                  className={`absolute top-1 right-1 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all shadow ${
                     isSelected
                       ? "bg-blue-600 border-blue-600 opacity-100"
                       : "bg-white/80 border-gray-400 opacity-0 group-hover:opacity-100"
@@ -756,34 +786,6 @@ function ImageSection({
                 >
                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                 </button>
-
-                {/* Drag handle (bottom-left, only when not selecting) */}
-                {canDrag && (
-                  <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <GripVertical className="w-3.5 h-3.5 text-white drop-shadow" />
-                  </div>
-                )}
-
-                {/* Hover actions — always available (preview, download, delete) */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
-                  <button onClick={(e) => { e.stopPropagation(); onPreview(url); }}
-                    className="p-1.5 bg-white/90 rounded-full shadow">
-                    <Eye className="w-3 h-3 text-gray-700" />
-                  </button>
-                  {type === "final" && (
-                    <a href={url} download target="_blank" rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-1.5 bg-white/90 rounded-full shadow">
-                      <Download className="w-3 h-3 text-green-700" />
-                    </a>
-                  )}
-                  {selectedUrls.size === 0 && (
-                    <button onClick={(e) => { e.stopPropagation(); onRemove(gallery, type, url); }}
-                      className="p-1.5 bg-white/90 rounded-full shadow">
-                      <X className="w-3 h-3 text-red-500" />
-                    </button>
-                  )}
-                </div>
               </div>
             );
           })}
