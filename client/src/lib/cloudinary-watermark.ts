@@ -1,3 +1,26 @@
+export type WatermarkPosition =
+  | 'top-left' | 'top-center' | 'top-right'
+  | 'middle-left' | 'center' | 'middle-right'
+  | 'bottom-left' | 'bottom-center' | 'bottom-right';
+
+const GRAVITY_MAP: Record<WatermarkPosition, string> = {
+  'top-left':      'g_north_west,x_15,y_15',
+  'top-center':    'g_north,y_15',
+  'top-right':     'g_north_east,x_15,y_15',
+  'middle-left':   'g_west,x_15',
+  'center':        'g_center',
+  'middle-right':  'g_east,x_15',
+  'bottom-left':   'g_south_west,x_15,y_15',
+  'bottom-center': 'g_south,y_15',
+  'bottom-right':  'g_south_east,x_15,y_15',
+};
+
+export const POSITION_GRID: WatermarkPosition[][] = [
+  ['top-left',    'top-center',    'top-right'],
+  ['middle-left', 'center',        'middle-right'],
+  ['bottom-left', 'bottom-center', 'bottom-right'],
+];
+
 export interface WatermarkSettings {
   enabled: {
     gallery: boolean;
@@ -8,8 +31,9 @@ export interface WatermarkSettings {
   text: string;
   imageUrl: string;
   imagePublicId: string;
-  opacity: number;  // 0–100
-  scale: number;    // 1–100 (% of image width)
+  opacity: number;       // 0–100
+  scale: number;         // 1–100 (% of image width)
+  position: WatermarkPosition;
 }
 
 export const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
@@ -20,31 +44,30 @@ export const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
   imagePublicId: '',
   opacity: 50,
   scale: 30,
+  position: 'bottom-right',
 };
 
 /**
  * Insert a Cloudinary watermark transformation into a Cloudinary URL.
- * Works by inserting the transformation string right after `/upload/`.
  */
 export function applyWatermark(url: string, settings: WatermarkSettings): string {
   if (!url || !url.includes('res.cloudinary.com')) return url;
 
   const opacity = Math.min(100, Math.max(0, Math.round(settings.opacity)));
   const scale = (Math.min(100, Math.max(1, settings.scale)) / 100).toFixed(2);
+  const gravity = GRAVITY_MAP[settings.position ?? 'bottom-right'];
 
   let overlay = '';
 
   if (settings.type === 'text' && settings.text?.trim()) {
-    // Encode text: spaces → _, remove chars that break URL paths
     const encoded = settings.text
       .trim()
       .replace(/\s+/g, '_')
       .replace(/[\/\\,]/g, '');
-    overlay = `l_text:Arial_40:${encoded},co_white,o_${opacity},g_south_east,x_15,y_15,w_${scale},fl_relative,c_fit`;
+    overlay = `l_text:Arial_40:${encoded},co_white,o_${opacity},${gravity},w_${scale},fl_relative,c_fit`;
   } else if (settings.type === 'image' && settings.imagePublicId?.trim()) {
-    // Forward slashes in public IDs must be encoded as colons for Cloudinary URL overlays
     const encodedId = settings.imagePublicId.trim().replace(/\//g, ':');
-    overlay = `l_${encodedId},o_${opacity},g_south_east,x_15,y_15,w_${scale},fl_relative`;
+    overlay = `l_${encodedId},o_${opacity},${gravity},w_${scale},fl_relative`;
   }
 
   if (!overlay) return url;
@@ -54,7 +77,6 @@ export function applyWatermark(url: string, settings: WatermarkSettings): string
 
 /**
  * Return the watermarked URL for a given gallery category.
- * If watermarking is disabled for that category (or settings are missing), returns the original URL.
  */
 export function getWatermarkedUrl(
   url: string,

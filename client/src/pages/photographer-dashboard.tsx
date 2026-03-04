@@ -6,7 +6,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { defaultPricingConfig, type PricingConfig } from "@shared/pricing";
 import { DEFAULT_BOOKING_TERMS, type BookingTerms } from "@shared/booking-terms";
-import { type WatermarkSettings, DEFAULT_WATERMARK_SETTINGS } from "@/lib/cloudinary-watermark";
+import { type WatermarkSettings, DEFAULT_WATERMARK_SETTINGS, POSITION_GRID } from "@/lib/cloudinary-watermark";
 import { TermsEditor } from "@/components/terms-editor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1558,6 +1558,22 @@ export default function PhotographerDashboard() {
                                       value={[wm.scale ?? 30]}
                                       onValueChange={([v]) => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], scale: v } }))}
                                     />
+                                  </div>
+
+                                  {/* Position picker */}
+                                  <div>
+                                    <label className="text-xs font-medium text-muted-foreground block mb-2">Position</label>
+                                    <div className="grid grid-cols-3 gap-1 w-24">
+                                      {POSITION_GRID.map((row, ri) => row.map((pos) => (
+                                        <button
+                                          key={pos}
+                                          type="button"
+                                          title={pos.replace(/-/g, ' ')}
+                                          onClick={() => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], position: pos } }))}
+                                          className={`w-7 h-7 rounded border transition-colors ${(wm.position ?? 'bottom-right') === pos ? 'bg-primary border-primary' : 'border-muted-foreground/30 hover:bg-muted'}`}
+                                        />
+                                      )))}
+                                    </div>
                                   </div>
 
                                   <Button size="sm" onClick={() => saveWatermarkSettings(gallery.id)} className="w-full h-8 text-xs">
