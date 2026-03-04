@@ -224,6 +224,9 @@ export default function PhotographerDashboard() {
   // Bookings
   const [bookingStatusDraft, setBookingStatusDraft] = useState<Record<string, string>>({});
   const [bookingFilter, setBookingFilter] = useState<"all" | "upcoming" | "confirmed" | "completed" | "cancelled">("all");
+  const [bookingSort, setBookingSort] = useState<"newest" | "shoot-asc" | "shoot-desc">("newest");
+  const [gallerySearch, setGallerySearch] = useState("");
+  const [gallerySortBy, setGallerySortBy] = useState<"newest" | "oldest" | "client" | "status">("newest");
 
   // Gallery
   const [galDragSrc, setGalDragSrc] = useState<{ galleryId: string; type: GalleryImageType; index: number } | null>(null);
@@ -583,14 +586,19 @@ export default function PhotographerDashboard() {
 
   const filteredBookings = useMemo(() => {
     if (!userBookings) return [];
+    let list = userBookings;
     switch (bookingFilter) {
-      case "upcoming":   return userBookings.filter(b => !["completed", "cancelled", "declined"].includes(b.status));
-      case "confirmed":  return userBookings.filter(b => b.status === "confirmed");
-      case "completed":  return userBookings.filter(b => b.status === "completed");
-      case "cancelled":  return userBookings.filter(b => ["cancelled", "declined"].includes(b.status));
-      default:           return userBookings;
+      case "upcoming":  list = list.filter(b => !["completed", "cancelled", "declined"].includes(b.status)); break;
+      case "confirmed": list = list.filter(b => b.status === "confirmed"); break;
+      case "completed": list = list.filter(b => b.status === "completed"); break;
+      case "cancelled": list = list.filter(b => ["cancelled", "declined"].includes(b.status)); break;
     }
-  }, [userBookings, bookingFilter]);
+    return [...list].sort((a, b) => {
+      if (bookingSort === "shoot-asc")  return a.shootDate.localeCompare(b.shootDate);
+      if (bookingSort === "shoot-desc") return b.shootDate.localeCompare(a.shootDate);
+      return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(); // newest
+    });
+  }, [userBookings, bookingFilter, bookingSort]);
 
   const upcomingBookings = useMemo(() => {
     if (!userBookings) return [];
@@ -599,6 +607,28 @@ export default function PhotographerDashboard() {
       .sort((a, b) => a.shootDate.localeCompare(b.shootDate))
       .slice(0, 3);
   }, [userBookings]);
+
+  const filteredGalleries = useMemo(() => {
+    let list = userGalleries ?? [];
+    if (gallerySearch) {
+      const s = gallerySearch.toLowerCase();
+      list = list.filter(g => {
+        const booking = userBookings?.find(b => b.id === g.bookingId);
+        return (booking?.clientName ?? "").toLowerCase().includes(s) ||
+               (g.status ?? "").toLowerCase().includes(s);
+      });
+    }
+    return [...list].sort((a, b) => {
+      if (gallerySortBy === "oldest") return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
+      if (gallerySortBy === "client") {
+        const ba = userBookings?.find(bk => bk.id === a.bookingId);
+        const bb = userBookings?.find(bk => bk.id === b.bookingId);
+        return (ba?.clientName ?? "").localeCompare(bb?.clientName ?? "");
+      }
+      if (gallerySortBy === "status") return (a.status ?? "").localeCompare(b.status ?? "");
+      return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(); // newest
+    });
+  }, [userGalleries, userBookings, gallerySearch, gallerySortBy]);
 
   const navItems: { id: Tab; label: string; icon: React.ElementType; badge: number }[] = [
     { id: "overview",  label: "Overview",  icon: LayoutDashboard, badge: 0 },
@@ -1066,8 +1096,8 @@ export default function PhotographerDashboard() {
           {/* ── BOOKINGS ── */}
           {activeTab === "bookings" && (
             <div className="max-w-3xl space-y-4">
-              {/* Filter strip */}
-              <div className="flex gap-2 flex-wrap">
+              {/* Filter + Sort strip */}
+              <div className="flex gap-2 flex-wrap items-center">
                 {(["all", "upcoming", "confirmed", "completed", "cancelled"] as const).map(f => (
                   <button key={f} onClick={() => setBookingFilter(f)}
                     className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
@@ -1080,6 +1110,16 @@ export default function PhotographerDashboard() {
                     {f === "all" && (userBookings?.length ?? 0) > 0 && <span className="ml-1.5 text-xs opacity-70">{userBookings?.length}</span>}
                   </button>
                 ))}
+                <Select value={bookingSort} onValueChange={v => setBookingSort(v as typeof bookingSort)}>
+                  <SelectTrigger className="h-8 text-xs w-36 ml-auto">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest first</SelectItem>
+                    <SelectItem value="shoot-asc">Shoot date ↑</SelectItem>
+                    <SelectItem value="shoot-desc">Shoot date ↓</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {filteredBookings.length === 0 ? (
@@ -1191,6 +1231,29 @@ export default function PhotographerDashboard() {
           {/* ── GALLERIES ── */}
           {activeTab === "galleries" && (
             <div className="space-y-4 max-w-4xl">
+              {/* Gallery filter/sort */}
+              {(userGalleries?.length ?? 0) > 0 && (
+                <div className="flex gap-2 flex-wrap items-center">
+                  <Input
+                    placeholder="Search by client or status…"
+                    value={gallerySearch}
+                    onChange={e => setGallerySearch(e.target.value)}
+                    className="h-8 text-sm w-48"
+                  />
+                  <Select value={gallerySortBy} onValueChange={v => setGallerySortBy(v as typeof gallerySortBy)}>
+                    <SelectTrigger className="h-8 text-xs w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest first</SelectItem>
+                      <SelectItem value="oldest">Oldest first</SelectItem>
+                      <SelectItem value="client">Client A–Z</SelectItem>
+                      <SelectItem value="status">Status</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">{filteredGalleries.length} of {userGalleries?.length}</span>
+                </div>
+              )}
               {!userGalleries?.length ? (
                 <Card>
                   <CardContent className="py-12 text-center text-muted-foreground">
@@ -1199,7 +1262,7 @@ export default function PhotographerDashboard() {
                   </CardContent>
                 </Card>
               ) : (
-                userGalleries.map(gallery => {
+                filteredGalleries.map(gallery => {
                   const booking = userBookings?.find(b => b.id === gallery.bookingId);
                   return (
                     <Card key={gallery.id}>

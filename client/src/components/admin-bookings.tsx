@@ -206,6 +206,7 @@ export function AdminBookings() {
   const [serviceTypeFilter, setServiceTypeFilter] = useState<string>("all");
   const [dateFromFilter, setDateFromFilter] = useState<string>("");
   const [dateToFilter, setDateToFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("newest");
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({
     queryKey: ["/api/admin/bookings"],
@@ -255,6 +256,15 @@ export function AdminBookings() {
     if (dateToFilter && booking.shootDate > dateToFilter) return false;
 
     return true;
+  }).sort((a, b) => {
+    switch (sortBy) {
+      case "oldest":         return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
+      case "shoot-asc":      return a.shootDate.localeCompare(b.shootDate);
+      case "shoot-desc":     return b.shootDate.localeCompare(a.shootDate);
+      case "amount-asc":     return (a.totalPrice ?? 0) - (b.totalPrice ?? 0);
+      case "amount-desc":    return (b.totalPrice ?? 0) - (a.totalPrice ?? 0);
+      default:               return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(); // newest
+    }
   }) || [];
 
   const approvedPhotographers = (photographers || []).filter(
@@ -675,7 +685,7 @@ export function AdminBookings() {
         <CardContent>
           {/* Search and Filter Controls */}
           <div className="mb-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
               <div className="md:col-span-2">
                 <Input
                   placeholder="Search by client name, email, location..."
@@ -685,7 +695,7 @@ export function AdminBookings() {
                   data-testid="input-search-bookings"
                 />
               </div>
-              
+
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger data-testid="select-status-filter">
                   <SelectValue placeholder="All Statuses" />
@@ -712,18 +722,33 @@ export function AdminBookings() {
                 </SelectContent>
               </Select>
 
-              <Button 
-                variant="outline" 
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest first</SelectItem>
+                  <SelectItem value="oldest">Oldest first</SelectItem>
+                  <SelectItem value="shoot-asc">Shoot date ↑</SelectItem>
+                  <SelectItem value="shoot-desc">Shoot date ↓</SelectItem>
+                  <SelectItem value="amount-desc">Amount high–low</SelectItem>
+                  <SelectItem value="amount-asc">Amount low–high</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
                 onClick={() => {
                   setSearchTerm("");
                   setStatusFilter("all");
                   setServiceTypeFilter("all");
                   setDateFromFilter("");
                   setDateToFilter("");
+                  setSortBy("newest");
                 }}
                 data-testid="button-clear-filters"
               >
-                Clear Filters
+                Clear
               </Button>
             </div>
 

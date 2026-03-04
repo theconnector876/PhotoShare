@@ -812,6 +812,7 @@ export function AdminGalleries() {
 
   const [searchTerm, setSearchTerm]     = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [gallerySortBy, setGallerySortBy] = useState("newest");
   const [expandedId, setExpandedId]     = useState<string | null>(null);
   const [fileItems, setFileItems]       = useState<FileItem[]>([]);
   const [showUploadPanel, setShowUploadPanel] = useState(false);
@@ -856,6 +857,11 @@ export function AdminGalleries() {
         return false;
     }
     return statusFilter === "all" || g.status === statusFilter;
+  }).sort((a, b) => {
+    if (gallerySortBy === "oldest") return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
+    if (gallerySortBy === "most-images") return ((b.galleryImages?.length ?? 0) + (b.finalImages?.length ?? 0)) - ((a.galleryImages?.length ?? 0) + (a.finalImages?.length ?? 0));
+    if (gallerySortBy === "client") return (a.clientEmail ?? "").localeCompare(b.clientEmail ?? "");
+    return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(); // newest
   });
 
   // ── Mutations ────────────────────────────────────────────────────────────────
@@ -1158,8 +1164,17 @@ export function AdminGalleries() {
                 <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={gallerySortBy} onValueChange={setGallerySortBy}>
+              <SelectTrigger className="w-36 border-green-200"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="most-images">Most images</SelectItem>
+                <SelectItem value="client">Client A–Z</SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant="outline" className="border-green-200 text-green-700 hover:bg-green-50"
-              onClick={() => { setSearchTerm(""); setStatusFilter("all"); }}>Clear</Button>
+              onClick={() => { setSearchTerm(""); setStatusFilter("all"); setGallerySortBy("newest"); }}>Clear</Button>
             <span className="text-sm text-green-600 self-center">
               {filteredGalleries.length} / {galleries?.length || 0}
             </span>

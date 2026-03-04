@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, Shield, User, Crown, Mail, Calendar, Ban, Unlock, Trash2, KeyRound, Pencil } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
@@ -50,6 +51,9 @@ export function AdminUsers() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [userSort, setUserSort] = useState("newest");
 
   const createForm = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
@@ -161,6 +165,29 @@ export function AdminUsers() {
     return new Date(dateString).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   };
 
+  const filteredUsers = (users ?? [])
+    .filter(u => {
+      if (userSearch) {
+        const s = userSearch.toLowerCase();
+        if (
+          !(u.firstName ?? "").toLowerCase().includes(s) &&
+          !(u.lastName ?? "").toLowerCase().includes(s) &&
+          !u.email.toLowerCase().includes(s)
+        ) return false;
+      }
+      if (roleFilter === "admin") return u.isAdmin;
+      if (roleFilter === "photographer") return u.role === "photographer";
+      if (roleFilter === "client") return !u.isAdmin && u.role !== "photographer";
+      if (roleFilter === "blocked") return u.isBlocked;
+      return true;
+    })
+    .sort((a, b) => {
+      if (userSort === "name-asc") return `${a.firstName}${a.lastName}`.localeCompare(`${b.firstName}${b.lastName}`);
+      if (userSort === "name-desc") return `${b.firstName}${b.lastName}`.localeCompare(`${a.firstName}${a.lastName}`);
+      if (userSort === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // newest
+    });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -238,15 +265,50 @@ export function AdminUsers() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Search / Filter / Sort */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Input
+              placeholder="Search by name or email…"
+              value={userSearch}
+              onChange={e => setUserSearch(e.target.value)}
+              className="h-8 text-sm w-48"
+            />
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="h-8 text-sm w-36">
+                <SelectValue placeholder="All roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                <SelectItem value="client">Clients</SelectItem>
+                <SelectItem value="photographer">Photographers</SelectItem>
+                <SelectItem value="admin">Admins</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={userSort} onValueChange={setUserSort}>
+              <SelectTrigger className="h-8 text-sm w-36">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="name-asc">Name A–Z</SelectItem>
+                <SelectItem value="name-desc">Name Z–A</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground self-center ml-1">
+              {filteredUsers.length} of {users?.length ?? 0}
+            </span>
+          </div>
           <div className="space-y-4">
-            {!users || users.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="mx-auto text-muted-foreground mb-4" size={48} />
                 <h3 className="text-xl font-semibold mb-2">No users found</h3>
               </div>
             ) : (
               <div className="grid gap-4">
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <Card key={user.id} className={user.isBlocked ? "opacity-60 border-red-200" : ""}>
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start">
