@@ -51218,6 +51218,7 @@ __export(schema_exports, {
   conversationParticipants: () => conversationParticipants,
   conversations: () => conversations,
   coupons: () => coupons,
+  customPackages: () => customPackages,
   galleries: () => galleries,
   inboundEmails: () => inboundEmails,
   insertBlogPostSchema: () => insertBlogPostSchema,
@@ -51227,6 +51228,7 @@ __export(schema_exports, {
   insertConversationParticipantSchema: () => insertConversationParticipantSchema,
   insertConversationSchema: () => insertConversationSchema,
   insertCouponSchema: () => insertCouponSchema,
+  insertCustomPackageSchema: () => insertCustomPackageSchema,
   insertGallerySchema: () => insertGallerySchema,
   insertMessageSchema: () => insertMessageSchema,
   insertPayoutSchema: () => insertPayoutSchema,
@@ -62280,6 +62282,21 @@ var insertBlogPostSchema = createInsertSchema(blogPosts).omit({
   updatedAt: true
 });
 var insertPayoutSchema = createInsertSchema(payouts).omit({ id: true, createdAt: true, requestedAt: true, processedAt: true });
+var customPackages = pgTable("custom_packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  serviceType: text("service_type").notNull(),
+  // photoshoot, wedding, event
+  totalPrice: integer("total_price").notNull(),
+  // in cents / smallest unit
+  depositAmount: integer("deposit_amount").notNull().default(0),
+  currency: varchar("currency", { length: 3 }).default("USD"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow()
+});
+var insertCustomPackageSchema = createInsertSchema(customPackages).omit({ id: true, createdAt: true });
 
 // node_modules/@neondatabase/serverless/index.mjs
 var io = Object.create;
@@ -68907,6 +68924,24 @@ var DatabaseStorage = class {
     const result = await db.select({ count: sql`count(*)::int` }).from(payouts).where(eq(payouts.status, "pending"));
     return result[0]?.count ?? 0;
   }
+  async getAllCustomPackages() {
+    return db.select().from(customPackages).orderBy(desc(customPackages.createdAt));
+  }
+  async getCustomPackageById(id) {
+    const [pkg] = await db.select().from(customPackages).where(eq(customPackages.id, id));
+    return pkg;
+  }
+  async createCustomPackage(data) {
+    const [pkg] = await db.insert(customPackages).values(data).returning();
+    return pkg;
+  }
+  async updateCustomPackage(id, data) {
+    const [pkg] = await db.update(customPackages).set(data).where(eq(customPackages.id, id)).returning();
+    return pkg;
+  }
+  async deleteCustomPackage(id) {
+    await db.delete(customPackages).where(eq(customPackages.id, id));
+  }
 };
 var storage = new DatabaseStorage();
 
@@ -74471,7 +74506,8 @@ function normalizeLsUrl(url) {
 var bookingWithAccountSchema = insertBookingSchema.extend({
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
   confirmPassword: z.string().optional(),
-  couponCode: z.string().optional()
+  couponCode: z.string().optional(),
+  customPackageId: z.string().optional()
 }).refine((data) => {
   if (data.password !== void 0 || data.confirmPassword !== void 0) {
     return data.password === data.confirmPassword;
@@ -74790,7 +74826,17 @@ async function registerRoutes(app2) {
       const { password: reqPassword, confirmPassword: reqConfirmPassword, ...safeBookingData } = req.body;
       console.log("Booking request received for:", safeBookingData.email);
       const validatedData = bookingWithAccountSchema.parse(req.body);
-      const { password: validatedPassword, confirmPassword: validatedConfirmPassword, ...bookingData } = validatedData;
+      const { password: validatedPassword, confirmPassword: validatedConfirmPassword, customPackageId, ...bookingData } = validatedData;
+      if (customPackageId) {
+        const pkg = await storage.getCustomPackageById(customPackageId);
+        if (!pkg || !pkg.isActive) {
+          return res.status(400).json({ error: "Custom package not found or inactive" });
+        }
+        bookingData.totalPrice = pkg.totalPrice;
+        bookingData.serviceType = pkg.serviceType;
+        bookingData.currency = pkg.currency || "USD";
+        bookingData.packageType = bookingData.packageType || "custom";
+      }
       const normalizedEmail = normalizeEmail(bookingData.email);
       let user = await storage.getUserByEmail(normalizedEmail);
       if (!user) {
@@ -76067,6 +76113,19 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to fetch users" });
     }
   });
+  app2.get("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.params.id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const { password: _2, ...safeUser } = user;
+      const photographerProfile = user.role === "photographer" ? await storage.getPhotographerProfileByUserId(user.id) : null;
+      const bookingList = user.email ? await storage.getUserBookings(user.email) : [];
+      res.json({ user: safeUser, photographerProfile, bookings: bookingList });
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      res.status(500).json({ error: "Failed to fetch user profile" });
+    }
+  });
   app2.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
     try {
       const ok = await storage.deleteUser(req.params.id);
@@ -77070,6 +77129,73 @@ Thank you!`
       res.json({ ok: true });
     } catch (err) {
       res.status(400).json({ error: err.message });
+    }
+  });
+  app2.get("/api/admin/custom-packages", isAdmin, async (_req, res) => {
+    try {
+      const pkgs = await storage.getAllCustomPackages();
+      res.json(pkgs);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.post("/api/admin/custom-packages", isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        serviceType: z.string().min(1),
+        totalPrice: z.number().int().positive(),
+        depositAmount: z.number().int().min(0).optional().default(0),
+        currency: z.string().length(3).optional().default("USD")
+      });
+      const data = schema.parse(req.body);
+      const pkg = await storage.createCustomPackage({
+        ...data,
+        createdBy: req.user?.id ?? null,
+        isActive: true
+      });
+      res.json(pkg);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.patch("/api/admin/custom-packages/:id", isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        serviceType: z.string().optional(),
+        totalPrice: z.number().int().positive().optional(),
+        depositAmount: z.number().int().min(0).optional(),
+        currency: z.string().length(3).optional(),
+        isActive: z.boolean().optional()
+      });
+      const data = schema.parse(req.body);
+      const pkg = await storage.updateCustomPackage(req.params.id, data);
+      if (!pkg) return res.status(404).json({ error: "Not found" });
+      res.json(pkg);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.delete("/api/admin/custom-packages/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteCustomPackage(req.params.id);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.get("/api/custom-packages/:id", async (req, res) => {
+    try {
+      const pkg = await storage.getCustomPackageById(req.params.id);
+      if (!pkg || !pkg.isActive) return res.status(404).json({ error: "Package not found" });
+      res.json(pkg);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   });
   app2.get("/api/booking-terms", async (req, res) => {

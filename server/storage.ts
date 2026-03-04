@@ -44,6 +44,8 @@ import {
   type BlogPost,
   type InsertBlogPost,
   type Payout,
+  customPackages,
+  type CustomPackage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql, desc, lt, gt, isNull, or } from "drizzle-orm";
@@ -193,6 +195,13 @@ export interface IStorage {
   getAllPayouts(): Promise<(Payout & { photographerName: string | null; photographerEmail: string | null })[]>;
   updatePayoutStatus(id: string, status: string, adminNotes?: string, referenceNumber?: string, receiptUrl?: string): Promise<Payout | undefined>;
   getPendingPayoutCount(): Promise<number>;
+
+  // Custom package operations
+  getAllCustomPackages(): Promise<import('@shared/schema').CustomPackage[]>;
+  getCustomPackageById(id: string): Promise<import('@shared/schema').CustomPackage | undefined>;
+  createCustomPackage(data: Omit<import('@shared/schema').CustomPackage, 'id' | 'createdAt'>): Promise<import('@shared/schema').CustomPackage>;
+  updateCustomPackage(id: string, data: Partial<import('@shared/schema').CustomPackage>): Promise<import('@shared/schema').CustomPackage | undefined>;
+  deleteCustomPackage(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1365,6 +1374,29 @@ export class DatabaseStorage implements IStorage {
       .from(payouts)
       .where(eq(payouts.status, 'pending'));
     return result[0]?.count ?? 0;
+  }
+
+  async getAllCustomPackages(): Promise<CustomPackage[]> {
+    return db.select().from(customPackages).orderBy(desc(customPackages.createdAt));
+  }
+
+  async getCustomPackageById(id: string): Promise<CustomPackage | undefined> {
+    const [pkg] = await db.select().from(customPackages).where(eq(customPackages.id, id));
+    return pkg;
+  }
+
+  async createCustomPackage(data: Omit<CustomPackage, 'id' | 'createdAt'>): Promise<CustomPackage> {
+    const [pkg] = await db.insert(customPackages).values(data as any).returning();
+    return pkg;
+  }
+
+  async updateCustomPackage(id: string, data: Partial<CustomPackage>): Promise<CustomPackage | undefined> {
+    const [pkg] = await db.update(customPackages).set(data as any).where(eq(customPackages.id, id)).returning();
+    return pkg;
+  }
+
+  async deleteCustomPackage(id: string): Promise<void> {
+    await db.delete(customPackages).where(eq(customPackages.id, id));
   }
 }
 

@@ -85,6 +85,7 @@ const bookingWithAccountSchema = insertBookingSchema.extend({
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
   confirmPassword: z.string().optional(),
   couponCode: z.string().optional(),
+  customPackageId: z.string().optional(),
 }).refine((data) => {
   if (data.password !== undefined || data.confirmPassword !== undefined) {
     return data.password === data.confirmPassword;
@@ -487,7 +488,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = bookingWithAccountSchema.parse(req.body);
       
       // Extract password and confirmPassword from validated data
-      const { password: validatedPassword, confirmPassword: validatedConfirmPassword, ...bookingData } = validatedData;
+      const { password: validatedPassword, confirmPassword: validatedConfirmPassword, customPackageId, ...bookingData } = validatedData;
+
+      // If a custom package is specified, override price/serviceType from the package
+      if (customPackageId) {
+        const pkg = await storage.getCustomPackageById(customPackageId);
+        if (!pkg || !pkg.isActive) {
+          return res.status(400).json({ error: 'Custom package not found or inactive' });
+        }
+        bookingData.totalPrice = pkg.totalPrice;
+        bookingData.serviceType = pkg.serviceType;
+        bookingData.currency = pkg.currency || 'USD';
+        bookingData.packageType = bookingData.packageType || 'custom';
+      }
       
       // Check if user already exists with this email
       const normalizedEmail = normalizeEmail(bookingData.email);
@@ -2015,6 +2028,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single user profile (admin only)
+  app.get('/api/admin/users/:id', isAdmin, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.params.id);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      const { password: _, ...safeUser } = user as any;
+      const photographerProfile = user.role === 'photographer'
+        ? await storage.getPhotographerProfileByUserId(user.id)
+        : null;
+      const bookingList = user.email
+        ? await storage.getUserBookings(user.email)
+        : [];
+      res.json({ user: safeUser, photographerProfile, bookings: bookingList });
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      res.status(500).json({ error: 'Failed to fetch user profile' });
+    }
+  });
+
   // Delete user (admin only)
   app.delete('/api/admin/users/:id', isAdmin, async (req, res) => {
     try {
@@ -3145,6 +3177,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ ok: true });
     } catch (err: any) {
       res.status(400).json({ error: err.message });
+    }
+  });
+
+  // ── Custom Private Packages ──────────────────────────────────────────────────
+  // GET /api/admin/custom-packages – list all
+  app.get('/api/admin/custom-packages', isAdmin, async (_req, res) => {
+    try {
+      const pkgs = await storage.getAllCustomPackages();
+      res.json(pkgs);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/admin/custom-packages – create
+  app.post('/api/admin/custom-packages', isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        serviceType: z.string().min(1),
+        totalPrice: z.number().int().positive(),
+        depositAmount: z.number().int().min(0).optional().default(0),
+        currency: z.string().length(3).optional().default('USD'),
+      });
+      const data = schema.parse(req.body);
+      const pkg = await storage.createCustomPackage({
+        ...data,
+        createdBy: (req.user as any)?.id ?? null,
+        isActive: true,
+      });
+      res.json(pkg);
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // PATCH /api/admin/custom-packages/:id – update (name, isActive, etc.)
+  app.patch('/api/admin/custom-packages/:id', isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        serviceType: z.string().optional(),
+        totalPrice: z.number().int().positive().optional(),
+        depositAmount: z.number().int().min(0).optional(),
+        currency: z.string().length(3).optional(),
+        isActive: z.boolean().optional(),
+      });
+      const data = schema.parse(req.body);
+      const pkg = await storage.updateCustomPackage(req.params.id, data);
+      if (!pkg) return res.status(404).json({ error: 'Not found' });
+      res.json(pkg);
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // DELETE /api/admin/custom-packages/:id
+  app.delete('/api/admin/custom-packages/:id', isAdmin, async (req, res) => {
+    try {
+      await storage.deleteCustomPackage(req.params.id);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/custom-packages/:id – public endpoint for booking page
+  app.get('/api/custom-packages/:id', async (req, res) => {
+    try {
+      const pkg = await storage.getCustomPackageById(req.params.id);
+      if (!pkg || !pkg.isActive) return res.status(404).json({ error: 'Package not found' });
+      res.json(pkg);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 

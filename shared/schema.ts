@@ -386,6 +386,24 @@ export const insertPayoutSchema = createInsertSchema(payouts).omit({ id: true, c
 export type Payout = typeof payouts.$inferSelect;
 export type InsertPayout = z.infer<typeof insertPayoutSchema>;
 
+// Custom private packages – one-off offers shared via unique link
+export const customPackages = pgTable("custom_packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  serviceType: text("service_type").notNull(), // photoshoot, wedding, event
+  totalPrice: integer("total_price").notNull(), // in cents / smallest unit
+  depositAmount: integer("deposit_amount").notNull().default(0),
+  currency: varchar("currency", { length: 3 }).default("USD"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCustomPackageSchema = createInsertSchema(customPackages).omit({ id: true, createdAt: true });
+export type CustomPackage = typeof customPackages.$inferSelect;
+export type InsertCustomPackage = z.infer<typeof insertCustomPackageSchema>;
+
 export type PayoutDetails = {
   method: 'bank' | 'card';
   // Bank wire fields

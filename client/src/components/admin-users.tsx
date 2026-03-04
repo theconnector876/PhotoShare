@@ -13,7 +13,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Shield, User, Crown, Mail, Calendar, Ban, Unlock, Trash2, KeyRound, Pencil } from "lucide-react";
+import { Users, Shield, User, Crown, Mail, Calendar, Ban, Unlock, Trash2, KeyRound, Pencil, Eye, Phone, MapPin, Camera } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 interface UserData {
@@ -25,7 +27,36 @@ interface UserData {
   isBlocked: boolean;
   role?: string | null;
   photographerStatus?: string | null;
+  phone?: string | null;
   createdAt: string;
+}
+
+interface BookingSummary {
+  id: string;
+  clientName: string;
+  serviceType: string;
+  packageType: string;
+  shootDate: string;
+  totalPrice: number;
+  currency: string;
+  status: string;
+  depositPaid: boolean;
+  balancePaid: boolean;
+  createdAt: string;
+}
+
+interface PhotographerProfileData {
+  displayName?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  specialties?: string[];
+  phone?: string | null;
+}
+
+interface UserProfileData {
+  user: UserData;
+  photographerProfile: PhotographerProfileData | null;
+  bookings: BookingSummary[];
 }
 
 const createUserSchema = z.object({
@@ -51,6 +82,7 @@ export function AdminUsers() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [userSort, setUserSort] = useState("newest");
@@ -68,6 +100,15 @@ export function AdminUsers() {
   const { data: users, isLoading } = useQuery<UserData[]>({
     queryKey: ["/api/admin/users"],
     retry: false,
+  });
+
+  const { data: userProfile, isLoading: profileLoading } = useQuery<UserProfileData>({
+    queryKey: ["/api/admin/users", viewingUserId],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/admin/users/${viewingUserId}`);
+      return res.json();
+    },
+    enabled: !!viewingUserId,
   });
 
   const makeAdminMutation = useMutation({
@@ -340,6 +381,13 @@ export function AdminUsers() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => setViewingUserId(user.id)}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => {
                               setEditingUser(user);
                               editForm.reset({ firstName: user.firstName || "", lastName: user.lastName || "", email: user.email || "", password: "" });
@@ -417,6 +465,116 @@ export function AdminUsers() {
               {deleteUserMutation.isPending ? "Deleting..." : "Delete User"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Profile Dialog */}
+      <Dialog open={!!viewingUserId} onOpenChange={(open) => { if (!open) setViewingUserId(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              User Profile
+            </DialogTitle>
+          </DialogHeader>
+          {profileLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
+            </div>
+          ) : userProfile ? (
+            <ScrollArea className="flex-1 pr-2">
+              <div className="space-y-5">
+                {/* Basic Info */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    <h3 className="text-xl font-semibold">
+                      {userProfile.user.firstName} {userProfile.user.lastName}
+                    </h3>
+                    {userProfile.user.isAdmin && (
+                      <Badge className="bg-purple-500 text-white"><Crown className="w-3 h-3 mr-1" />Admin</Badge>
+                    )}
+                    {userProfile.user.isBlocked && (
+                      <Badge variant="destructive"><Ban className="w-3 h-3 mr-1" />Blocked</Badge>
+                    )}
+                    {userProfile.user.role && <Badge variant="secondary">{userProfile.user.role}</Badge>}
+                    {userProfile.user.photographerStatus && (
+                      <Badge variant="outline">{userProfile.user.photographerStatus}</Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2"><Mail className="w-4 h-4" />{userProfile.user.email}</div>
+                    {userProfile.user.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4" />{userProfile.user.phone}</div>}
+                    <div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Joined {formatDate(userProfile.user.createdAt)}</div>
+                  </div>
+                </div>
+
+                {/* Photographer Profile */}
+                {userProfile.photographerProfile && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h4 className="text-sm font-semibold mb-2 flex items-center gap-2"><Camera className="w-4 h-4" />Photographer Profile</h4>
+                      <div className="space-y-2 text-sm">
+                        {userProfile.photographerProfile.displayName && (
+                          <p><span className="text-muted-foreground">Display name:</span> {userProfile.photographerProfile.displayName}</p>
+                        )}
+                        {userProfile.photographerProfile.location && (
+                          <p className="flex items-center gap-1"><MapPin className="w-3 h-3 text-muted-foreground" />{userProfile.photographerProfile.location}</p>
+                        )}
+                        {userProfile.photographerProfile.phone && (
+                          <p className="flex items-center gap-1"><Phone className="w-3 h-3 text-muted-foreground" />{userProfile.photographerProfile.phone}</p>
+                        )}
+                        {userProfile.photographerProfile.bio && (
+                          <p className="text-muted-foreground leading-relaxed">{userProfile.photographerProfile.bio}</p>
+                        )}
+                        {(userProfile.photographerProfile.specialties ?? []).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {userProfile.photographerProfile.specialties!.map(s => (
+                              <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Bookings */}
+                <Separator />
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">
+                    Bookings ({userProfile.bookings.length})
+                  </h4>
+                  {userProfile.bookings.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No bookings yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {userProfile.bookings.slice().reverse().map(b => (
+                        <div key={b.id} className="border rounded-lg p-3 text-sm">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="font-medium">{b.serviceType} — {b.packageType}</div>
+                            <Badge variant={b.status === 'completed' ? 'default' : b.status === 'confirmed' ? 'secondary' : 'outline'} className="text-xs">
+                              {b.status}
+                            </Badge>
+                          </div>
+                          <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                            <span>{b.shootDate}</span>
+                            <span>{b.currency} {(b.totalPrice / 100).toLocaleString()}</span>
+                            <span className={b.depositPaid ? "text-green-600" : "text-orange-500"}>
+                              Deposit: {b.depositPaid ? "paid" : "unpaid"}
+                            </span>
+                            <span className={b.balancePaid ? "text-green-600" : "text-orange-500"}>
+                              Balance: {b.balancePaid ? "paid" : "unpaid"}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ScrollArea>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

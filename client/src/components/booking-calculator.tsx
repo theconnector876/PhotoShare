@@ -53,9 +53,10 @@ type BookingFormData = z.infer<ReturnType<typeof createBookingFormSchema>>;
 
 type BookingCalculatorProps = {
   photographerId?: string;
+  customPackageId?: string;
 };
 
-export default function BookingCalculator({ photographerId }: BookingCalculatorProps) {
+export default function BookingCalculator({ photographerId, customPackageId }: BookingCalculatorProps) {
   const { calculation, packages, pricingConfig, eventHours, updateService, updatePackage, updatePeople, updateTransportation, updateEventHours, toggleAddon, toggleVideoPackage, updateVideoPackage } = useBookingCalculator(photographerId);
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -64,6 +65,18 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
   const isLoggedIn = !!user;
   const { format } = useCurrency();
   const pricingCurrency = (pricingConfig.currency || 'USD') as Currency;
+
+  // Fetch custom package if provided
+  const { data: customPackage } = useQuery<{ id: string; name: string; description: string | null; serviceType: string; totalPrice: number; depositAmount: number; currency: string }>({
+    queryKey: ["/api/custom-packages", customPackageId],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/custom-packages/${customPackageId}`);
+      if (!res.ok) throw new Error("Package not found");
+      return res.json();
+    },
+    enabled: !!customPackageId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Fetch booking terms (photographer custom or platform default)
   const { data: bookingTerms } = useQuery<BookingTerms>({
@@ -127,17 +140,18 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
         ...rest,
         ...(isLoggedIn ? {} : { password, confirmPassword }),
         numberOfPeople: Number(data.numberOfPeople),
-        serviceType: calculation.serviceType,
-        packageType: calculation.packageType,
-        hasPhotoPackage: calculation.hasPhotoPackage,
-        hasVideoPackage: calculation.hasVideoPackage,
-        videoPackageType: calculation.videoPackageType,
-        transportationFee: calculation.transportationFee,
-        addons: calculation.addons,
-        totalPrice: calculation.totalPrice, // server will apply discount based on coupon code
-        currency: pricingCurrency,
+        serviceType: customPackage ? customPackage.serviceType : calculation.serviceType,
+        packageType: customPackage ? "custom" : calculation.packageType,
+        hasPhotoPackage: customPackage ? true : calculation.hasPhotoPackage,
+        hasVideoPackage: customPackage ? false : calculation.hasVideoPackage,
+        videoPackageType: customPackage ? null : calculation.videoPackageType,
+        transportationFee: customPackage ? 0 : calculation.transportationFee,
+        addons: customPackage ? [] : calculation.addons,
+        totalPrice: customPackage ? customPackage.totalPrice : calculation.totalPrice,
+        currency: customPackage ? (customPackage.currency as Currency) : pricingCurrency,
         couponCode: couponData?.code || undefined,
         photographerId: photographerId || undefined,
+        customPackageId: customPackageId || undefined,
       };
 
       return apiRequest('POST', '/api/bookings', bookingData);
@@ -293,6 +307,27 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
             Choose your package and get instant pricing
           </p>
         </div>
+
+        {/* Custom package banner */}
+        {customPackage && (
+          <div className="mb-8 border rounded-xl p-5 bg-primary/5 border-primary/20 max-w-2xl mx-auto">
+            <div className="flex items-start gap-3">
+              <Tag className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold text-sm text-primary uppercase tracking-wide mb-0.5">Private Package</p>
+                <h3 className="text-lg font-bold">{customPackage.name}</h3>
+                {customPackage.description && <p className="text-sm text-muted-foreground mt-1">{customPackage.description}</p>}
+                <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                  <span className="font-medium">{customPackage.currency} {(customPackage.totalPrice / 100).toLocaleString()}</span>
+                  {customPackage.depositAmount > 0 && (
+                    <span className="text-muted-foreground">Deposit: {customPackage.currency} {(customPackage.depositAmount / 100).toLocaleString()}</span>
+                  )}
+                  <span className="capitalize text-muted-foreground">{customPackage.serviceType}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Service Type Selection */}
         <div className="mb-12">
