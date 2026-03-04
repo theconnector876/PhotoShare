@@ -75,8 +75,39 @@ interface FileItem {
 }
 
 // ── Cloudinary upload ─────────────────────────────────────────────────────────
-// No browser-side compression — originals are uploaded directly.
-// Cloudinary handles resizing/compression via URL transforms on delivery.
+// ── Image compression ─────────────────────────────────────────────────────────
+// Called just-in-time inside the upload queue (max 6 concurrent) so we never
+// run hundreds of canvas operations at once. Keeps files under Cloudinary's
+// 10 MB free-plan limit while preserving 3 K resolution for client viewing.
+
+function compressImage(file: File, maxDimension = 3000, quality = 0.82): Promise<File> {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width: w, height: h } = img;
+      if (w > maxDimension || h > maxDimension) {
+        if (w >= h) { h = Math.round((h / w) * maxDimension); w = maxDimension; }
+        else        { w = Math.round((w / h) * maxDimension); h = maxDimension; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          // If compression actually made it larger, keep the original
+          if (blob.size >= file.size) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+        },
+        "image/jpeg", quality
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
+  });
+}
 
 function uploadWithProgress(file: File, config: SignedConfig, onProgress: (pct: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -288,9 +319,8 @@ function UploadPanel({ items, onClose, canClose, onCancel, onRetry, startTime }:
   }
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open && canClose) onClose(); }}>
-      <DialogContent className="max-w-lg w-[95vw] p-0 overflow-hidden rounded-2xl gap-0"
-        onInteractOutside={(e) => { if (!canClose) e.preventDefault(); }}>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg w-[95vw] p-0 overflow-hidden rounded-2xl gap-0">
         <div className="bg-gradient-to-r from-green-800 to-green-700 px-5 py-4 text-white">
           <DialogTitle className="text-base font-semibold mb-1">
             {canClose
@@ -984,7 +1014,9 @@ export function AdminGalleries() {
       updateItem(item.id, { status: "uploading", progress: 0 });
       try {
         const config = await getUploadConfig();
-        const url = await uploadFile(item.file, config, (pct) => updateItem(item.id, { progress: pct }));
+        // Compress just-in-time — only 6 canvas ops active at once, no freeze
+        const toUpload = await compressImage(item.file);
+        const url = await uploadFile(toUpload, config, (pct) => updateItem(item.id, { progress: pct }));
         updateItem(item.id, { status: "done", progress: 100, cloudUrl: url });
         uploadedUrls.push(url);
         await addImageMutation.mutateAsync({ galleryId: gallery.id, imageURL: url, type });
@@ -1046,7 +1078,15 @@ export function AdminGalleries() {
     await runUploadQueue([...failed].map((i) => ({ ...i, status: "queued" as FileStatus, progress: 0 })), ctx.gallery, ctx.type);
   }, [runUploadQueue, updateItem]);
 
-  const handleCancel = useCallback(() => { cancelRef.current = true; }, []);
+  const handleCancel = useCallback(() => {
+    cancelRef.current = true;
+    // Mark all queued/uploading items as cancelled so the panel becomes closeable
+    setFileItems((prev) => prev.map((i) =>
+      i.status === "queued" || i.status === "uploading"
+        ? { ...i, status: "error" as FileStatus, error: "Cancelled", progress: 0 }
+        : i
+    ));
+  }, []);
 
   const closeUploadPanel = useCallback(() => {
     cancelRef.current = true;
