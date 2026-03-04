@@ -8,24 +8,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
-import { BanknoteIcon, CreditCard, Clock, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { BanknoteIcon, Clock, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
 import type { Booking } from "@shared/schema";
 
 interface PayoutDetails {
-  method?: "bank" | "card";
+  method?: "bank";
   bankName?: string;
   bankBranch?: string;
   accountHolderName?: string;
   accountNumber?: string;
-  routingNumber?: string;
-  cardHolderName?: string;
-  cardNumber?: string;
-  cardType?: string;
-  cardIssuingBank?: string;
+  accountType?: string;       // Savings | Chequing
+  routingNumber?: string;     // Sort code / routing (domestic)
+  swiftCode?: string;         // SWIFT/BIC (international transfers)
+  currency?: string;          // JMD | USD
   notes?: string;
 }
 
@@ -56,20 +54,13 @@ function formatAmount(amount: number, currency: string) {
 export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
   const { toast } = useToast();
 
-  // ── Payout details form state
-  const [method, setMethod] = useState<"bank" | "card">("bank");
-  const [form, setForm] = useState<PayoutDetails>({});
-
-  // ── Payout request state
+  const [form, setForm] = useState<PayoutDetails>({ method: "bank" });
   const [selectedBookingIds, setSelectedBookingIds] = useState<string[]>([]);
 
-  const { data: savedDetails, isLoading: detailsLoading } = useQuery<PayoutDetails>({
+  const { data: savedDetails } = useQuery<PayoutDetails>({
     queryKey: ["/api/photographer/payout-details"],
     onSuccess: (d) => {
-      if (d?.method) {
-        setMethod(d.method);
-        setForm(d);
-      }
+      if (d && Object.keys(d).length > 0) setForm({ ...d, method: "bank" });
     },
   } as any);
 
@@ -86,7 +77,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
     mutationFn: (data: PayoutDetails) => apiRequest("PUT", "/api/photographer/payout-details", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photographer/payout-details"] });
-      toast({ title: "Payout details saved!" });
+      toast({ title: "Bank details saved!" });
     },
     onError: () => toast({ title: "Failed to save", variant: "destructive" }),
   });
@@ -106,7 +97,6 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
     },
   });
 
-  // Eligible bookings: completed, photographer assigned, payment received
   const alreadyRequestedIds = new Set(
     payoutHistory
       .filter(p => ["pending", "processing", "completed"].includes(p.status))
@@ -129,15 +119,13 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
     .filter(b => selectedBookingIds.includes(b.id))
     .reduce((sum, b) => sum + calcEarnings(b), 0);
 
-  const handleSave = () => {
-    saveDetailsMutation.mutate({ ...form, method });
-  };
-
   const f = (key: keyof PayoutDetails) => ({
     value: form[key] as string ?? "",
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm(prev => ({ ...prev, [key]: e.target.value })),
   });
+
+  const hasDetails = !!(savedDetails?.accountHolderName && savedDetails?.accountNumber && savedDetails?.bankName);
 
   return (
     <div className="space-y-6">
@@ -145,17 +133,17 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="request">Request Payout</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="settings">Payout Settings</TabsTrigger>
+          <TabsTrigger value="settings">Bank Details</TabsTrigger>
         </TabsList>
 
         {/* ── REQUEST PAYOUT ─────────────────────────────────────── */}
         <TabsContent value="request" className="space-y-4 mt-4">
-          {!savedDetails?.method && (
+          {!hasDetails && (
             <Card className="border-yellow-200 bg-yellow-50">
               <CardContent className="flex gap-3 p-4">
                 <AlertCircle className="text-yellow-600 mt-0.5 shrink-0" size={18} />
                 <p className="text-sm text-yellow-800">
-                  Set up your <strong>Payout Settings</strong> first so we know where to send your funds.
+                  Set up your <strong>Bank Details</strong> first so we know where to send your payment.
                 </p>
               </CardContent>
             </Card>
@@ -214,7 +202,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                 </div>
                 <Button
                   onClick={() => requestPayoutMutation.mutate(selectedBookingIds)}
-                  disabled={requestPayoutMutation.isPending || !savedDetails?.method}
+                  disabled={requestPayoutMutation.isPending || !hasDetails}
                 >
                   {requestPayoutMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                   Request Payout
@@ -245,7 +233,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {p.bookingIds.length} booking{p.bookingIds.length > 1 ? "s" : ""} · via {p.payoutMethod === "bank" ? "Bank Wire" : "Card Deposit"}
+                          {p.bookingIds.length} booking{p.bookingIds.length > 1 ? "s" : ""} · Bank Wire
                         </p>
                         {p.referenceNumber && (
                           <p className="text-xs text-muted-foreground mt-1">Ref: {p.referenceNumber}</p>
@@ -265,95 +253,82 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
           )}
         </TabsContent>
 
-        {/* ── SETTINGS ───────────────────────────────────────────── */}
+        {/* ── BANK DETAILS ────────────────────────────────────────── */}
         <TabsContent value="settings" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Payout Method</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BanknoteIcon className="w-4 h-4" /> Bank Wire Details
+              </CardTitle>
               <CardDescription>
-                Choose how you'd like to receive your earnings. Your details are stored securely and only visible to admins when processing payouts.
+                Your bank details are only visible to admins when processing your payout. All transfers are done manually via bank wire.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <RadioGroup
-                value={method}
-                onValueChange={(v) => setMethod(v as "bank" | "card")}
-                className="grid grid-cols-2 gap-3"
-              >
-                <Label
-                  htmlFor="method-bank"
-                  className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${method === "bank" ? "border-primary bg-primary/5" : "border-border"}`}
-                >
-                  <RadioGroupItem value="bank" id="method-bank" />
-                  <BanknoteIcon className="w-5 h-5 text-primary" />
-                  <div>
-                    <p className="font-medium text-sm">Bank Wire</p>
-                    <p className="text-xs text-muted-foreground">Direct to account</p>
-                  </div>
-                </Label>
-                <Label
-                  htmlFor="method-card"
-                  className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${method === "card" ? "border-primary bg-primary/5" : "border-border"}`}
-                >
-                  <RadioGroupItem value="card" id="method-card" />
-                  <CreditCard className="w-5 h-5 text-primary" />
-                  <div>
-                    <p className="font-medium text-sm">Card Deposit</p>
-                    <p className="text-xs text-muted-foreground">Direct to card</p>
-                  </div>
-                </Label>
-              </RadioGroup>
+            <CardContent className="space-y-5">
 
-              <Separator />
-
-              {method === "bank" && (
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Bank Name *</Label>
-                    <Input placeholder="e.g. NCB, Scotiabank" {...f("bankName")} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Branch</Label>
-                    <Input placeholder="e.g. Cross Roads, Kingston" {...f("bankBranch")} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Account Holder Name *</Label>
-                    <Input placeholder="Name on the account" {...f("accountHolderName")} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Account Number *</Label>
-                    <Input placeholder="Account number" {...f("accountNumber")} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Routing / Sort Code</Label>
-                    <Input placeholder="Routing or sort code (if applicable)" {...f("routingNumber")} />
-                  </div>
+              {/* Required fields */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Account Holder Name <span className="text-red-500">*</span></Label>
+                  <Input placeholder="Full name as on the account" {...f("accountHolderName")} />
                 </div>
-              )}
-
-              {method === "card" && (
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Card Holder Name *</Label>
-                    <Input placeholder="Name on card" {...f("cardHolderName")} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Card Number (last 4 digits) *</Label>
-                    <Input placeholder="e.g. 4242" maxLength={4} {...f("cardNumber")} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Card Type</Label>
-                    <Input placeholder="e.g. Visa, Mastercard" {...f("cardType")} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Issuing Bank *</Label>
-                    <Input placeholder="e.g. NCB, JN Bank" {...f("cardIssuingBank")} />
-                  </div>
+                <div className="space-y-1.5">
+                  <Label>Account Number <span className="text-red-500">*</span></Label>
+                  <Input placeholder="Your account number" {...f("accountNumber")} />
                 </div>
-              )}
+                <div className="space-y-1.5">
+                  <Label>Bank Name <span className="text-red-500">*</span></Label>
+                  <Input placeholder="e.g. NCB, Scotiabank, JN Bank" {...f("bankName")} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Branch</Label>
+                  <Input placeholder="e.g. Cross Roads, Half Way Tree" {...f("bankBranch")} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Account Type</Label>
+                  <Select
+                    value={form.accountType ?? ""}
+                    onValueChange={(v) => setForm(prev => ({ ...prev, accountType: v }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="savings">Savings</SelectItem>
+                      <SelectItem value="chequing">Chequing / Current</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Preferred Payout Currency</Label>
+                  <Select
+                    value={form.currency ?? ""}
+                    onValueChange={(v) => setForm(prev => ({ ...prev, currency: v }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="JMD">JMD – Jamaican Dollar</SelectItem>
+                      <SelectItem value="USD">USD – US Dollar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Optional wire fields */}
+              <div className="border-t pt-4 space-y-1 mb-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Optional — for transfers from outside Jamaica</p>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Sort Code / Routing Number</Label>
+                  <Input placeholder="Domestic routing / sort code" {...f("routingNumber")} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>SWIFT / BIC Code</Label>
+                  <Input placeholder="e.g. JNCBJMKX" {...f("swiftCode")} />
+                </div>
+              </div>
 
               <div className="space-y-1.5">
-                <Label>Additional Notes</Label>
+                <Label>Additional Instructions</Label>
                 <Textarea
                   placeholder="Any special instructions for the transfer..."
                   rows={2}
@@ -363,12 +338,12 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
               </div>
 
               <Button
-                onClick={handleSave}
-                disabled={saveDetailsMutation.isPending}
+                onClick={() => saveDetailsMutation.mutate({ ...form, method: "bank" })}
+                disabled={saveDetailsMutation.isPending || !form.bankName || !form.accountHolderName || !form.accountNumber}
                 className="w-full sm:w-auto"
               >
                 {saveDetailsMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Save Payout Details
+                Save Bank Details
               </Button>
             </CardContent>
           </Card>
