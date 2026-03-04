@@ -1210,7 +1210,21 @@ export default function PhotographerDashboard() {
                           </p>
                           {booking && <p className="text-xs text-muted-foreground">{booking.shootDate}</p>}
                         </div>
-                        <Badge variant="outline" className="text-[10px] capitalize">{gallery.status}</Badge>
+                        <Select
+                          value={gallery.status}
+                          onValueChange={(v) => updateGallerySettingsMutation.mutate({ galleryId: gallery.id, settings: { status: v } })}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-32 border-muted">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="selection">Selection</SelectItem>
+                            <SelectItem value="editing">Editing</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <CardContent className="p-5">
