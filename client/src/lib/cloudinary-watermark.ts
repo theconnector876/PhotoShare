@@ -1,19 +1,9 @@
+import type { CSSProperties } from "react";
+
 export type WatermarkPosition =
   | 'top-left' | 'top-center' | 'top-right'
   | 'middle-left' | 'center' | 'middle-right'
   | 'bottom-left' | 'bottom-center' | 'bottom-right';
-
-const GRAVITY_MAP: Record<WatermarkPosition, string> = {
-  'top-left':      'g_north_west,x_15,y_15',
-  'top-center':    'g_north,y_15',
-  'top-right':     'g_north_east,x_15,y_15',
-  'middle-left':   'g_west,x_15',
-  'center':        'g_center',
-  'middle-right':  'g_east,x_15',
-  'bottom-left':   'g_south_west,x_15,y_15',
-  'bottom-center': 'g_south,y_15',
-  'bottom-right':  'g_south_east,x_15,y_15',
-};
 
 export const POSITION_GRID: WatermarkPosition[][] = [
   ['top-left',    'top-center',    'top-right'],
@@ -32,7 +22,7 @@ export interface WatermarkSettings {
   imageUrl: string;
   imagePublicId: string;
   opacity: number;       // 0–100
-  scale: number;         // 1–100 (% of image width)
+  scale: number;         // 5–80 (% of image width / cqmin font units)
   position: WatermarkPosition;
 }
 
@@ -47,45 +37,44 @@ export const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
   position: 'bottom-right',
 };
 
-/**
- * Insert a Cloudinary watermark transformation into a Cloudinary URL.
- */
-export function applyWatermark(url: string, settings: WatermarkSettings): string {
-  if (!url || !url.includes('res.cloudinary.com')) return url;
-
-  const opacity = Math.min(100, Math.max(0, Math.round(settings.opacity)));
-  const scale = (Math.min(100, Math.max(1, settings.scale)) / 100).toFixed(2);
-  const gravity = GRAVITY_MAP[settings.position ?? 'bottom-right'];
-
-  let overlay = '';
-
-  if (settings.type === 'text' && settings.text?.trim()) {
-    const encoded = settings.text
-      .trim()
-      .replace(/\s+/g, '_')
-      .replace(/[\/\\,]/g, '');
-    overlay = `l_text:Arial_40:${encoded},co_white,o_${opacity},${gravity},w_${scale},fl_relative,c_fit`;
-  } else if (settings.type === 'image' && settings.imagePublicId?.trim()) {
-    const encodedId = settings.imagePublicId.trim().replace(/\//g, ':');
-    overlay = `l_${encodedId},o_${opacity},${gravity},w_${scale},fl_relative`;
+/** Map a WatermarkPosition to CSS style for absolute positioning inside a relative container. */
+export function getPositionStyle(position: WatermarkPosition): CSSProperties {
+  const pad = 8;
+  switch (position) {
+    case 'top-left':      return { top: pad, left: pad };
+    case 'top-center':    return { top: pad, left: '50%', transform: 'translateX(-50%)' };
+    case 'top-right':     return { top: pad, right: pad };
+    case 'middle-left':   return { top: '50%', left: pad, transform: 'translateY(-50%)' };
+    case 'center':        return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+    case 'middle-right':  return { top: '50%', right: pad, transform: 'translateY(-50%)' };
+    case 'bottom-left':   return { bottom: pad, left: pad };
+    case 'bottom-center': return { bottom: pad, left: '50%', transform: 'translateX(-50%)' };
+    case 'bottom-right':  return { bottom: pad, right: pad };
   }
-
-  if (!overlay) return url;
-
-  return url.replace('/upload/', `/upload/${overlay}/`);
 }
 
 /**
- * Return the watermarked URL for a given gallery category.
+ * Compute x, y, textAlign for drawing a watermark on a canvas.
+ * Returns pixel coordinates for the watermark's anchor point and canvas textAlign.
  */
-export function getWatermarkedUrl(
-  url: string,
-  category: 'gallery' | 'selected' | 'final',
-  rawSettings: Record<string, any> | null | undefined,
-): string {
-  if (!rawSettings || typeof rawSettings !== 'object') return url;
-  const settings = rawSettings as Partial<WatermarkSettings>;
-  const enabled = settings.enabled ?? { gallery: false, selected: false, final: false };
-  if (!enabled[category]) return url;
-  return applyWatermark(url, { ...DEFAULT_WATERMARK_SETTINGS, ...settings } as WatermarkSettings);
+export function getCanvasPosition(
+  position: WatermarkPosition,
+  cw: number,
+  ch: number,
+  wmW: number,
+  wmH: number,
+  pad = 10,
+): { x: number; y: number; textAlign: CanvasTextAlign; textBaseline: CanvasTextBaseline } {
+  const mid = (a: number, b: number) => (a - b) / 2;
+  switch (position) {
+    case 'top-left':      return { x: pad,          y: pad,               textAlign: 'left',   textBaseline: 'top' };
+    case 'top-center':    return { x: cw / 2,        y: pad,               textAlign: 'center', textBaseline: 'top' };
+    case 'top-right':     return { x: cw - pad,      y: pad,               textAlign: 'right',  textBaseline: 'top' };
+    case 'middle-left':   return { x: pad,          y: (ch - wmH) / 2,    textAlign: 'left',   textBaseline: 'middle' };
+    case 'center':        return { x: cw / 2,        y: ch / 2,            textAlign: 'center', textBaseline: 'middle' };
+    case 'middle-right':  return { x: cw - pad,      y: (ch - wmH) / 2,    textAlign: 'right',  textBaseline: 'middle' };
+    case 'bottom-left':   return { x: pad,          y: ch - pad,          textAlign: 'left',   textBaseline: 'bottom' };
+    case 'bottom-center': return { x: cw / 2,        y: ch - pad,          textAlign: 'center', textBaseline: 'bottom' };
+    case 'bottom-right':  return { x: cw - pad,      y: ch - pad,          textAlign: 'right',  textBaseline: 'bottom' };
+  }
 }

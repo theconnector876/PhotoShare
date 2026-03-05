@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Key, Eye, Heart, Download, Check, Lock, ChevronLeft, ChevronRight, X, MessageSquare, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useParams } from "wouter";
-import { getWatermarkedUrl } from "@/lib/cloudinary-watermark";
+import { WatermarkOverlay } from "@/components/watermark-overlay";
 
 const galleryAccessSchema = z.object({
   email: z.string().email("Valid email is required"),
@@ -277,9 +277,6 @@ export default function Gallery() {
   const lightboxImage = lightboxIndex !== null ? currentImages[lightboxIndex] : null;
   const isSelected = lightboxImage ? selectedImages.includes(lightboxImage) : false;
 
-  // Apply Cloudinary watermark transform if enabled for current view mode
-  const wm = (url: string) => getWatermarkedUrl(url, viewMode, gallery?.watermarkSettings);
-
   return (
     <div className="pt-20 pb-20 relative z-10">
       {/* ── Lightbox ── */}
@@ -304,15 +301,17 @@ export default function Gallery() {
           )}
 
           {/* Image */}
-          <img
-            src={wm(lightboxImage)}
-            alt={`Image ${lightboxIndex + 1}`}
-            className="max-h-[72vh] max-w-[85vw] object-contain rounded-lg pointer-events-none select-none"
-            draggable={false}
-            onDragStart={(e) => e.preventDefault()}
-            onClick={(e) => e.stopPropagation()}
-            style={{ WebkitUserDrag: 'none' as any, WebkitTouchCallout: 'none' as any }}
-          />
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={lightboxImage}
+              alt={`Image ${lightboxIndex + 1}`}
+              className="max-h-[72vh] max-w-[85vw] object-contain rounded-lg pointer-events-none select-none"
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              style={{ WebkitUserDrag: 'none' as any, WebkitTouchCallout: 'none' as any }}
+            />
+            <WatermarkOverlay rawSettings={gallery?.watermarkSettings} category={viewMode} />
+          </div>
 
           {/* Next */}
           {currentImages.length > 1 && (
@@ -424,13 +423,14 @@ export default function Gallery() {
                 data-testid={`gallery-image-${index}`}
               >
                 <img
-                  src={wm(imageUrl)}
+                  src={imageUrl}
                   alt={`Gallery image ${index + 1}`}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 pointer-events-none"
                   draggable={false}
                   onDragStart={(e) => e.preventDefault()}
                   style={{ WebkitUserDrag: 'none' as any, WebkitUserSelect: 'none', WebkitTouchCallout: 'none' as any, userSelect: 'none' }}
                 />
+                <WatermarkOverlay rawSettings={gallery?.watermarkSettings} category={viewMode} />
 
                 {/* Hover overlay */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 pointer-events-none" />

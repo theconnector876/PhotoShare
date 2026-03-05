@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { defaultPricingConfig, type PricingConfig } from "@shared/pricing";
 import { DEFAULT_BOOKING_TERMS, type BookingTerms } from "@shared/booking-terms";
 import { type WatermarkSettings, DEFAULT_WATERMARK_SETTINGS, POSITION_GRID } from "@/lib/cloudinary-watermark";
+import { WatermarkPreviewCanvas } from "@/components/watermark-overlay";
 import { TermsEditor } from "@/components/terms-editor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1574,6 +1575,15 @@ export default function PhotographerDashboard() {
                                         />
                                       )))}
                                     </div>
+                                  </div>
+
+                                  {/* Live preview */}
+                                  <div>
+                                    <label className="text-xs font-medium text-muted-foreground block mb-2">Preview</label>
+                                    <WatermarkPreviewCanvas
+                                      settings={wm}
+                                      sampleImageUrl={gallery.galleryImages?.[0] ?? gallery.finalImages?.[0]}
+                                    />
                                   </div>
 
                                   <Button size="sm" onClick={() => saveWatermarkSettings(gallery.id)} className="w-full h-8 text-xs">

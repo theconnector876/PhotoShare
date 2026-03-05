@@ -37,6 +37,7 @@ import {
   FolderPlus, Folder, Trash2, Droplets, Save,
 } from "lucide-react";
 import { type WatermarkSettings, DEFAULT_WATERMARK_SETTINGS, POSITION_GRID } from "@/lib/cloudinary-watermark";
+import { WatermarkPreviewCanvas } from "@/components/watermark-overlay";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1477,6 +1478,15 @@ export function AdminGalleries() {
                                           />
                                         )))}
                                       </div>
+                                    </div>
+
+                                    {/* Live preview */}
+                                    <div>
+                                      <label className="text-xs font-medium text-muted-foreground block mb-2">Preview</label>
+                                      <WatermarkPreviewCanvas
+                                        settings={wm}
+                                        sampleImageUrl={gallery.galleryImages?.[0] ?? gallery.finalImages?.[0]}
+                                      />
                                     </div>
 
                                     <Button size="sm" onClick={() => saveWatermarkSettings(gallery.id)} className="w-full h-8 text-xs bg-green-700 hover:bg-green-800 text-white">
