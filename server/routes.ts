@@ -8,33 +8,17 @@ import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, i
 import { defaultPricingConfig } from "@shared/pricing";
 import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
-import { lemonSqueezySetup, createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
 import { sendBookingReceived, sendBookingConfirmation, sendPaymentConfirmation, sendPasswordReset, sendPhotographerApproved, sendPhotographerRejected, sendAdminEmail, sendInboundEmailNotification } from "./email";
 import { getCloudinarySignedConfig, generateSignature } from "./upload";
 
-const lemonSqueezyEnabled = Boolean(
-  process.env.LEMONSQUEEZY_API_KEY &&
-  process.env.LEMONSQUEEZY_STORE_ID &&
-  process.env.LEMONSQUEEZY_VARIANT_ID &&
-  process.env.LEMONSQUEEZY_WEBHOOK_SECRET
+const wipayEnabled = Boolean(
+  process.env.WIPAY_ACCOUNT_NUMBER &&
+  process.env.WIPAY_API_KEY
 );
 
-if (lemonSqueezyEnabled) {
-  lemonSqueezySetup({
-    apiKey: process.env.LEMONSQUEEZY_API_KEY,
-    onError: (error) => console.error('Lemon Squeezy Error:', error),
-  });
-} else {
-  console.warn("Lemon Squeezy disabled: missing required env vars.");
-}
-
-// LS store info: store 292314, slug "connectagrapherpayment", domain "connectagrapher.com"
-// connectagrapher.com → Vercel (not LS), so checkout URLs must be proxied.
-// The proxy (registered below) intercepts /checkout/* and serves LS checkout HTML
-// using the X-Forwarded-Host trick to get LS to serve HTML without redirecting.
-// NOTE: The LS store base currency is JMD — all customPrice values must be in JMD cents.
-const LS_NATIVE_HOST = 'connectagrapherpayment.lemonsqueezy.com';
-const LS_STORE_HOST = 'connectagrapher.com';
+const WIPAY_BASE_URL = 'https://jm.wipayfinancial.com/plugins/payments/request';
+const WIPAY_ENVIRONMENT = process.env.WIPAY_ENVIRONMENT || 'live';
+const WIPAY_FEE_STRUCTURE = process.env.WIPAY_FEE_STRUCTURE || 'merchant_absorb';
 
 // ── Exchange Rate Cache ──────────────────────────────────────────────────────
 // Fetches live USD-based rates from open.er-api.com; falls back to admin config.
@@ -67,16 +51,46 @@ async function fetchExchangeRates(): Promise<Record<string, number>> {
   return { JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 };
 }
 
-function normalizeLsUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    if (u.hostname !== LS_NATIVE_HOST) {
-      u.hostname = LS_NATIVE_HOST;
-    }
-    return u.toString();
-  } catch {
-    return url;
+// Creates a WiPay checkout and returns the redirect URL
+async function createWiPayCheckout(params: {
+  bookingId: string;
+  paymentType: 'deposit' | 'balance';
+  amountJmd: number;
+  email: string;
+  name: string;
+  phone: string;
+  responseUrl: string;
+}): Promise<string> {
+  const orderId = `${params.bookingId}_${params.paymentType}`;
+  const body = new URLSearchParams({
+    account_number: process.env.WIPAY_ACCOUNT_NUMBER!,
+    currency: 'JMD',
+    environment: WIPAY_ENVIRONMENT,
+    fee_structure: WIPAY_FEE_STRUCTURE,
+    method: 'credit_card',
+    order_id: orderId,
+    origin: 'ConnectAGrapher',
+    total: params.amountJmd.toFixed(2),
+    email: params.email,
+    name: params.name,
+    avs: '0',
+    data: JSON.stringify({ booking_id: params.bookingId, payment_type: params.paymentType }),
+    response_url: params.responseUrl,
+    phone: params.phone || '',
+    country_code: 'JM',
+  });
+
+  const response = await fetch(WIPAY_BASE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+
+  const result = await response.json() as any;
+  if (!result.url) {
+    throw new Error(result.message || 'WiPay did not return a checkout URL');
   }
+  return result.url;
 }
 
 // Booking with user account creation schema
@@ -186,97 +200,7 @@ const normalizeEmail = (email: string) => email.toLowerCase().trim();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Version probe — lets us verify which bundle Vercel is serving
-  app.get('/api/version', (_req, res) => res.json({ v: 6, schema: 'checkoutProxy' }));
-
-  // ── Lemon Squeezy Checkout Proxy ──────────────────────────────────────────
-  // connectagrapher.com (the LS store domain) points to Vercel, not LS servers.
-  // So checkout URLs from LS land on our app instead of LS's checkout page.
-  //
-  // Fix: proxy /checkout/* to the LS native domain with X-Forwarded-Host.
-  // When LS sees X-Forwarded-Host: connectagrapher.com, it serves the checkout
-  // HTML directly (200) rather than redirecting to the store domain.
-  //
-  // Two-step flow:
-  //   /checkout/custom/UUID  →  LS native → 302 → /checkout/cart/CART_UUID
-  //   /checkout/cart/CART_UUID →  LS native (with X-Fwd-Host) → 200 HTML
-  app.all('/checkout/*', async (req: any, res: any) => {
-    try {
-      const qs = new URLSearchParams(req.query as Record<string, string>).toString();
-      const targetUrl = `https://${LS_NATIVE_HOST}${req.path}${qs ? '?' + qs : ''}`;
-
-      const headers: Record<string, string> = {
-        'X-Forwarded-Host': LS_STORE_HOST,
-        'X-Forwarded-Proto': 'https',
-        'Accept': (req.headers['accept'] as string) || 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': (req.headers['accept-language'] as string) || 'en-US,en;q=0.9',
-        'User-Agent': (req.headers['user-agent'] as string) || 'Mozilla/5.0',
-      };
-
-      if (req.headers.cookie)          headers['Cookie']           = req.headers.cookie;
-      if (req.headers['x-inertia'])    headers['X-Inertia']        = req.headers['x-inertia'] as string;
-      if (req.headers['x-inertia-version']) headers['X-Inertia-Version'] = req.headers['x-inertia-version'] as string;
-      if (req.headers['x-xsrf-token']) headers['X-XSRF-TOKEN']     = req.headers['x-xsrf-token'] as string;
-      if (req.headers['x-requested-with']) headers['X-Requested-With'] = req.headers['x-requested-with'] as string;
-
-      let body: string | undefined;
-      if (req.method !== 'GET' && req.method !== 'HEAD') {
-        const ct = (req.headers['content-type'] as string) || '';
-        if (ct.includes('application/x-www-form-urlencoded')) {
-          headers['Content-Type'] = 'application/x-www-form-urlencoded';
-          body = new URLSearchParams(req.body as Record<string, string>).toString();
-        } else {
-          headers['Content-Type'] = 'application/json';
-          body = JSON.stringify(req.body);
-        }
-      }
-
-      const lsRes = await fetch(targetUrl, { method: req.method, headers, body, redirect: 'manual' });
-
-      // Forward Set-Cookie headers without domain restriction so browser accepts them
-      const setCookies: string[] =
-        typeof (lsRes.headers as any).getSetCookie === 'function'
-          ? (lsRes.headers as any).getSetCookie()
-          : [lsRes.headers.get('set-cookie') ?? ''].filter(Boolean);
-      for (const c of setCookies) {
-        res.append('Set-Cookie', c.replace(/;\s*domain=[^;]*/gi, ''));
-      }
-
-      // Handle LS redirect to its store domain — convert to relative so browser
-      // follows it back to our www domain (where the proxy runs again for step 2)
-      if (lsRes.status === 301 || lsRes.status === 302 || lsRes.status === 303) {
-        const loc = lsRes.headers.get('location') || '';
-        try {
-          const locUrl = new URL(loc);
-          if (locUrl.hostname === LS_STORE_HOST) {
-            res.redirect(302, locUrl.pathname + locUrl.search);
-            return;
-          }
-        } catch { /* not a valid URL, fall through */ }
-        res.redirect(lsRes.status, loc);
-        return;
-      }
-
-      const ct = lsRes.headers.get('content-type') || 'text/html; charset=UTF-8';
-      res.setHeader('Content-Type', ct);
-      res.setHeader('Cache-Control', 'no-store');
-
-      let html = await lsRes.text();
-
-      // Patch all store domain references to www so checkout JS calls stay same-origin
-      if (ct.includes('text/html') || ct.includes('application/json')) {
-        html = html
-          .split('https:\\/\\/connectagrapher.com').join('https:\\/\\/www.connectagrapher.com')
-          .split('https://connectagrapher.com').join('https://www.connectagrapher.com')
-          .split('http:\\/\\/connectagrapher.com').join('http:\\/\\/www.connectagrapher.com')
-          .split('http://connectagrapher.com').join('http://www.connectagrapher.com');
-      }
-
-      res.status(lsRes.status).send(html);
-    } catch (err: any) {
-      console.error('[checkout proxy]', err.message);
-      res.status(502).send('Checkout temporarily unavailable. Please try again.');
-    }
-  });
+  app.get('/api/version', (_req, res) => res.json({ v: 7, schema: 'wipay' }));
 
   // Setup session and passport authentication
   app.use(getSession());
@@ -1364,26 +1288,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Lemon Squeezy payment routes
+  // WiPay payment routes
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
-      if (!lemonSqueezyEnabled) {
+      if (!wipayEnabled) {
         return res.status(501).json({ error: "Payments not configured" });
       }
 
-      const { bookingId, paymentType, tipAmount } = req.body;
+      const { bookingId, paymentType } = req.body;
 
       if (!bookingId || !paymentType || !['deposit', 'balance'].includes(paymentType)) {
         return res.status(400).json({ error: 'Missing or invalid payment data' });
       }
 
-      // Fetch booking to get server-side amount and validate payment state
       const booking = await storage.getBooking(bookingId);
       if (!booking) {
         return res.status(404).json({ error: 'Booking not found' });
       }
 
-      // Allow deposits for pending/confirmed; allow balance payments also for completed bookings
       const allowedForDeposit = ['confirmed', 'pending'].includes(booking.status);
       const allowedForBalance = ['confirmed', 'pending', 'completed'].includes(booking.status);
       if (paymentType === 'deposit' && !allowedForDeposit) {
@@ -1393,91 +1315,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Booking must be confirmed, pending, or completed to pay balance' });
       }
 
-      // Calculate amounts server-side to ensure integrity
       const serverDepositAmount = Math.round(booking.totalPrice * 0.5);
       const serverBalanceDue = booking.totalPrice - serverDepositAmount;
 
       let amount: number;
       if (paymentType === 'deposit') {
-        if (booking.depositPaid) {
-          return res.status(400).json({ error: 'Deposit already paid' });
-        }
-        amount = serverDepositAmount; // Use server-calculated 50% deposit
+        if (booking.depositPaid) return res.status(400).json({ error: 'Deposit already paid' });
+        amount = serverDepositAmount;
       } else {
-        if (!booking.depositPaid) {
-          return res.status(400).json({ error: 'Deposit must be paid first' });
-        }
-        if (booking.balancePaid) {
-          return res.status(400).json({ error: 'Balance already paid' });
-        }
-        amount = serverBalanceDue; // Use server-calculated balance
+        if (!booking.depositPaid) return res.status(400).json({ error: 'Deposit must be paid first' });
+        if (booking.balancePaid) return res.status(400).json({ error: 'Balance already paid' });
+        amount = serverBalanceDue;
       }
 
-      // Create Lemon Squeezy checkout with proper format
-      const storeId = process.env.LEMONSQUEEZY_STORE_ID!;
-      const variantId = process.env.LEMONSQUEEZY_VARIANT_ID!;
-
-      // LS store is JMD-based — convert amounts to JMD before passing customPrice
+      // Convert to JMD for WiPay (JM processor)
       const bookingCurrency = (booking as any).currency || 'USD';
       const rates = await fetchExchangeRates();
       const jmdRate = (rates.JMD as number) ?? 157;
+      const amountJmd = bookingCurrency === 'JMD' ? amount : Math.round(amount * jmdRate);
 
-      const toJmd = (usdOrNative: number) =>
-        bookingCurrency === 'JMD' ? usdOrNative : Math.round(usdOrNative * jmdRate);
+      const appUrl = process.env.APP_URL || 'https://www.connectagrapher.com';
+      const checkoutUrl = await createWiPayCheckout({
+        bookingId,
+        paymentType,
+        amountJmd,
+        email: booking.email,
+        name: booking.clientName,
+        phone: (booking as any).contactNumber || '',
+        responseUrl: `${appUrl}/api/wipay/callback`,
+      });
 
-      const amountJmd = toJmd(amount);
-      const tipJmd = (paymentType === 'balance' && tipAmount > 0)
-        ? toJmd(Math.round(Number(tipAmount))) : 0;
-      const customPriceInCents = Math.round(amountJmd * 100) + Math.round(tipJmd * 100);
-
-      const newCheckout = {
-        customPrice: customPriceInCents,
-        productOptions: {
-          name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment${tipJmd > 0 ? ' + Tip' : ''}`,
-          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}${tipJmd > 0 ? ` (includes tip)` : ''}`,
-          redirectUrl: `https://www.connectagrapher.com/payment-success?booking=${bookingId}&type=${paymentType}`,
-        },
-        checkoutOptions: {
-          embed: true,
-          media: true,
-          logo: true,
-        },
-        checkoutData: {
-          email: booking.email,
-          name: booking.clientName,
-          custom: {
-            booking_id: bookingId,
-            payment_type: paymentType,
-            service_type: booking.serviceType,
-            total_amount: String(booking.totalPrice),
-            tip_amount: String(tipJmd),
-          }
-        },
-      };
-
-      const checkout = await createCheckout(storeId, variantId, newCheckout);
-
-      if (checkout.error) {
-        console.error('Lemon Squeezy checkout creation error:', checkout.error);
-        return res.status(500).json({ error: 'Failed to create checkout' });
-      }
-
-      const checkoutData = checkout.data?.data;
-      if (!checkoutData) {
-        return res.status(500).json({ error: 'Failed to create checkout - no data returned' });
-      }
-
-      // Store checkout ID on booking
-      if (paymentType === 'deposit') {
-        await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkoutData.id, 'deposit');
-      } else {
-        await storage.updateBookingLemonSqueezyCheckoutId(bookingId, checkoutData.id, 'balance');
-      }
-
-      // Return the URL as-is — lemon.js embed overlay handles the custom domain
-      res.json({ checkoutUrl: checkoutData.attributes.url });
+      res.json({ checkoutUrl });
     } catch (error: any) {
-      console.error('Error creating checkout:', error);
+      console.error('Error creating WiPay checkout:', error);
       res.status(500).json({ error: "Error creating checkout: " + error.message });
     }
   });
@@ -1544,87 +1414,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Lemon Squeezy webhook to handle payment success
-  app.post('/api/lemonsqueezy/webhook', async (req, res) => {
+  // WiPay callback — GET redirect after payment completes
+  app.get('/api/wipay/callback', async (req: any, res: any) => {
+    const { status, transaction_id, order_id, hash } = req.query as Record<string, string>;
+
+    const fail = (reason: string) => {
+      console.error('[wipay callback]', reason, req.query);
+      return res.redirect(302, '/dashboard');
+    };
+
     try {
-      if (!lemonSqueezyEnabled) {
-        return res.status(501).json({ error: "Webhooks not configured" });
+      if (!order_id) return fail('Missing order_id');
+
+      // order_id format: {bookingId}_{paymentType}
+      const lastUnderscore = order_id.lastIndexOf('_');
+      if (lastUnderscore === -1) return fail('Invalid order_id format');
+      const bookingId = order_id.substring(0, lastUnderscore);
+      const paymentType = order_id.substring(lastUnderscore + 1) as 'deposit' | 'balance';
+
+      if (!['deposit', 'balance'].includes(paymentType)) return fail('Invalid payment type');
+
+      const booking = await storage.getBooking(bookingId);
+      if (!booking) return fail(`Booking not found: ${bookingId}`);
+
+      // Idempotency: skip if already paid
+      if (paymentType === 'deposit' && booking.depositPaid) {
+        return res.redirect(302, `/payment-success?booking=${bookingId}&type=${paymentType}`);
+      }
+      if (paymentType === 'balance' && booking.balancePaid) {
+        return res.redirect(302, `/payment-success?booking=${bookingId}&type=${paymentType}`);
       }
 
-      const signature = req.headers['x-signature'] as string;
-      
-      if (!signature) {
-        return res.status(400).json({ error: 'Missing signature header' });
+      if (status !== 'success') {
+        console.warn(`[wipay callback] Payment not successful: status=${status} booking=${bookingId}`);
+        return res.redirect(302, `/payment?booking=${bookingId}&type=${paymentType}&error=payment_failed`);
       }
 
-      // Verify webhook signature
+      // Verify WiPay hash: md5(transaction_id + total + api_key)
+      const bookingCurrency = (booking as any).currency || 'USD';
+      const rates = await fetchExchangeRates();
+      const jmdRate = (rates.JMD as number) ?? 157;
+      const serverDeposit = Math.round(booking.totalPrice * 0.5);
+      const serverBalance = booking.totalPrice - serverDeposit;
+      const baseAmount = paymentType === 'deposit' ? serverDeposit : serverBalance;
+      const amountJmd = bookingCurrency === 'JMD' ? baseAmount : Math.round(baseAmount * jmdRate);
+
       const crypto = require('crypto');
-      const rawBody = req.body instanceof Buffer ? req.body.toString('utf-8') : JSON.stringify(req.body);
-      const expectedSignature = crypto
-        .createHmac('sha256', process.env.LEMONSQUEEZY_WEBHOOK_SECRET || '')
-        .update(rawBody)
+      const expectedHash = crypto
+        .createHash('md5')
+        .update(`${transaction_id}${amountJmd.toFixed(2)}${process.env.WIPAY_API_KEY}`)
         .digest('hex');
 
-      if (signature !== expectedSignature) {
-        console.log('Webhook signature verification failed');
-        return res.status(401).json({ error: 'Unauthorized' });
+      if (hash !== expectedHash) {
+        console.error(`[wipay callback] Hash mismatch for booking ${bookingId}. Expected ${expectedHash}, got ${hash}`);
+        return fail('Hash verification failed');
       }
 
-      const event = req.body instanceof Buffer ? JSON.parse(req.body.toString('utf-8')) : req.body;
+      // Record transaction and mark paid
+      await storage.updateBookingTransactionId(bookingId, transaction_id, paymentType);
+      await storage.updateBookingPaymentStatus(bookingId, paymentType);
+      console.log(`[wipay] Payment ${paymentType} confirmed for booking ${bookingId} (txn ${transaction_id})`);
 
-      // Handle different webhook events
-      switch (event.meta.event_name) {
-        case 'order_created': {
-          const order = event.data;
-          const customData = event.meta?.custom_data || order.attributes?.first_order_item?.product_options?.custom || {};
-          const { booking_id, payment_type } = customData;
-
-          if (booking_id && payment_type) {
-            // Skip if this payment was already processed (idempotency for webhook retries)
-            const existingBooking = await storage.getBooking(booking_id);
-            if (existingBooking && (
-              (payment_type === 'deposit' && existingBooking.depositPaid) ||
-              (payment_type === 'balance' && existingBooking.balancePaid)
-            )) {
-              console.log(`Payment ${payment_type} already processed for booking ${booking_id}, skipping`);
-              break;
-            }
-
-            // Store order ID on booking
-            await storage.updateBookingLemonSqueezyOrderId(booking_id, order.id, payment_type);
-            // Update payment status
-            await storage.updateBookingPaymentStatus(booking_id, payment_type as 'deposit' | 'balance');
-            console.log(`Payment ${payment_type} successful for booking ${booking_id}`);
-
-            // Send payment confirmation email
-            const paidBooking = await storage.getBooking(booking_id);
-            if (paidBooking) {
-              const amount = payment_type === 'deposit'
-                ? Math.round(paidBooking.totalPrice * 0.5)
-                : paidBooking.totalPrice - Math.round(paidBooking.totalPrice * 0.5);
-              sendPaymentConfirmation({
-                clientName: paidBooking.clientName,
-                email: paidBooking.email,
-                serviceType: paidBooking.serviceType,
-                id: paidBooking.id,
-              }, payment_type as 'deposit' | 'balance', amount).catch(err => console.error('Failed to send payment confirmation email:', err));
-            }
-          }
-          break;
-        }
-        case 'order_refunded': {
-          const order = event.data;
-          console.log(`Order refunded: ${order.id}`);
-          break;
-        }
-        default:
-          console.log(`Unhandled event type: ${event.meta.event_name}`);
+      // Send confirmation email (non-blocking)
+      const paidBooking = await storage.getBooking(bookingId);
+      if (paidBooking) {
+        const amount = paymentType === 'deposit'
+          ? Math.round(paidBooking.totalPrice * 0.5)
+          : paidBooking.totalPrice - Math.round(paidBooking.totalPrice * 0.5);
+        sendPaymentConfirmation({
+          clientName: paidBooking.clientName,
+          email: paidBooking.email,
+          serviceType: paidBooking.serviceType,
+          id: paidBooking.id,
+        }, paymentType, amount).catch(err => console.error('Failed to send payment confirmation email:', err));
       }
 
-      res.json({ received: true });
+      return res.redirect(302, `/payment-success?booking=${bookingId}&type=${paymentType}`);
     } catch (error: any) {
-      console.error('Webhook error:', error);
-      res.status(200).json({ received: true, error: error.message });
+      console.error('[wipay callback] Unexpected error:', error);
+      return res.redirect(302, '/dashboard');
     }
   });
 
@@ -2123,7 +1991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Send payment link to client (admin only)
   app.post('/api/admin/bookings/:id/send-payment-link', isAdmin, async (req, res) => {
     try {
-      if (!lemonSqueezyEnabled) {
+      if (!wipayEnabled) {
         return res.status(501).json({ error: 'Payments not configured' });
       }
       const { paymentType, sendEmail } = z.object({ paymentType: z.enum(['deposit', 'balance']), sendEmail: z.boolean().optional().default(false) }).parse(req.body);
@@ -2143,35 +2011,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (booking.balancePaid) return res.status(400).json({ error: 'Balance already paid' });
         amount = serverBalanceDue;
       }
-      const storeId = process.env.LEMONSQUEEZY_STORE_ID!;
-      const variantId = process.env.LEMONSQUEEZY_VARIANT_ID!;
-      const customPriceInCents = Math.round(amount * 100);
-      const newCheckout = {
-        customPrice: customPriceInCents,
-        productOptions: {
-          name: `Photography ${paymentType === 'deposit' ? 'Deposit' : 'Balance'} Payment`,
-          description: `${paymentType} payment for ${booking.serviceType} booking #${booking.id}`,
-          redirectUrl: `${process.env.APP_URL || 'http://localhost:5000'}/payment-success?booking=${booking.id}`,
-        },
-        checkoutOptions: { embed: false, media: true, logo: true },
-        checkoutData: {
-          email: booking.email,
-          name: booking.clientName,
-          custom: { booking_id: booking.id, payment_type: paymentType, service_type: booking.serviceType, total_amount: String(booking.totalPrice) }
-        },
-      };
-      const checkout = await createCheckout(storeId, variantId, newCheckout);
-      if (checkout.error) return res.status(500).json({ error: 'Failed to create checkout' });
-      const rawUrl = checkout.data?.data?.attributes?.url;
-      if (!rawUrl) return res.status(500).json({ error: 'No checkout URL returned' });
-      const url = normalizeLsUrl(rawUrl);
-      // Send by email only when explicitly requested
+
+      const bookingCurrency = (booking as any).currency || 'USD';
+      const rates = await fetchExchangeRates();
+      const jmdRate = (rates.JMD as number) ?? 157;
+      const amountJmd = bookingCurrency === 'JMD' ? amount : Math.round(amount * jmdRate);
+      const appUrl = process.env.APP_URL || 'https://www.connectagrapher.com';
+
+      const url = await createWiPayCheckout({
+        bookingId: booking.id,
+        paymentType,
+        amountJmd,
+        email: booking.email,
+        name: booking.clientName,
+        phone: (booking as any).contactNumber || '',
+        responseUrl: `${appUrl}/api/wipay/callback`,
+      });
+
       if (sendEmail) {
         await sendAdminEmail(
           booking.email,
           booking.clientName,
           `Payment Link – ${paymentType === 'deposit' ? 'Deposit' : 'Balance'}`,
-          `Hi ${booking.clientName},\n\nPlease use the following link to complete your ${paymentType} payment of $${(amount).toFixed(2)}:\n\n${url}\n\nThank you!`
+          `Hi ${booking.clientName},\n\nPlease use the following link to complete your ${paymentType} payment of $${amount.toFixed(2)}:\n\n${url}\n\nThank you!`
         );
       }
       res.json({ url });

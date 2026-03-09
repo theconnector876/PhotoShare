@@ -171,7 +171,7 @@ export default function Payment() {
                 <div>
                   <h4 className="font-semibold text-green-800 mb-1">Secure Payment</h4>
                   <p className="text-sm text-green-700">
-                    You will be redirected to complete your payment securely through Lemon Squeezy.
+                    You will be redirected to complete your payment securely through WiPay.
                   </p>
                 </div>
               </div>

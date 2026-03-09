@@ -28,8 +28,8 @@ interface UserBooking {
   balanceDue: number;
   depositPaid: boolean;
   balancePaid: boolean;
-  lemonSqueezyDepositCheckoutId: string | null;
-  lemonSqueezyBalanceCheckoutId: string | null;
+  depositTransactionId: string | null;
+  balanceTransactionId: string | null;
   status: string;
   createdAt: string;
 }

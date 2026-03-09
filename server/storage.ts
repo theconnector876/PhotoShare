@@ -75,8 +75,7 @@ export interface IStorage {
   getUserGalleries(userEmail: string): Promise<Gallery[]>;
   getPhotographerBookings(userId: string): Promise<Booking[]>;
   getPhotographerGalleries(userId: string): Promise<Gallery[]>;
-  updateBookingLemonSqueezyCheckoutId(bookingId: string, checkoutId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
-  updateBookingLemonSqueezyOrderId(bookingId: string, orderId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
+  updateBookingTransactionId(bookingId: string, transactionId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
   updateBookingPaymentStatus(bookingId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined>;
   
   // Booking operations
@@ -587,31 +586,17 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users).orderBy(users.createdAt);
   }
 
-  async updateBookingLemonSqueezyCheckoutId(bookingId: string, checkoutId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined> {
-    const updateData = type === 'deposit' 
-      ? { lemonSqueezyDepositCheckoutId: checkoutId }
-      : { lemonSqueezyBalanceCheckoutId: checkoutId };
-    
-    const [updatedBooking] = await db
-      .update(bookings)
-      .set(updateData)
-      .where(eq(bookings.id, bookingId))
-      .returning();
-    
-    return updatedBooking;
-  }
+  async updateBookingTransactionId(bookingId: string, transactionId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined> {
+    const updateData = type === 'deposit'
+      ? { depositTransactionId: transactionId }
+      : { balanceTransactionId: transactionId };
 
-  async updateBookingLemonSqueezyOrderId(bookingId: string, orderId: string, type: 'deposit' | 'balance'): Promise<Booking | undefined> {
-    const updateData = type === 'deposit' 
-      ? { lemonSqueezyDepositOrderId: orderId }
-      : { lemonSqueezyBalanceOrderId: orderId };
-    
     const [updatedBooking] = await db
       .update(bookings)
       .set(updateData)
       .where(eq(bookings.id, bookingId))
       .returning();
-    
+
     return updatedBooking;
   }
 
