@@ -2006,6 +2006,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Broadcast System ─────────────────────────────────────────────────────
+
+  // Create a broadcast offer for a booking
+  app.post('/api/admin/bookings/:id/broadcast', isAdmin, async (req, res) => {
+    try {
+      const bookingId = req.params.id;
+      const { offerAmount, targetPhotographerIds, notes } = z.object({
+        offerAmount: z.number().positive(),
+        targetPhotographerIds: z.array(z.string()).default([]),
+        notes: z.string().optional(),
+      }).parse(req.body);
+
+      const booking = await storage.getBooking(bookingId);
+      if (!booking) return res.status(404).json({ error: 'Booking not found' });
+      if (!booking.depositPaid) return res.status(400).json({ error: 'Deposit must be paid before broadcasting' });
+      if (booking.photographerId) return res.status(400).json({ error: 'Booking already has a photographer assigned' });
+
+      // Cancel any existing open broadcast for this booking
+      const existing = await storage.getBroadcastByBookingId(bookingId);
+      if (existing) await storage.cancelBroadcast(existing.id);
+
+      const adminId = (req as any).user?.id;
+      const currency = (booking as any).currency || 'USD';
+
+      const broadcast = await storage.createBroadcast({ bookingId, adminId, offerAmount, currency, targetPhotographerIds, notes });
+
+      // Determine which photographers to notify
+      let targetIds = targetPhotographerIds;
+      if (!targetIds.length) {
+        // All approved photographers
+        const allPhotographers = await storage.getAllPhotographers();
+        targetIds = allPhotographers
+          .filter((p: any) => p.photographerStatus === 'approved')
+          .map((p: any) => p.id);
+      }
+
+      await storage.createBroadcastResponses(broadcast.id, targetIds);
+
+      // Email targeted photographers
+      const allPhotographers = await storage.getAllPhotographers();
+      const targets = allPhotographers.filter((p: any) => targetIds.includes(p.id));
+      for (const photographer of targets) {
+        if (photographer.email) {
+          sendAdminEmail(
+            photographer.email,
+            (photographer.firstName || 'Photographer'),
+            `New Job Offer – ${booking.serviceType} in ${booking.parish}`,
+            `Hi ${photographer.firstName || 'there'},\n\nA new photography job is available and has been offered to you:\n\nService: ${booking.serviceType} – ${booking.packageType}\nDate: ${booking.shootDate} at ${booking.shootTime}\nLocation: ${booking.location}, ${booking.parish}\nOffer: ${currency} ${offerAmount}\n\n${notes ? `Note from admin: ${notes}\n\n` : ''}Log in to your dashboard to accept or decline this offer.\n\nhttps://www.connectagrapher.com/photographer-dashboard`
+          ).catch(console.error);
+        }
+      }
+
+      res.json({ broadcast, targetCount: targetIds.length });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data' });
+      console.error('Error creating broadcast:', error);
+      res.status(500).json({ error: 'Failed to create broadcast' });
+    }
+  });
+
+  // Get broadcast status for a booking
+  app.get('/api/admin/bookings/:id/broadcast', isAdmin, async (req, res) => {
+    try {
+      const broadcast = await storage.getBroadcastByBookingId(req.params.id);
+      if (!broadcast) return res.json(null);
+      const responses = await storage.getBroadcastResponses(broadcast.id);
+      res.json({ broadcast, responses });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to get broadcast' });
+    }
+  });
+
+  // Raise (update) the offer amount on an open broadcast
+  app.put('/api/admin/broadcasts/:id/offer', isAdmin, async (req, res) => {
+    try {
+      const { offerAmount } = z.object({ offerAmount: z.number().positive() }).parse(req.body);
+      const broadcast = await storage.getBroadcast(req.params.id);
+      if (!broadcast) return res.status(404).json({ error: 'Broadcast not found' });
+      if (broadcast.status !== 'open') return res.status(400).json({ error: 'Broadcast is not open' });
+
+      const updated = await storage.updateBroadcastOffer(req.params.id, offerAmount);
+
+      // Notify pending photographers of the raised offer
+      const responses = await storage.getBroadcastResponses(req.params.id);
+      const booking = await storage.getBooking(broadcast.bookingId);
+      for (const r of responses.filter(r => r.response === 'pending' && r.photographer?.email)) {
+        sendAdminEmail(
+          r.photographer!.email!,
+          r.photographer!.firstName || 'Photographer',
+          `Updated Offer – ${booking?.serviceType} in ${booking?.parish}`,
+          `Hi ${r.photographer!.firstName || 'there'},\n\nThe offer for the photography job you were invited to has been updated:\n\nNew Offer: ${broadcast.currency} ${offerAmount}\n\nLog in to your dashboard to accept or decline.\n\nhttps://www.connectagrapher.com/photographer-dashboard`
+        ).catch(console.error);
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data' });
+      res.status(500).json({ error: 'Failed to update offer' });
+    }
+  });
+
+  // Cancel a broadcast
+  app.delete('/api/admin/broadcasts/:id', isAdmin, async (req, res) => {
+    try {
+      const broadcast = await storage.getBroadcast(req.params.id);
+      if (!broadcast) return res.status(404).json({ error: 'Broadcast not found' });
+      await storage.cancelBroadcast(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to cancel broadcast' });
+    }
+  });
+
+  // Get all open offers for the logged-in photographer
+  app.get('/api/photographer/offers', isAuthenticated, async (req, res) => {
+    try {
+      const photographerId = (req as any).user?.id;
+      const offers = await storage.getOpenBroadcastsForPhotographer(photographerId);
+      res.json(offers);
+    } catch (error) {
+      console.error('Error fetching photographer offers:', error);
+      res.status(500).json({ error: 'Failed to fetch offers' });
+    }
+  });
+
+  // Accept an offer
+  app.post('/api/photographer/offers/:id/accept', isAuthenticated, async (req, res) => {
+    try {
+      const photographerId = (req as any).user?.id;
+      const broadcastId = req.params.id;
+
+      const broadcast = await storage.getBroadcast(broadcastId);
+      if (!broadcast) return res.status(404).json({ error: 'Offer not found' });
+      if (broadcast.status !== 'open') return res.status(400).json({ error: 'This offer is no longer available' });
+
+      // Mark this photographer's response as accepted
+      await storage.respondToBroadcast(broadcastId, photographerId, 'accepted');
+      // Close other pending responses
+      await storage.closeOtherBroadcastResponses(broadcastId, photographerId);
+      // Mark broadcast as accepted
+      await storage.acceptBroadcast(broadcastId, photographerId);
+      // Assign photographer to booking
+      await storage.assignBookingPhotographer(broadcast.bookingId, photographerId);
+
+      // Create booking conversation if needed
+      const booking = await storage.getBooking(broadcast.bookingId);
+      if (booking) {
+        const existing = await storage.getConversationByBookingId(broadcast.bookingId);
+        if (!existing) {
+          const admins = (await storage.getAllUsers()).filter((u: any) => u.isAdmin);
+          const participantIds = [photographerId, ...admins.map((a: any) => a.id)];
+          await storage.createConversation({ type: 'booking', bookingId: broadcast.bookingId, title: `Booking: ${booking.serviceType}`, participantIds });
+        }
+        // Email confirmation to photographer
+        const photographer = await storage.getUser(photographerId);
+        if (photographer?.email) {
+          sendAdminEmail(
+            photographer.email,
+            photographer.firstName || 'Photographer',
+            `Offer Accepted – ${booking.serviceType} on ${booking.shootDate}`,
+            `You have successfully accepted the offer for:\n\nService: ${booking.serviceType} – ${booking.packageType}\nDate: ${booking.shootDate} at ${booking.shootTime}\nLocation: ${booking.location}, ${booking.parish}\nYour offer: ${broadcast.currency} ${broadcast.offerAmount}\n\nLog in to your dashboard to view full booking details.`
+          ).catch(console.error);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error accepting offer:', error);
+      res.status(500).json({ error: 'Failed to accept offer' });
+    }
+  });
+
+  // Decline an offer
+  app.post('/api/photographer/offers/:id/decline', isAuthenticated, async (req, res) => {
+    try {
+      const photographerId = (req as any).user?.id;
+      await storage.respondToBroadcast(req.params.id, photographerId, 'declined');
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to decline offer' });
+    }
+  });
+
+  // ── End Broadcast System ──────────────────────────────────────────────────
+
   // Send payment link to client (admin only)
   app.post('/api/admin/bookings/:id/send-payment-link', isAdmin, async (req, res) => {
     try {

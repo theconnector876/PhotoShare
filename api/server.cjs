@@ -51212,7 +51212,9 @@ var import_http = require("http");
 var schema_exports = {};
 __export(schema_exports, {
   blogPosts: () => blogPosts,
+  bookingBroadcasts: () => bookingBroadcasts,
   bookings: () => bookings,
+  broadcastResponses: () => broadcastResponses,
   catalogues: () => catalogues,
   contactMessages: () => contactMessages,
   conversationParticipants: () => conversationParticipants,
@@ -62276,6 +62278,32 @@ var insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt:
 var insertConversationSchema = createInsertSchema(conversations).omit({ id: true, createdAt: true, updatedAt: true });
 var insertConversationParticipantSchema = createInsertSchema(conversationParticipants).omit({ id: true, joinedAt: true });
 var insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
+var bookingBroadcasts = pgTable("booking_broadcasts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull().references(() => bookings.id),
+  adminId: varchar("admin_id").notNull().references(() => users.id),
+  offerAmount: integer("offer_amount").notNull(),
+  // what admin offers photographer (booking currency)
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  status: text("status").notNull().default("open"),
+  // open | accepted | cancelled
+  // Empty array = all approved photographers; otherwise specific IDs
+  targetPhotographerIds: text("target_photographer_ids").array().default([]),
+  acceptedById: varchar("accepted_by_id").references(() => users.id),
+  notes: text("notes"),
+  // optional message shown to photographers
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+var broadcastResponses = pgTable("broadcast_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  broadcastId: varchar("broadcast_id").notNull().references(() => bookingBroadcasts.id),
+  photographerId: varchar("photographer_id").notNull().references(() => users.id),
+  response: text("response").notNull().default("pending"),
+  // pending | accepted | declined | closed
+  respondedAt: timestamp("responded_at"),
+  createdAt: timestamp("created_at").defaultNow()
+});
 var insertBlogPostSchema = createInsertSchema(blogPosts).omit({
   id: true,
   createdAt: true,
@@ -68942,6 +68970,75 @@ var DatabaseStorage = class {
   }
   async deleteCustomPackage(id) {
     await db.delete(customPackages).where(eq(customPackages.id, id));
+  }
+  // ── Broadcast implementations ─────────────────────────────────────────────
+  async createBroadcast(data) {
+    const [broadcast] = await db.insert(bookingBroadcasts).values({
+      bookingId: data.bookingId,
+      adminId: data.adminId,
+      offerAmount: data.offerAmount,
+      currency: data.currency,
+      targetPhotographerIds: data.targetPhotographerIds,
+      notes: data.notes ?? null,
+      status: "open"
+    }).returning();
+    return broadcast;
+  }
+  async getBroadcastByBookingId(bookingId) {
+    const [b] = await db.select().from(bookingBroadcasts).where(and(eq(bookingBroadcasts.bookingId, bookingId), eq(bookingBroadcasts.status, "open"))).orderBy(desc(bookingBroadcasts.createdAt)).limit(1);
+    return b;
+  }
+  async getBroadcast(id) {
+    const [b] = await db.select().from(bookingBroadcasts).where(eq(bookingBroadcasts.id, id));
+    return b;
+  }
+  async updateBroadcastOffer(id, offerAmount) {
+    const [b] = await db.update(bookingBroadcasts).set({ offerAmount, updatedAt: /* @__PURE__ */ new Date() }).where(eq(bookingBroadcasts.id, id)).returning();
+    return b;
+  }
+  async cancelBroadcast(id) {
+    const [b] = await db.update(bookingBroadcasts).set({ status: "cancelled", updatedAt: /* @__PURE__ */ new Date() }).where(eq(bookingBroadcasts.id, id)).returning();
+    return b;
+  }
+  async acceptBroadcast(id, photographerId) {
+    const [b] = await db.update(bookingBroadcasts).set({ status: "accepted", acceptedById: photographerId, updatedAt: /* @__PURE__ */ new Date() }).where(eq(bookingBroadcasts.id, id)).returning();
+    return b;
+  }
+  async createBroadcastResponses(broadcastId, photographerIds) {
+    if (!photographerIds.length) return;
+    await db.insert(broadcastResponses).values(
+      photographerIds.map((pid) => ({ broadcastId, photographerId: pid, response: "pending" }))
+    );
+  }
+  async getBroadcastResponses(broadcastId) {
+    const rows = await db.select().from(broadcastResponses).where(eq(broadcastResponses.broadcastId, broadcastId)).orderBy(broadcastResponses.createdAt);
+    const results = await Promise.all(rows.map(async (r) => {
+      const [photographer] = await db.select().from(users).where(eq(users.id, r.photographerId));
+      return { ...r, photographer: photographer ?? null };
+    }));
+    return results;
+  }
+  async respondToBroadcast(broadcastId, photographerId, response) {
+    const [r] = await db.update(broadcastResponses).set({ response, respondedAt: /* @__PURE__ */ new Date() }).where(and(eq(broadcastResponses.broadcastId, broadcastId), eq(broadcastResponses.photographerId, photographerId))).returning();
+    return r;
+  }
+  async closeOtherBroadcastResponses(broadcastId, acceptedPhotographerId) {
+    await db.update(broadcastResponses).set({ response: "closed" }).where(and(
+      eq(broadcastResponses.broadcastId, broadcastId),
+      eq(broadcastResponses.response, "pending"),
+      sql`${broadcastResponses.photographerId} != ${acceptedPhotographerId}`
+    ));
+  }
+  async getOpenBroadcastsForPhotographer(photographerId) {
+    const myResponses = await db.select().from(broadcastResponses).where(and(eq(broadcastResponses.photographerId, photographerId), eq(broadcastResponses.response, "pending")));
+    const results = await Promise.all(myResponses.map(async (resp) => {
+      const [broadcast] = await db.select().from(bookingBroadcasts).where(and(eq(bookingBroadcasts.id, resp.broadcastId), eq(bookingBroadcasts.status, "open")));
+      if (!broadcast) return null;
+      const [booking] = await db.select().from(bookings).where(eq(bookings.id, broadcast.bookingId));
+      if (!booking) return null;
+      return { ...broadcast, booking, myResponse: resp.response };
+    }));
+    return results.filter(Boolean);
   }
 };
 var storage = new DatabaseStorage();
@@ -76062,6 +76159,173 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("Error sending password reset:", error);
       res.status(500).json({ error: "Failed to send reset email" });
+    }
+  });
+  app2.post("/api/admin/bookings/:id/broadcast", isAdmin, async (req, res) => {
+    try {
+      const bookingId = req.params.id;
+      const { offerAmount, targetPhotographerIds, notes } = z.object({
+        offerAmount: z.number().positive(),
+        targetPhotographerIds: z.array(z.string()).default([]),
+        notes: z.string().optional()
+      }).parse(req.body);
+      const booking = await storage.getBooking(bookingId);
+      if (!booking) return res.status(404).json({ error: "Booking not found" });
+      if (!booking.depositPaid) return res.status(400).json({ error: "Deposit must be paid before broadcasting" });
+      if (booking.photographerId) return res.status(400).json({ error: "Booking already has a photographer assigned" });
+      const existing = await storage.getBroadcastByBookingId(bookingId);
+      if (existing) await storage.cancelBroadcast(existing.id);
+      const adminId = req.user?.id;
+      const currency = booking.currency || "USD";
+      const broadcast = await storage.createBroadcast({ bookingId, adminId, offerAmount, currency, targetPhotographerIds, notes });
+      let targetIds = targetPhotographerIds;
+      if (!targetIds.length) {
+        const allPhotographers2 = await storage.getAllPhotographers();
+        targetIds = allPhotographers2.filter((p2) => p2.photographerStatus === "approved").map((p2) => p2.id);
+      }
+      await storage.createBroadcastResponses(broadcast.id, targetIds);
+      const allPhotographers = await storage.getAllPhotographers();
+      const targets = allPhotographers.filter((p2) => targetIds.includes(p2.id));
+      for (const photographer of targets) {
+        if (photographer.email) {
+          sendAdminEmail(
+            photographer.email,
+            photographer.firstName || "Photographer",
+            `New Job Offer \u2013 ${booking.serviceType} in ${booking.parish}`,
+            `Hi ${photographer.firstName || "there"},
+
+A new photography job is available and has been offered to you:
+
+Service: ${booking.serviceType} \u2013 ${booking.packageType}
+Date: ${booking.shootDate} at ${booking.shootTime}
+Location: ${booking.location}, ${booking.parish}
+Offer: ${currency} ${offerAmount}
+
+${notes ? `Note from admin: ${notes}
+
+` : ""}Log in to your dashboard to accept or decline this offer.
+
+https://www.connectagrapher.com/photographer-dashboard`
+          ).catch(console.error);
+        }
+      }
+      res.json({ broadcast, targetCount: targetIds.length });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });
+      console.error("Error creating broadcast:", error);
+      res.status(500).json({ error: "Failed to create broadcast" });
+    }
+  });
+  app2.get("/api/admin/bookings/:id/broadcast", isAdmin, async (req, res) => {
+    try {
+      const broadcast = await storage.getBroadcastByBookingId(req.params.id);
+      if (!broadcast) return res.json(null);
+      const responses = await storage.getBroadcastResponses(broadcast.id);
+      res.json({ broadcast, responses });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get broadcast" });
+    }
+  });
+  app2.put("/api/admin/broadcasts/:id/offer", isAdmin, async (req, res) => {
+    try {
+      const { offerAmount } = z.object({ offerAmount: z.number().positive() }).parse(req.body);
+      const broadcast = await storage.getBroadcast(req.params.id);
+      if (!broadcast) return res.status(404).json({ error: "Broadcast not found" });
+      if (broadcast.status !== "open") return res.status(400).json({ error: "Broadcast is not open" });
+      const updated = await storage.updateBroadcastOffer(req.params.id, offerAmount);
+      const responses = await storage.getBroadcastResponses(req.params.id);
+      const booking = await storage.getBooking(broadcast.bookingId);
+      for (const r of responses.filter((r2) => r2.response === "pending" && r2.photographer?.email)) {
+        sendAdminEmail(
+          r.photographer.email,
+          r.photographer.firstName || "Photographer",
+          `Updated Offer \u2013 ${booking?.serviceType} in ${booking?.parish}`,
+          `Hi ${r.photographer.firstName || "there"},
+
+The offer for the photography job you were invited to has been updated:
+
+New Offer: ${broadcast.currency} ${offerAmount}
+
+Log in to your dashboard to accept or decline.
+
+https://www.connectagrapher.com/photographer-dashboard`
+        ).catch(console.error);
+      }
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data" });
+      res.status(500).json({ error: "Failed to update offer" });
+    }
+  });
+  app2.delete("/api/admin/broadcasts/:id", isAdmin, async (req, res) => {
+    try {
+      const broadcast = await storage.getBroadcast(req.params.id);
+      if (!broadcast) return res.status(404).json({ error: "Broadcast not found" });
+      await storage.cancelBroadcast(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to cancel broadcast" });
+    }
+  });
+  app2.get("/api/photographer/offers", isAuthenticated, async (req, res) => {
+    try {
+      const photographerId = req.user?.id;
+      const offers = await storage.getOpenBroadcastsForPhotographer(photographerId);
+      res.json(offers);
+    } catch (error) {
+      console.error("Error fetching photographer offers:", error);
+      res.status(500).json({ error: "Failed to fetch offers" });
+    }
+  });
+  app2.post("/api/photographer/offers/:id/accept", isAuthenticated, async (req, res) => {
+    try {
+      const photographerId = req.user?.id;
+      const broadcastId = req.params.id;
+      const broadcast = await storage.getBroadcast(broadcastId);
+      if (!broadcast) return res.status(404).json({ error: "Offer not found" });
+      if (broadcast.status !== "open") return res.status(400).json({ error: "This offer is no longer available" });
+      await storage.respondToBroadcast(broadcastId, photographerId, "accepted");
+      await storage.closeOtherBroadcastResponses(broadcastId, photographerId);
+      await storage.acceptBroadcast(broadcastId, photographerId);
+      await storage.assignBookingPhotographer(broadcast.bookingId, photographerId);
+      const booking = await storage.getBooking(broadcast.bookingId);
+      if (booking) {
+        const existing = await storage.getConversationByBookingId(broadcast.bookingId);
+        if (!existing) {
+          const admins = (await storage.getAllUsers()).filter((u) => u.isAdmin);
+          const participantIds = [photographerId, ...admins.map((a2) => a2.id)];
+          await storage.createConversation({ type: "booking", bookingId: broadcast.bookingId, title: `Booking: ${booking.serviceType}`, participantIds });
+        }
+        const photographer = await storage.getUser(photographerId);
+        if (photographer?.email) {
+          sendAdminEmail(
+            photographer.email,
+            photographer.firstName || "Photographer",
+            `Offer Accepted \u2013 ${booking.serviceType} on ${booking.shootDate}`,
+            `You have successfully accepted the offer for:
+
+Service: ${booking.serviceType} \u2013 ${booking.packageType}
+Date: ${booking.shootDate} at ${booking.shootTime}
+Location: ${booking.location}, ${booking.parish}
+Your offer: ${broadcast.currency} ${broadcast.offerAmount}
+
+Log in to your dashboard to view full booking details.`
+          ).catch(console.error);
+        }
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error accepting offer:", error);
+      res.status(500).json({ error: "Failed to accept offer" });
+    }
+  });
+  app2.post("/api/photographer/offers/:id/decline", isAuthenticated, async (req, res) => {
+    try {
+      const photographerId = req.user?.id;
+      await storage.respondToBroadcast(req.params.id, photographerId, "declined");
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to decline offer" });
     }
   });
   app2.post("/api/admin/bookings/:id/send-payment-link", isAdmin, async (req, res) => {

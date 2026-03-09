@@ -38,7 +38,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "overview" | "profile" | "bookings" | "galleries" | "pricing" | "chat" | "payouts";
+type Tab = "overview" | "profile" | "bookings" | "galleries" | "pricing" | "chat" | "payouts" | "offers";
 
 interface UserBooking {
   id: string;
@@ -320,6 +320,31 @@ export default function PhotographerDashboard() {
     retry: false,
   });
   const unreadCount = unreadData?.count ?? 0;
+
+  const { data: offers = [], refetch: refetchOffers } = useQuery<any[]>({
+    queryKey: ["/api/photographer/offers"],
+    enabled: !!user,
+    refetchInterval: 15000,
+    retry: false,
+  });
+  const offersCount = offers.length;
+
+  const acceptOfferMutation = useMutation({
+    mutationFn: async (broadcastId: string) => {
+      const res = await apiRequest("POST", `/api/photographer/offers/${broadcastId}/accept`);
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+    },
+    onSuccess: () => { toast({ title: "Offer Accepted!", description: "The booking has been assigned to you." }); refetchOffers(); },
+    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to accept", variant: "destructive" }),
+  });
+
+  const declineOfferMutation = useMutation({
+    mutationFn: async (broadcastId: string) => {
+      await apiRequest("POST", `/api/photographer/offers/${broadcastId}/decline`);
+    },
+    onSuccess: () => { toast({ title: "Offer Declined" }); refetchOffers(); },
+    onError: () => toast({ title: "Error", description: "Failed to decline", variant: "destructive" }),
+  });
 
   // ── Effects ────────────────────────────────────────────────────────────────
 
@@ -752,6 +777,7 @@ export default function PhotographerDashboard() {
   const navItems: { id: Tab; label: string; icon: React.ElementType; badge: number }[] = [
     { id: "overview",  label: "Overview",  icon: LayoutDashboard, badge: 0 },
     { id: "profile",   label: "Profile",   icon: User,            badge: 0 },
+    { id: "offers",    label: "Offers",    icon: DollarSign,      badge: offersCount },
     { id: "bookings",  label: "Bookings",  icon: Calendar,        badge: pendingCount },
     { id: "galleries", label: "Galleries", icon: Camera,          badge: 0 },
     { id: "pricing",   label: "Pricing",   icon: DollarSign,      badge: 0 },
@@ -900,6 +926,82 @@ export default function PhotographerDashboard() {
 
         {/* Content */}
         <main className={activeTab === "chat" ? "flex-1 min-h-0 flex flex-col overflow-hidden" : "flex-1 p-4 md:p-6 pb-24 md:pb-6 overflow-y-auto"}>
+
+          {/* ── OFFERS ── */}
+          {activeTab === "offers" && (
+            <div className="space-y-4 max-w-2xl">
+              <div>
+                <h2 className="text-xl font-bold">Available Job Offers</h2>
+                <p className="text-sm text-muted-foreground">Accept a job to get assigned to the booking. First to accept wins.</p>
+              </div>
+
+              {offers.length === 0 && (
+                <Card>
+                  <CardContent className="p-10 text-center text-muted-foreground">
+                    <DollarSign className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p>No open offers right now. Check back soon.</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {offers.map((offer: any) => {
+                const b = offer.booking;
+                const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: offer.currency || 'USD', maximumFractionDigits: 0 }).format(n);
+                return (
+                  <Card key={offer.id} className="border-2 border-primary/20">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-base capitalize">{b.serviceType} – {b.packageType}</CardTitle>
+                          <p className="text-sm text-muted-foreground mt-0.5">{b.shootDate} at {b.shootTime}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-green-600">{fmt(offer.offerAmount)}</p>
+                          <p className="text-xs text-muted-foreground">your payout</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <MapPin className="w-3.5 h-3.5" />
+                          {b.location}, {b.parish}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Users className="w-3.5 h-3.5" />
+                          {b.numberOfPeople} {b.numberOfPeople === 1 ? 'person' : 'people'}
+                        </div>
+                      </div>
+                      {offer.notes && (
+                        <div className="bg-amber-50 border border-amber-200 rounded p-2 text-sm">
+                          <strong>Note:</strong> {offer.notes}
+                        </div>
+                      )}
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          className="flex-1"
+                          onClick={() => acceptOfferMutation.mutate(offer.id)}
+                          disabled={acceptOfferMutation.isPending || declineOfferMutation.isPending}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1.5" />
+                          Accept Offer
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => declineOfferMutation.mutate(offer.id)}
+                          disabled={acceptOfferMutation.isPending || declineOfferMutation.isPending}
+                        >
+                          <X className="w-4 h-4 mr-1.5" />
+                          Decline
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
 
           {/* ── OVERVIEW ── */}
           {activeTab === "overview" && (

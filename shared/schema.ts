@@ -355,6 +355,36 @@ export type ConversationParticipant = typeof conversationParticipants.$inferSele
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
+// ── Booking Broadcast System ────────────────────────────────────────────────
+// Admin broadcasts a job offer to selected photographers after deposit is paid.
+// Photographers accept or decline; first accept wins and gets assigned.
+export const bookingBroadcasts = pgTable("booking_broadcasts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull().references(() => bookings.id),
+  adminId: varchar("admin_id").notNull().references(() => users.id),
+  offerAmount: integer("offer_amount").notNull(), // what admin offers photographer (booking currency)
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  status: text("status").notNull().default("open"), // open | accepted | cancelled
+  // Empty array = all approved photographers; otherwise specific IDs
+  targetPhotographerIds: text("target_photographer_ids").array().default([]),
+  acceptedById: varchar("accepted_by_id").references(() => users.id),
+  notes: text("notes"), // optional message shown to photographers
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const broadcastResponses = pgTable("broadcast_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  broadcastId: varchar("broadcast_id").notNull().references(() => bookingBroadcasts.id),
+  photographerId: varchar("photographer_id").notNull().references(() => users.id),
+  response: text("response").notNull().default("pending"), // pending | accepted | declined | closed
+  respondedAt: timestamp("responded_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type BookingBroadcast = typeof bookingBroadcasts.$inferSelect;
+export type BroadcastResponse = typeof broadcastResponses.$inferSelect;
+
 export type MessageWithSender = Message & {
   sender?: { id: string; firstName: string | null; lastName: string | null; profileImageUrl: string | null; role: string | null } | null;
 };

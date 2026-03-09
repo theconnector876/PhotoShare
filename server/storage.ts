@@ -16,6 +16,8 @@ import {
   messages,
   blogPosts,
   payouts,
+  bookingBroadcasts,
+  broadcastResponses,
   type User,
   type UpsertUser,
   type Booking,
@@ -44,6 +46,8 @@ import {
   type BlogPost,
   type InsertBlogPost,
   type Payout,
+  type BookingBroadcast,
+  type BroadcastResponse,
   customPackages,
   type CustomPackage,
 } from "@shared/schema";
@@ -153,6 +157,19 @@ export interface IStorage {
 
   // User profile
   updateUserProfile(userId: string, data: { firstName?: string; lastName?: string; phone?: string; profileImageUrl?: string }): Promise<User | undefined>;
+
+  // Broadcast operations
+  createBroadcast(data: { bookingId: string; adminId: string; offerAmount: number; currency: string; targetPhotographerIds: string[]; notes?: string }): Promise<BookingBroadcast>;
+  getBroadcastByBookingId(bookingId: string): Promise<BookingBroadcast | undefined>;
+  getBroadcast(id: string): Promise<BookingBroadcast | undefined>;
+  updateBroadcastOffer(id: string, offerAmount: number): Promise<BookingBroadcast | undefined>;
+  cancelBroadcast(id: string): Promise<BookingBroadcast | undefined>;
+  acceptBroadcast(id: string, photographerId: string): Promise<BookingBroadcast | undefined>;
+  createBroadcastResponses(broadcastId: string, photographerIds: string[]): Promise<void>;
+  getBroadcastResponses(broadcastId: string): Promise<(BroadcastResponse & { photographer: User | null })[]>;
+  respondToBroadcast(broadcastId: string, photographerId: string, response: 'accepted' | 'declined'): Promise<BroadcastResponse | undefined>;
+  closeOtherBroadcastResponses(broadcastId: string, acceptedPhotographerId: string): Promise<void>;
+  getOpenBroadcastsForPhotographer(photographerId: string): Promise<(BookingBroadcast & { booking: Booking; myResponse: string })[]>;
 
   // Conversation operations
   getOrCreateSupportConversation(userId: string): Promise<Conversation>;
@@ -1387,6 +1404,111 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCustomPackage(id: string): Promise<void> {
     await db.delete(customPackages).where(eq(customPackages.id, id));
+  }
+
+  // ── Broadcast implementations ─────────────────────────────────────────────
+
+  async createBroadcast(data: { bookingId: string; adminId: string; offerAmount: number; currency: string; targetPhotographerIds: string[]; notes?: string }): Promise<BookingBroadcast> {
+    const [broadcast] = await db.insert(bookingBroadcasts).values({
+      bookingId: data.bookingId,
+      adminId: data.adminId,
+      offerAmount: data.offerAmount,
+      currency: data.currency,
+      targetPhotographerIds: data.targetPhotographerIds,
+      notes: data.notes ?? null,
+      status: 'open',
+    }).returning();
+    return broadcast;
+  }
+
+  async getBroadcastByBookingId(bookingId: string): Promise<BookingBroadcast | undefined> {
+    const [b] = await db.select().from(bookingBroadcasts)
+      .where(and(eq(bookingBroadcasts.bookingId, bookingId), eq(bookingBroadcasts.status, 'open')))
+      .orderBy(desc(bookingBroadcasts.createdAt))
+      .limit(1);
+    return b;
+  }
+
+  async getBroadcast(id: string): Promise<BookingBroadcast | undefined> {
+    const [b] = await db.select().from(bookingBroadcasts).where(eq(bookingBroadcasts.id, id));
+    return b;
+  }
+
+  async updateBroadcastOffer(id: string, offerAmount: number): Promise<BookingBroadcast | undefined> {
+    const [b] = await db.update(bookingBroadcasts)
+      .set({ offerAmount, updatedAt: new Date() })
+      .where(eq(bookingBroadcasts.id, id))
+      .returning();
+    return b;
+  }
+
+  async cancelBroadcast(id: string): Promise<BookingBroadcast | undefined> {
+    const [b] = await db.update(bookingBroadcasts)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(eq(bookingBroadcasts.id, id))
+      .returning();
+    return b;
+  }
+
+  async acceptBroadcast(id: string, photographerId: string): Promise<BookingBroadcast | undefined> {
+    const [b] = await db.update(bookingBroadcasts)
+      .set({ status: 'accepted', acceptedById: photographerId, updatedAt: new Date() })
+      .where(eq(bookingBroadcasts.id, id))
+      .returning();
+    return b;
+  }
+
+  async createBroadcastResponses(broadcastId: string, photographerIds: string[]): Promise<void> {
+    if (!photographerIds.length) return;
+    await db.insert(broadcastResponses).values(
+      photographerIds.map(pid => ({ broadcastId, photographerId: pid, response: 'pending' }))
+    );
+  }
+
+  async getBroadcastResponses(broadcastId: string): Promise<(BroadcastResponse & { photographer: User | null })[]> {
+    const rows = await db.select().from(broadcastResponses)
+      .where(eq(broadcastResponses.broadcastId, broadcastId))
+      .orderBy(broadcastResponses.createdAt);
+    const results = await Promise.all(rows.map(async (r) => {
+      const [photographer] = await db.select().from(users).where(eq(users.id, r.photographerId));
+      return { ...r, photographer: photographer ?? null };
+    }));
+    return results;
+  }
+
+  async respondToBroadcast(broadcastId: string, photographerId: string, response: 'accepted' | 'declined'): Promise<BroadcastResponse | undefined> {
+    const [r] = await db.update(broadcastResponses)
+      .set({ response, respondedAt: new Date() })
+      .where(and(eq(broadcastResponses.broadcastId, broadcastId), eq(broadcastResponses.photographerId, photographerId)))
+      .returning();
+    return r;
+  }
+
+  async closeOtherBroadcastResponses(broadcastId: string, acceptedPhotographerId: string): Promise<void> {
+    await db.update(broadcastResponses)
+      .set({ response: 'closed' })
+      .where(and(
+        eq(broadcastResponses.broadcastId, broadcastId),
+        eq(broadcastResponses.response, 'pending'),
+        sql`${broadcastResponses.photographerId} != ${acceptedPhotographerId}`
+      ));
+  }
+
+  async getOpenBroadcastsForPhotographer(photographerId: string): Promise<(BookingBroadcast & { booking: Booking; myResponse: string })[]> {
+    // Get all pending responses for this photographer
+    const myResponses = await db.select().from(broadcastResponses)
+      .where(and(eq(broadcastResponses.photographerId, photographerId), eq(broadcastResponses.response, 'pending')));
+
+    const results = await Promise.all(myResponses.map(async (resp) => {
+      const [broadcast] = await db.select().from(bookingBroadcasts)
+        .where(and(eq(bookingBroadcasts.id, resp.broadcastId), eq(bookingBroadcasts.status, 'open')));
+      if (!broadcast) return null;
+      const [booking] = await db.select().from(bookings).where(eq(bookings.id, broadcast.bookingId));
+      if (!booking) return null;
+      return { ...broadcast, booking, myResponse: resp.response };
+    }));
+
+    return results.filter(Boolean) as (BookingBroadcast & { booking: Booking; myResponse: string })[];
   }
 }
 

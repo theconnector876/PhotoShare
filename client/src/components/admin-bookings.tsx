@@ -35,7 +35,15 @@ import {
   Copy,
   Send,
   Download,
+  Radio,
+  TrendingUp,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useRef, useCallback, useEffect } from "react";
@@ -520,6 +528,64 @@ export function AdminBookings() {
     },
   });
 
+  // Broadcast state
+  const [broadcastOffer, setBroadcastOffer] = useState<number>(0);
+  const [broadcastNotes, setBroadcastNotes] = useState("");
+  const [broadcastTargetAll, setBroadcastTargetAll] = useState(true);
+  const [broadcastSelectedIds, setBroadcastSelectedIds] = useState<string[]>([]);
+  const [broadcastParishFilter, setBroadcastParishFilter] = useState("");
+  const [newOfferAmount, setNewOfferAmount] = useState<number>(0);
+
+  // Query for active broadcast on selected booking
+  const { data: broadcastData, refetch: refetchBroadcast } = useQuery({
+    queryKey: ["/api/admin/bookings", selectedBooking?.id, "broadcast"],
+    queryFn: async () => {
+      if (!selectedBooking) return null;
+      const res = await apiRequest("GET", `/api/admin/bookings/${selectedBooking.id}/broadcast`);
+      return res.json();
+    },
+    enabled: !!selectedBooking && activeTab === 'broadcast',
+    refetchInterval: 8000,
+  });
+
+  const createBroadcastMutation = useMutation({
+    mutationFn: async () => {
+      const targetIds = broadcastTargetAll ? [] : broadcastSelectedIds;
+      await apiRequest("POST", `/api/admin/bookings/${selectedBooking!.id}/broadcast`, {
+        offerAmount: broadcastOffer,
+        targetPhotographerIds: targetIds,
+        notes: broadcastNotes || undefined,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Broadcast Sent", description: "Photographers have been notified of the offer." });
+      refetchBroadcast();
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to send broadcast", variant: "destructive" }),
+  });
+
+  const raiseOfferMutation = useMutation({
+    mutationFn: async (broadcastId: string) => {
+      await apiRequest("PUT", `/api/admin/broadcasts/${broadcastId}/offer`, { offerAmount: newOfferAmount });
+    },
+    onSuccess: () => {
+      toast({ title: "Offer Updated", description: "Photographers have been notified of the new amount." });
+      refetchBroadcast();
+    },
+    onError: () => toast({ title: "Error", description: "Failed to update offer", variant: "destructive" }),
+  });
+
+  const cancelBroadcastMutation = useMutation({
+    mutationFn: async (broadcastId: string) => {
+      await apiRequest("DELETE", `/api/admin/broadcasts/${broadcastId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Broadcast Cancelled" });
+      refetchBroadcast();
+    },
+    onError: () => toast({ title: "Error", description: "Failed to cancel broadcast", variant: "destructive" }),
+  });
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -894,6 +960,7 @@ export function AdminBookings() {
             <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-4">
               {[
                 { key: 'details', label: 'Details', icon: Eye },
+                { key: 'broadcast', label: 'Broadcast', icon: Radio },
                 { key: 'edit', label: 'Edit', icon: Edit },
                 { key: 'email', label: 'Email', icon: Mail },
                 { key: 'gallery', label: 'Gallery', icon: Eye },
@@ -1120,6 +1187,208 @@ export function AdminBookings() {
                   </div>
                 </div>
               )}
+
+              {/* Broadcast Tab */}
+              {activeTab === 'broadcast' && (() => {
+                const activeBroadcast = broadcastData?.broadcast;
+                const responses: any[] = broadcastData?.responses ?? [];
+                const currency = (selectedBooking as any).currency || 'USD';
+                const profit = activeBroadcast ? selectedBooking.totalPrice - activeBroadcast.offerAmount : 0;
+
+                // Filter photographers for selection
+                const filteredPhotographers = approvedPhotographers.filter((p: any) => {
+                  if (!broadcastParishFilter) return true;
+                  const name = `${p.firstName || ''} ${p.lastName || ''} ${p.email || ''}`.toLowerCase();
+                  return name.includes(broadcastParishFilter.toLowerCase());
+                });
+
+                const pending = responses.filter(r => r.response === 'pending');
+                const accepted = responses.filter(r => r.response === 'accepted');
+                const declined = responses.filter(r => r.response === 'declined');
+
+                return (
+                  <div className="space-y-5">
+                    {!selectedBooking.depositPaid && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+                        Deposit must be paid before broadcasting this job to photographers.
+                      </div>
+                    )}
+
+                    {selectedBooking.photographerId && !activeBroadcast && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
+                        A photographer has already been assigned to this booking.
+                      </div>
+                    )}
+
+                    {/* Active broadcast status */}
+                    {activeBroadcast && (
+                      <div className="border rounded-lg p-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <Radio className="w-4 h-4 text-primary" />
+                            Active Broadcast
+                          </h3>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="destructive" onClick={() => cancelBroadcastMutation.mutate(activeBroadcast.id)} disabled={cancelBroadcastMutation.isPending}>
+                              Cancel Broadcast
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3 text-center">
+                          <div className="bg-gray-50 rounded p-3">
+                            <p className="text-2xl font-bold">{pending.length}</p>
+                            <p className="text-xs text-muted-foreground">Pending</p>
+                          </div>
+                          <div className="bg-green-50 rounded p-3">
+                            <p className="text-2xl font-bold text-green-600">{accepted.length}</p>
+                            <p className="text-xs text-muted-foreground">Accepted</p>
+                          </div>
+                          <div className="bg-red-50 rounded p-3">
+                            <p className="text-2xl font-bold text-red-600">{declined.length}</p>
+                            <p className="text-xs text-muted-foreground">Declined</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm bg-muted rounded p-3">
+                          <span>Current offer: <strong>{formatCurrency(activeBroadcast.offerAmount, currency)}</strong></span>
+                          <span className="text-muted-foreground">Platform profit: <strong>{formatCurrency(profit, currency)}</strong></span>
+                        </div>
+
+                        {/* Raise offer */}
+                        <div className="flex gap-2 items-end">
+                          <div className="flex-1">
+                            <Label className="text-xs">Raise offer to</Label>
+                            <Input
+                              type="number"
+                              placeholder={String(activeBroadcast.offerAmount)}
+                              value={newOfferAmount || ''}
+                              onChange={e => setNewOfferAmount(Number(e.target.value))}
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => raiseOfferMutation.mutate(activeBroadcast.id)}
+                            disabled={raiseOfferMutation.isPending || !newOfferAmount || newOfferAmount <= activeBroadcast.offerAmount}
+                          >
+                            <TrendingUp className="w-4 h-4 mr-1" />
+                            Raise Offer
+                          </Button>
+                        </div>
+
+                        {/* Response list */}
+                        {responses.length > 0 && (
+                          <div className="space-y-1">
+                            <Label className="text-xs">Photographer Responses</Label>
+                            {responses.map((r: any) => (
+                              <div key={r.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
+                                <span>{r.photographer?.firstName || r.photographer?.email || 'Unknown'}</span>
+                                <span className={`flex items-center gap-1 font-medium ${r.response === 'accepted' ? 'text-green-600' : r.response === 'declined' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                                  {r.response === 'accepted' && <CheckCircle2 className="w-3 h-3" />}
+                                  {r.response === 'declined' && <XCircle className="w-3 h-3" />}
+                                  {r.response === 'pending' && <Clock className="w-3 h-3" />}
+                                  {r.response}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* New broadcast form — only when no active broadcast and deposit paid and no photographer */}
+                    {!activeBroadcast && selectedBooking.depositPaid && !selectedBooking.photographerId && (
+                      <div className="border rounded-lg p-4 space-y-4">
+                        <h3 className="font-semibold">Send Job Offer to Photographers</h3>
+
+                        <div className="bg-muted p-3 rounded text-sm space-y-1">
+                          <div className="flex justify-between"><span>Booking total:</span><span className="font-medium">{formatCurrency(selectedBooking.totalPrice, currency)}</span></div>
+                          <div className="flex justify-between"><span>Your offer:</span><span className="font-medium">{broadcastOffer ? formatCurrency(broadcastOffer, currency) : '—'}</span></div>
+                          <div className="flex justify-between text-green-700"><span>Platform profit:</span><span className="font-medium">{broadcastOffer ? formatCurrency(selectedBooking.totalPrice - broadcastOffer, currency) : '—'}</span></div>
+                        </div>
+
+                        <div>
+                          <Label>Offer Amount ({currency})</Label>
+                          <Input
+                            type="number"
+                            placeholder="e.g. 150"
+                            value={broadcastOffer || ''}
+                            onChange={e => setBroadcastOffer(Number(e.target.value))}
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">What you'll pay the photographer (not visible to client)</p>
+                        </div>
+
+                        <div>
+                          <Label>Notes for Photographers (optional)</Label>
+                          <Textarea
+                            placeholder="Any special instructions or details..."
+                            value={broadcastNotes}
+                            onChange={e => setBroadcastNotes(e.target.value)}
+                            rows={2}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Send To</Label>
+                          <div className="flex gap-4 text-sm">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="radio" checked={broadcastTargetAll} onChange={() => setBroadcastTargetAll(true)} />
+                              All approved photographers
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="radio" checked={!broadcastTargetAll} onChange={() => setBroadcastTargetAll(false)} />
+                              Select specific
+                            </label>
+                          </div>
+
+                          {!broadcastTargetAll && (
+                            <div className="border rounded p-3 space-y-2 max-h-48 overflow-y-auto">
+                              <Input
+                                placeholder="Filter by name or email..."
+                                value={broadcastParishFilter}
+                                onChange={e => setBroadcastParishFilter(e.target.value)}
+                                className="h-7 text-xs"
+                              />
+                              {filteredPhotographers.map((p: any) => (
+                                <label key={p.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                                  <Checkbox
+                                    checked={broadcastSelectedIds.includes(p.id)}
+                                    onCheckedChange={(checked) => {
+                                      setBroadcastSelectedIds(prev =>
+                                        checked ? [...prev, p.id] : prev.filter(id => id !== p.id)
+                                      );
+                                    }}
+                                  />
+                                  <span>{p.firstName || ''} {p.lastName || ''}</span>
+                                  <span className="text-muted-foreground text-xs">{p.email}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded p-2">
+                          <strong>Booking parish:</strong> {selectedBooking.parish} — use this to target photographers in the area
+                        </div>
+
+                        <Button
+                          className="w-full"
+                          onClick={() => createBroadcastMutation.mutate()}
+                          disabled={
+                            createBroadcastMutation.isPending ||
+                            !broadcastOffer ||
+                            broadcastOffer >= selectedBooking.totalPrice ||
+                            (!broadcastTargetAll && broadcastSelectedIds.length === 0)
+                          }
+                        >
+                          <Radio className="w-4 h-4 mr-2" />
+                          {createBroadcastMutation.isPending ? 'Sending...' : `Broadcast Offer – ${broadcastOffer ? formatCurrency(broadcastOffer, currency) : '$0'}`}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Edit Tab */}
               {activeTab === 'edit' && (
