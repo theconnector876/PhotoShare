@@ -74432,6 +74432,7 @@ async function fetchExchangeRates() {
 }
 async function createWiPayCheckout(params) {
   const orderId = `${params.bookingId}_${params.paymentType}`;
+  const totalStr = params.amountJmd.toFixed(2);
   const body = new URLSearchParams({
     account_number: process.env.WIPAY_ACCOUNT_NUMBER,
     currency: "JMD",
@@ -74440,7 +74441,7 @@ async function createWiPayCheckout(params) {
     method: "credit_card",
     order_id: orderId,
     origin: "ConnectAGrapher",
-    total: params.amountJmd.toFixed(2),
+    total: totalStr,
     email: params.email,
     name: params.name,
     avs: "0",
@@ -74449,14 +74450,22 @@ async function createWiPayCheckout(params) {
     phone: params.phone || "",
     country_code: "JM"
   });
+  console.log("[wipay] Creating checkout:", { orderId, total: totalStr, env: WIPAY_ENVIRONMENT });
   const response = await fetch(WIPAY_BASE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString()
   });
-  const result = await response.json();
+  const rawText = await response.text();
+  console.log("[wipay] Checkout response status:", response.status, "body:", rawText.slice(0, 500));
+  let result;
+  try {
+    result = JSON.parse(rawText);
+  } catch {
+    throw new Error(`WiPay returned non-JSON (${response.status}): ${rawText.slice(0, 200)}`);
+  }
   if (!result.url) {
-    throw new Error(result.message || "WiPay did not return a checkout URL");
+    throw new Error(result.message || result.error || `WiPay did not return a checkout URL: ${JSON.stringify(result)}`);
   }
   return result.url;
 }
@@ -75593,10 +75602,12 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to fetch booking" });
     }
   });
-  app2.get("/api/wipay/callback", async (req, res) => {
-    const { status, transaction_id, order_id, hash } = req.query;
+  app2.all("/api/wipay/callback", async (req, res) => {
+    const params = { ...req.query, ...req.body };
+    const { status, transaction_id, order_id, hash } = params;
+    console.log("[wipay callback] received:", { status, transaction_id, order_id, hash: hash?.slice(0, 8) + "..." });
     const fail = (reason) => {
-      console.error("[wipay callback]", reason, req.query);
+      console.error("[wipay callback]", reason, params);
       return res.redirect(302, "/dashboard");
     };
     try {
