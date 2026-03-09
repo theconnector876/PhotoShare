@@ -74453,7 +74453,10 @@ async function createWiPayCheckout(params) {
   console.log("[wipay] Creating checkout:", { orderId, total: totalStr, env: WIPAY_ENVIRONMENT });
   const response = await fetch(WIPAY_BASE_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json"
+    },
     body: body.toString()
   });
   const rawText = await response.text();
