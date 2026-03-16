@@ -1,10 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   type WatermarkSettings,
   DEFAULT_WATERMARK_SETTINGS,
   positionToXY,
 } from "@/lib/cloudinary-watermark";
-
 
 // ─── CSS overlay (used in gallery viewer) ────────────────────────────────────
 
@@ -15,6 +14,19 @@ interface WatermarkOverlayProps {
 }
 
 export function WatermarkOverlay({ rawSettings, category }: WatermarkOverlayProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => setContainerSize({ w: el.offsetWidth, h: el.offsetHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   if (!rawSettings || typeof rawSettings !== "object") return null;
   const s: WatermarkSettings = { ...DEFAULT_WATERMARK_SETTINGS, ...(rawSettings as Partial<WatermarkSettings>) };
   if (!s.enabled?.[category]) return null;
@@ -25,10 +37,16 @@ export function WatermarkOverlay({ rawSettings, category }: WatermarkOverlayProp
   const effX = s.x ?? positionToXY(s.position ?? 'bottom-right').x;
   const effY = s.y ?? positionToXY(s.position ?? 'bottom-right').y;
 
+  // Compute sizes from measured container (avoids container query unit issues)
+  const cMin = Math.min(containerSize.w, containerSize.h);
+  const cW = containerSize.w;
+  const fontSize = (s.scale ?? 30) * 0.004 * cMin; // matches canvas preview formula
+  const imgWidth = cW * (s.scale ?? 30) / 100;
+
   return (
     <div
+      ref={containerRef}
       className="absolute inset-0 pointer-events-none overflow-hidden"
-      style={{ containerType: "size" } as React.CSSProperties}
     >
       <div style={{
         position: "absolute",
@@ -39,7 +57,7 @@ export function WatermarkOverlay({ rawSettings, category }: WatermarkOverlayProp
         {s.type === "text" ? (
           <span
             style={{
-              fontSize: `${(s.scale ?? 30) * 0.4}cqmin`,
+              fontSize: containerSize.w > 0 ? `${fontSize}px` : undefined,
               color: "white",
               textShadow: "0 0 4px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.8)",
               opacity: (s.opacity ?? 50) / 100,
@@ -56,7 +74,7 @@ export function WatermarkOverlay({ rawSettings, category }: WatermarkOverlayProp
             src={s.imageUrl}
             alt="watermark"
             style={{
-              width: `${s.scale ?? 30}cqw`,
+              width: containerSize.w > 0 ? `${imgWidth}px` : `${s.scale ?? 30}%`,
               height: "auto",
               opacity: (s.opacity ?? 50) / 100,
               display: "block",
