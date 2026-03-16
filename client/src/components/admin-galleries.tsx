@@ -1458,7 +1458,7 @@ export function AdminGalleries() {
                                         <span className="text-xs text-muted-foreground">{wm.scale ?? 30}%</span>
                                       </div>
                                       <Slider
-                                        min={5} max={80} step={1}
+                                        min={5} max={200} step={1}
                                         value={[wm.scale ?? 30]}
                                         onValueChange={([v]) => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], scale: v } }))}
                                       />

@@ -29,11 +29,11 @@ export function WatermarkOverlay({ rawSettings, category }: WatermarkOverlayProp
       // container-type: size enables cqmin units for font-size
       style={{ containerType: "size" } as React.CSSProperties}
     >
-      <div style={{ position: "absolute", ...posStyle, maxWidth: "90%" }}>
+      <div style={{ position: "absolute", ...posStyle }}>
         {s.type === "text" ? (
           <span
             style={{
-              // scale 5–80 maps to 2–32 cqmin — readable at all container sizes
+              // scale 5–200: maps directly to cqmin units
               fontSize: `${(s.scale ?? 30) * 0.4}cqmin`,
               color: "white",
               textShadow: "0 0 4px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.8)",

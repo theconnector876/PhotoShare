@@ -22,7 +22,7 @@ export interface WatermarkSettings {
   imageUrl: string;
   imagePublicId: string;
   opacity: number;       // 0–100
-  scale: number;         // 5–80 (% of image width / cqmin font units)
+  scale: number;         // 5–200 (% of image width / cqmin font units; can exceed image size, clipped at edge)
   position: WatermarkPosition;
 }
 
