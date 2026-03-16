@@ -27,8 +27,12 @@ export function WatermarkOverlay({ rawSettings, category }: WatermarkOverlayProp
     return () => ro.disconnect();
   }, []);
 
-  if (!rawSettings || typeof rawSettings !== "object") return null;
+  if (!rawSettings || typeof rawSettings !== "object") {
+    console.log('[WatermarkOverlay] no rawSettings');
+    return null;
+  }
   const s: WatermarkSettings = { ...DEFAULT_WATERMARK_SETTINGS, ...(rawSettings as Partial<WatermarkSettings>) };
+  console.log('[WatermarkOverlay] category:', category, 'enabled:', s.enabled, 'type:', s.type, 'text:', s.text, 'imageUrl:', s.imageUrl);
   if (!s.enabled?.[category]) return null;
   if (s.type === "text" && !s.text?.trim()) return null;
   if (s.type === "image" && !s.imageUrl?.trim()) return null;
