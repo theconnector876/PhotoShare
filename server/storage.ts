@@ -128,7 +128,7 @@ export interface IStorage {
   getApprovedReviews(): Promise<Review[]>;
   getApprovedReviewsByCatalogue(catalogueId: string): Promise<Review[]>;
   getGeneralReviews(): Promise<Review[]>;
-  approveReview(id: string): Promise<Review | undefined>;
+  approveReview(id: string, approve?: boolean): Promise<Review | undefined>;
   getAllReviews(): Promise<Review[]>;
   getReviewByCatalogueAndEmail(catalogueId: string, email: string): Promise<Review | undefined>;
 
@@ -765,10 +765,10 @@ export class DatabaseStorage implements IStorage {
       .orderBy(reviews.createdAt);
   }
 
-  async approveReview(id: string): Promise<Review | undefined> {
+  async approveReview(id: string, approve = true): Promise<Review | undefined> {
     const [review] = await db
       .update(reviews)
-      .set({ isApproved: true })
+      .set({ isApproved: approve })
       .where(eq(reviews.id, id))
       .returning();
     return review;

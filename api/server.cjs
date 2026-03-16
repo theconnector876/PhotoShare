@@ -68559,8 +68559,8 @@ var DatabaseStorage = class {
       eq(reviews.isApproved, true)
     )).orderBy(reviews.createdAt);
   }
-  async approveReview(id) {
-    const [review] = await db.update(reviews).set({ isApproved: true }).where(eq(reviews.id, id)).returning();
+  async approveReview(id, approve = true) {
+    const [review] = await db.update(reviews).set({ isApproved: approve }).where(eq(reviews.id, id)).returning();
     return review;
   }
   async getAllReviews() {
@@ -75987,7 +75987,8 @@ async function registerRoutes(app2) {
   });
   app2.patch("/api/admin/reviews/:id/approve", isAdmin, async (req, res) => {
     try {
-      const review = await storage.approveReview(req.params.id);
+      const approve = req.body?.approve !== false;
+      const review = await storage.approveReview(req.params.id, approve);
       if (!review) {
         return res.status(404).json({ error: "Review not found" });
       }

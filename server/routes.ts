@@ -1787,7 +1787,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/admin/reviews/:id/approve', isAdmin, async (req, res) => {
     try {
-      const review = await storage.approveReview(req.params.id);
+      const approve = req.body?.approve !== false; // default true
+      const review = await storage.approveReview(req.params.id, approve);
       if (!review) {
         return res.status(404).json({ error: 'Review not found' });
       }

@@ -60,7 +60,7 @@ export function AdminReviews() {
 
   const approveReviewMutation = useMutation({
     mutationFn: async ({ id, approve }: { id: string; approve: boolean }) => {
-      await apiRequest(`/api/admin/reviews/${id}/approve`, "PATCH", { approve });
+      await apiRequest("PATCH", `/api/admin/reviews/${id}/approve`, { approve });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/reviews"] });
