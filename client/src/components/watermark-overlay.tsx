@@ -2,9 +2,9 @@ import { useEffect, useRef } from "react";
 import {
   type WatermarkSettings,
   DEFAULT_WATERMARK_SETTINGS,
-  getPositionStyle,
-  getCanvasPosition,
+  positionToXY,
 } from "@/lib/cloudinary-watermark";
+
 
 // ─── CSS overlay (used in gallery viewer) ────────────────────────────────────
 
@@ -21,19 +21,24 @@ export function WatermarkOverlay({ rawSettings, category }: WatermarkOverlayProp
   if (s.type === "text" && !s.text?.trim()) return null;
   if (s.type === "image" && !s.imageUrl?.trim()) return null;
 
-  const posStyle = getPositionStyle(s.position ?? "bottom-right");
+  // Resolve x/y — fall back to legacy position if not set
+  const effX = s.x ?? positionToXY(s.position ?? 'bottom-right').x;
+  const effY = s.y ?? positionToXY(s.position ?? 'bottom-right').y;
 
   return (
     <div
       className="absolute inset-0 pointer-events-none overflow-hidden"
-      // container-type: size enables cqmin units for font-size
       style={{ containerType: "size" } as React.CSSProperties}
     >
-      <div style={{ position: "absolute", ...posStyle }}>
+      <div style={{
+        position: "absolute",
+        left: `${effX}%`,
+        top: `${effY}%`,
+        transform: `translate(-${effX}%, -${effY}%)`,
+      }}>
         {s.type === "text" ? (
           <span
             style={{
-              // scale 5–200: maps directly to cqmin units
               fontSize: `${(s.scale ?? 30) * 0.4}cqmin`,
               color: "white",
               textShadow: "0 0 4px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.8)",
@@ -51,7 +56,7 @@ export function WatermarkOverlay({ rawSettings, category }: WatermarkOverlayProp
             src={s.imageUrl}
             alt="watermark"
             style={{
-              width: `${s.scale ?? 30}%`,
+              width: `${s.scale ?? 30}cqw`,
               height: "auto",
               opacity: (s.opacity ?? 50) / 100,
               display: "block",
@@ -109,21 +114,24 @@ export function WatermarkPreviewCanvas({ settings, sampleImageUrl }: WatermarkPr
 
       const fontSize = (settings.scale ?? 30) * 0.004 * Math.min(cw, ch);
 
+      // Resolve effective x/y (0-100) — fall back to legacy position
+      const posXY = positionToXY(settings.position ?? "bottom-right");
+      const effX = settings.x ?? posXY.x;
+      const effY = settings.y ?? posXY.y;
+
       if (settings.type === "text" && settings.text?.trim()) {
         ctx.font = `bold ${fontSize}px Arial`;
         const metrics = ctx.measureText(settings.text);
         const wmW = metrics.width;
         const wmH = fontSize;
-        const { x, y, textAlign, textBaseline } = getCanvasPosition(
-          settings.position ?? "bottom-right", cw, ch, wmW, wmH,
-        );
-        ctx.textAlign = textAlign;
-        ctx.textBaseline = textBaseline;
-        // Shadow for readability
+        const drawX = (effX / 100) * cw - (effX / 100) * wmW;
+        const drawY = (effY / 100) * ch - (effY / 100) * wmH;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
         ctx.shadowColor = "rgba(0,0,0,0.9)";
         ctx.shadowBlur = 6;
         ctx.fillStyle = "white";
-        ctx.fillText(settings.text, x, y);
+        ctx.fillText(settings.text, drawX, drawY);
         ctx.shadowBlur = 0;
       } else if (settings.type === "image" && settings.imageUrl?.trim()) {
         const wmImg = new Image();
@@ -131,17 +139,8 @@ export function WatermarkPreviewCanvas({ settings, sampleImageUrl }: WatermarkPr
         wmImg.onload = () => {
           const wmW = cw * (settings.scale ?? 30) / 100;
           const wmH = wmImg.height * (wmW / wmImg.width);
-          const { x, y } = getCanvasPosition(
-            settings.position ?? "bottom-right", cw, ch, wmW, wmH,
-          );
-          // Adjust draw origin based on alignment
-          const pos = settings.position ?? "bottom-right";
-          const drawX = pos.includes("center") && !pos.includes("left") && !pos.includes("right")
-            ? x - wmW / 2
-            : pos.includes("right") ? x - wmW : x;
-          const drawY = pos.includes("middle") || pos === "center"
-            ? y - wmH / 2
-            : pos.includes("bottom") ? y - wmH : y;
+          const drawX = (effX / 100) * cw - (effX / 100) * wmW;
+          const drawY = (effY / 100) * ch - (effY / 100) * wmH;
           ctx.drawImage(wmImg, drawX, drawY, wmW, wmH);
           ctx.restore();
         };

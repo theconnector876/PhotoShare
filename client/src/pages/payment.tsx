@@ -3,21 +3,22 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { ArrowLeft, CreditCard } from "lucide-react";
+import { ArrowLeft, CreditCard, Heart } from "lucide-react";
 
 export default function Payment() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [checkoutUrl, setCheckoutUrl] = useState("");
   const [booking, setBooking] = useState<any & { currency?: string }>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPaying, setIsPaying] = useState(false);
+  const [tipAmount, setTipAmount] = useState(0);
+  const [tipInput, setTipInput] = useState('');
 
-  // Get booking ID from URL params - use window.location.search for query params
   const urlParams = new URLSearchParams(window.location.search);
   const bookingId = urlParams.get('booking');
   const paymentType = urlParams.get('type') || 'deposit'; // 'deposit' or 'balance'
-
 
   useEffect(() => {
     if (!bookingId) {
@@ -25,16 +26,13 @@ export default function Payment() {
       return;
     }
 
-    const fetchBookingAndCreatePayment = async () => {
+    const fetchBooking = async () => {
       try {
         setIsLoading(true);
-
-        // Get booking details (public payment endpoint)
         const bookingResponse = await apiRequest('GET', `/api/bookings/${bookingId}/payment`);
         const bookingData = await bookingResponse.json();
         setBooking(bookingData);
 
-        // Guard: payment already made or deposit not paid first
         if (paymentType === 'balance') {
           if (!bookingData.depositPaid) {
             toast({ title: "Deposit Required", description: "Please pay the deposit first", variant: "destructive" });
@@ -53,14 +51,6 @@ export default function Payment() {
             return;
           }
         }
-
-        // Create Lemon Squeezy checkout
-        const checkoutResponse = await apiRequest('POST', '/api/create-payment-intent', { bookingId, paymentType });
-        const checkoutData = await checkoutResponse.json();
-        if (checkoutData.error) {
-          throw new Error(checkoutData.error);
-        }
-        setCheckoutUrl(checkoutData.checkoutUrl);
       } catch (error: any) {
         toast({ title: "Error", description: error?.message || "Failed to load payment information", variant: "destructive" });
         navigate('/dashboard');
@@ -69,9 +59,33 @@ export default function Payment() {
       }
     };
 
-    fetchBookingAndCreatePayment();
-  }, [bookingId, paymentType, navigate, toast]);
+    fetchBooking();
+  }, [bookingId, paymentType]);
 
+  const handlePay = async () => {
+    if (!bookingId) return;
+    try {
+      setIsPaying(true);
+      const checkoutResponse = await apiRequest('POST', '/api/create-payment-intent', {
+        bookingId,
+        paymentType,
+        tipAmount,
+      });
+      const checkoutData = await checkoutResponse.json();
+      if (checkoutData.error) throw new Error(checkoutData.error);
+
+      if (checkoutData.autoMarked) {
+        // Zero-amount balance (coupon, no tip) — auto-marked paid on server
+        navigate(checkoutData.redirectUrl || `/payment-success?booking=${bookingId}&type=${paymentType}`);
+        return;
+      }
+
+      window.location.href = checkoutData.checkoutUrl;
+    } catch (error: any) {
+      toast({ title: "Error", description: error?.message || "Failed to initiate payment", variant: "destructive" });
+      setIsPaying(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -81,7 +95,7 @@ export default function Payment() {
     );
   }
 
-  if (!checkoutUrl || !booking) {
+  if (!booking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -97,9 +111,11 @@ export default function Payment() {
     );
   }
 
-  const amount = paymentType === 'balance' ? booking.balanceDue : booking.depositAmount;
   const currency = booking.currency || 'USD';
   const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n);
+
+  const baseAmount = paymentType === 'balance' ? booking.balanceDue : booking.depositAmount;
+  const totalCharge = baseAmount + (paymentType === 'balance' ? tipAmount : 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 py-8">
@@ -155,12 +171,44 @@ export default function Payment() {
             {/* Payment Amount */}
             <div className="text-center p-4 border-2 border-primary rounded-lg">
               <p className="text-sm text-muted-foreground">
-                {paymentType === 'balance' ? 'Final Payment Amount' : 'Deposit Amount'}
+                {paymentType === 'balance' ? 'Balance Due' : 'Deposit Amount'}
               </p>
               <p className="text-2xl font-bold text-primary">
-                {fmt(amount)}
+                {fmt(baseAmount)}
               </p>
             </div>
+
+            {/* Tip input — balance payments only */}
+            {paymentType === 'balance' && (
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg space-y-3">
+                <div className="flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-yellow-600" />
+                  <h4 className="font-semibold text-yellow-800">Leave a Tip (optional)</h4>
+                </div>
+                <p className="text-sm text-yellow-700">Show your appreciation for your photographer.</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-yellow-800">{currency}</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    placeholder="0"
+                    value={tipInput}
+                    onChange={e => {
+                      setTipInput(e.target.value);
+                      const v = parseFloat(e.target.value);
+                      setTipAmount(isNaN(v) || v < 0 ? 0 : v);
+                    }}
+                    className="w-32"
+                  />
+                </div>
+                {tipAmount > 0 && (
+                  <p className="text-sm font-medium text-yellow-800">
+                    Total charge: {fmt(totalCharge)}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Payment Info */}
             <div className="bg-green-50 p-4 rounded-lg border border-green-200">
@@ -171,23 +219,28 @@ export default function Payment() {
                 <div>
                   <h4 className="font-semibold text-green-800 mb-1">Secure Payment</h4>
                   <p className="text-sm text-green-700">
-                    You will be redirected to complete your payment securely through WiPay.
+                    {totalCharge === 0
+                      ? 'Your balance is fully covered — click below to confirm.'
+                      : 'You will be redirected to complete your payment securely through WiPay.'}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Pay Button — navigate directly to checkout (proxied through our server to LS) */}
             <Button
               className="w-full"
               data-testid="button-submit-payment"
-              onClick={() => { window.location.href = checkoutUrl; }}
+              onClick={handlePay}
+              disabled={isPaying}
             >
-              <CreditCard className="w-4 h-4 mr-2" />
-              Pay {fmt(amount)}
+              {isPaying ? (
+                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+              ) : (
+                <CreditCard className="w-4 h-4 mr-2" />
+              )}
+              {totalCharge === 0 ? 'Confirm Payment' : `Pay ${fmt(totalCharge)}`}
             </Button>
 
-            {/* Contact */}
             <div className="text-center text-sm text-muted-foreground">
               <p>
                 Having trouble? Contact us at{' '}

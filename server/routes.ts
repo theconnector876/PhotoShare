@@ -1310,7 +1310,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(501).json({ error: "Payments not configured" });
       }
 
-      const { bookingId, paymentType } = req.body;
+      const { bookingId, paymentType, tipAmount: rawTip } = req.body;
+      const tipAmount = typeof rawTip === 'number' ? Math.max(0, rawTip) : 0;
 
       if (!bookingId || !paymentType || !['deposit', 'balance'].includes(paymentType)) {
         return res.status(400).json({ error: 'Missing or invalid payment data' });
@@ -1333,14 +1334,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const serverDepositAmount = Math.round(booking.totalPrice * 0.5);
       const serverBalanceDue = booking.totalPrice - serverDepositAmount;
 
-      let amount: number;
+      let baseAmount: number;
       if (paymentType === 'deposit') {
         if (booking.depositPaid) return res.status(400).json({ error: 'Deposit already paid' });
-        amount = serverDepositAmount;
+        baseAmount = serverDepositAmount;
       } else {
         if (!booking.depositPaid) return res.status(400).json({ error: 'Deposit must be paid first' });
         if (booking.balancePaid) return res.status(400).json({ error: 'Balance already paid' });
-        amount = serverBalanceDue;
+        baseAmount = serverBalanceDue;
+      }
+
+      const amount = baseAmount + (paymentType === 'balance' ? tipAmount : 0);
+
+      // If nothing to charge (e.g. coupon covered everything and no tip), auto-mark as paid
+      if (amount === 0) {
+        await storage.updateBookingPaymentStatus(bookingId, paymentType);
+        if (paymentType === 'deposit' && booking.status === 'pending') {
+          await storage.updateBookingStatus(bookingId, 'confirmed');
+        }
+        console.log(`[wipay] Auto-marked ${paymentType} paid for booking ${bookingId} (zero amount)`);
+        return res.json({ autoMarked: true, redirectUrl: `/payment-success?booking=${bookingId}&type=${paymentType}` });
       }
 
       // Convert to JMD for WiPay (JM processor)
@@ -1469,18 +1482,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify WiPay hash: md5(transaction_id + total + api_key)
-      const bookingCurrency = (booking as any).currency || 'USD';
-      const rates = await fetchExchangeRates();
-      const jmdRate = (rates.JMD as number) ?? 157;
-      const serverDeposit = Math.round(booking.totalPrice * 0.5);
-      const serverBalance = booking.totalPrice - serverDeposit;
-      const baseAmount = paymentType === 'deposit' ? serverDeposit : serverBalance;
-      const amountJmd = bookingCurrency === 'JMD' ? baseAmount : Math.round(baseAmount * jmdRate);
+      // Use WiPay-returned total when present (handles tips / coupon scenarios).
+      // Fall back to computing from booking if total not in params.
+      let verifyTotal: string;
+      if (params.total) {
+        verifyTotal = parseFloat(params.total).toFixed(2);
+      } else {
+        const bookingCurrency = (booking as any).currency || 'USD';
+        const rates = await fetchExchangeRates();
+        const jmdRate = (rates.JMD as number) ?? 157;
+        const serverDeposit = Math.round(booking.totalPrice * 0.5);
+        const serverBalance = booking.totalPrice - serverDeposit;
+        const baseAmount = paymentType === 'deposit' ? serverDeposit : serverBalance;
+        const amountJmd = bookingCurrency === 'JMD' ? baseAmount : Math.round(baseAmount * jmdRate);
+        verifyTotal = amountJmd.toFixed(2);
+      }
 
       const crypto = require('crypto');
       const expectedHash = crypto
         .createHash('md5')
-        .update(`${transaction_id}${amountJmd.toFixed(2)}${process.env.WIPAY_API_KEY}`)
+        .update(`${transaction_id}${verifyTotal}${process.env.WIPAY_API_KEY}`)
         .digest('hex');
 
       if (hash !== expectedHash) {

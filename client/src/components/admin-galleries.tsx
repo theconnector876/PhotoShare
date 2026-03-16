@@ -36,7 +36,7 @@ import {
   Clock, Loader2, Copy, ArrowUpDown, Download, GripVertical,
   FolderPlus, Folder, Trash2, Droplets, Save,
 } from "lucide-react";
-import { type WatermarkSettings, DEFAULT_WATERMARK_SETTINGS, POSITION_GRID } from "@/lib/cloudinary-watermark";
+import { type WatermarkSettings, DEFAULT_WATERMARK_SETTINGS } from "@/lib/cloudinary-watermark";
 import { WatermarkPreviewCanvas } from "@/components/watermark-overlay";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1458,25 +1458,36 @@ export function AdminGalleries() {
                                         <span className="text-xs text-muted-foreground">{wm.scale ?? 30}%</span>
                                       </div>
                                       <Slider
-                                        min={5} max={200} step={1}
+                                        min={5} max={500} step={1}
                                         value={[wm.scale ?? 30]}
                                         onValueChange={([v]) => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], scale: v } }))}
                                       />
                                     </div>
 
-                                    {/* Position picker */}
-                                    <div>
-                                      <label className="text-xs font-medium text-muted-foreground block mb-2">Position</label>
-                                      <div className="grid grid-cols-3 gap-1 w-24">
-                                        {POSITION_GRID.map((row) => row.map((pos) => (
-                                          <button
-                                            key={pos}
-                                            type="button"
-                                            title={pos.replace(/-/g, ' ')}
-                                            onClick={() => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], position: pos } }))}
-                                            className={`w-7 h-7 rounded border transition-colors ${(wm.position ?? 'bottom-right') === pos ? 'bg-green-700 border-green-700' : 'border-muted-foreground/30 hover:bg-muted'}`}
-                                          />
-                                        )))}
+                                    {/* Position sliders */}
+                                    <div className="space-y-3">
+                                      <label className="text-xs font-medium text-muted-foreground block">Position</label>
+                                      <div>
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="text-xs text-muted-foreground">Horizontal</span>
+                                          <span className="text-xs text-muted-foreground">{wm.x ?? 100}%</span>
+                                        </div>
+                                        <Slider
+                                          min={0} max={100} step={1}
+                                          value={[wm.x ?? 100]}
+                                          onValueChange={([v]) => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], x: v } }))}
+                                        />
+                                      </div>
+                                      <div>
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="text-xs text-muted-foreground">Vertical</span>
+                                          <span className="text-xs text-muted-foreground">{wm.y ?? 100}%</span>
+                                        </div>
+                                        <Slider
+                                          min={0} max={100} step={1}
+                                          value={[wm.y ?? 100]}
+                                          onValueChange={([v]) => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], y: v } }))}
+                                        />
                                       </div>
                                     </div>
 
