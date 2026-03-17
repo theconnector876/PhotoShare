@@ -65,6 +65,8 @@ interface UserBooking {
 interface UserGallery {
   id: string;
   bookingId: string;
+  clientEmail: string;
+  accessCode: string;
   status: string;
   galleryImages: string[];
   selectedImages: string[];
@@ -1495,6 +1497,17 @@ export default function PhotographerDashboard() {
                           </p>
                           {booking && <p className="text-xs text-muted-foreground">{booking.shootDate}</p>}
                         </div>
+                        {gallery.clientEmail && gallery.accessCode && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs px-2 gap-1"
+                            onClick={() => window.open(`/gallery/${encodeURIComponent(gallery.clientEmail)}/${gallery.accessCode}`, '_blank')}
+                            title="View gallery as client"
+                          >
+                            <Eye className="w-3 h-3" /> Client View
+                          </Button>
+                        )}
                         <Select
                           value={gallery.status}
                           onValueChange={(v) => updateGallerySettingsMutation.mutate({ galleryId: gallery.id, settings: { status: v } })}
