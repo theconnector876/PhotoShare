@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   type WatermarkSettings,
   DEFAULT_WATERMARK_SETTINGS,
@@ -16,17 +16,18 @@ interface WatermarkOverlayProps {
 }
 
 export function WatermarkOverlay({ rawSettings, category, preview }: WatermarkOverlayProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
 
-  useEffect(() => {
-    const el = containerRef.current;
+  // Use a callback ref so the ResizeObserver is set up when the div
+  // actually mounts — not necessarily on the component's first render
+  // (which may return null while gallery data is loading).
+  const containerRef = useCallback((el: HTMLDivElement | null) => {
     if (!el) return;
     const measure = () => setContainerSize({ w: el.offsetWidth, h: el.offsetHeight });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
+    // No cleanup needed — element is being removed when this fires with null
   }, []);
 
   if (!rawSettings || typeof rawSettings !== "object") return null;
