@@ -39,10 +39,12 @@ export function WatermarkOverlay({ rawSettings, category, preview }: WatermarkOv
   const effX = s.x ?? positionToXY(s.position ?? 'bottom-right').x;
   const effY = s.y ?? positionToXY(s.position ?? 'bottom-right').y;
 
-  // Compute sizes from measured container
+  // Compute sizes from measured container.
+  // scale is a direct percentage: scale=30 → 30% of container's min dimension (text)
+  // or 30% of container width (image). Both use the same percentage concept.
   const cMin = Math.min(containerSize.w, containerSize.h);
   const cW = containerSize.w;
-  const fontSize = (s.scale ?? 30) * 0.004 * cMin;
+  const fontSize = cMin * (s.scale ?? 30) / 100;
   const imgWidth = cW * (s.scale ?? 30) / 100;
 
   return (

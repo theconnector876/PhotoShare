@@ -1454,7 +1454,7 @@ export function AdminGalleries() {
                                     {/* Scale slider */}
                                     <div>
                                       <div className="flex items-center justify-between mb-1">
-                                        <label className="text-xs font-medium text-muted-foreground">Size (% of image width)</label>
+                                        <label className="text-xs font-medium text-muted-foreground">Size (%)</label>
                                         <span className="text-xs text-muted-foreground">{wm.scale ?? 30}%</span>
                                       </div>
                                       <Slider
