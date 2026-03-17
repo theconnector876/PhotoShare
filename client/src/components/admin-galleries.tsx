@@ -1271,9 +1271,10 @@ export function AdminGalleries() {
                         </div>
                         <div className="flex gap-2 shrink-0">
                           <Button size="sm" variant="outline"
-                            className="hidden sm:flex border-green-200 text-green-700 hover:bg-green-50"
+                            className="border-green-200 text-green-700 hover:bg-green-50"
                             onClick={() => window.open(`/gallery/${gallery.clientEmail}/${gallery.accessCode}`, "_blank")}>
-                            <Eye className="w-4 h-4 mr-1" /> Client View
+                            <Eye className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Client View</span>
                           </Button>
                           <Button size="sm"
                             variant={isExpanded ? "default" : "outline"}

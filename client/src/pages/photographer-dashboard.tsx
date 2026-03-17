@@ -1505,7 +1505,7 @@ export default function PhotographerDashboard() {
                             onClick={() => window.open(`/gallery/${encodeURIComponent(gallery.clientEmail)}/${gallery.accessCode}`, '_blank')}
                             title="View gallery as client"
                           >
-                            <Eye className="w-3 h-3" /> Client View
+                            <Eye className="w-3 h-3" /><span className="hidden sm:inline">Client View</span>
                           </Button>
                         )}
                         <Select
