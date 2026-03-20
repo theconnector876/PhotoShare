@@ -65,6 +65,9 @@ interface SignedConfig {
   apiKey: string;
   timestamp: number;
   signature: string;
+  folder?: string;
+  useFilename?: boolean;
+  uniqueFilename?: boolean;
 }
 
 type FileStatus = "queued" | "uploading" | "done" | "error" | "duplicate";
@@ -134,6 +137,9 @@ function uploadWithProgress(file: File, config: SignedConfig, onProgress: (pct: 
     fd.append("api_key", config.apiKey);
     fd.append("timestamp", String(config.timestamp));
     fd.append("signature", config.signature);
+    if (config.folder) fd.append("folder", config.folder);
+    if (config.useFilename) fd.append("use_filename", "true");
+    if (config.uniqueFilename === false) fd.append("unique_filename", "false");
     xhr.open("POST", `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`);
     xhr.send(fd);
   });
@@ -169,6 +175,9 @@ function uploadChunkXHR(
     fd.append("api_key", config.apiKey);
     fd.append("timestamp", String(config.timestamp));
     fd.append("signature", config.signature);
+    if (config.folder) fd.append("folder", config.folder);
+    if (config.useFilename) fd.append("use_filename", "true");
+    if (config.uniqueFilename === false) fd.append("unique_filename", "false");
     const byteEnd = byteStart + chunk.size - 1;
     xhr.open("POST", `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`);
     xhr.setRequestHeader("X-Unique-Upload-Id", uploadId);
@@ -842,9 +851,9 @@ export function AdminGalleries() {
   // Cancel flag for uploads
   const cancelRef = useRef(false);
 
-  // Cached upload signature — refreshed automatically if > 30 minutes old
-  const uploadConfigRef    = useRef<SignedConfig | null>(null);
-  const uploadConfigTimeRef = useRef<number>(0);
+  // Cached upload signature — refreshed automatically if > 30 minutes old, keyed by galleryId
+  const uploadConfigRef    = useRef<Map<string, SignedConfig>>(new Map());
+  const uploadConfigTimeRef = useRef<Map<string, number>>(new Map());
 
   // ETA tracking
   const [uploadStartTime, setUploadStartTime] = useState<number | null>(null);
@@ -1063,17 +1072,18 @@ export function AdminGalleries() {
     setFileItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
-  // Returns a fresh (or cached) upload signature, auto-refreshing every 30 min.
-  const getUploadConfig = useCallback(async (): Promise<SignedConfig> => {
+  // Returns a fresh (or cached) upload signature, auto-refreshing every 30 min, per galleryId.
+  const getUploadConfig = useCallback(async (galleryId: string): Promise<SignedConfig> => {
     const now = Date.now();
-    if (uploadConfigRef.current && now - uploadConfigTimeRef.current < 30 * 60 * 1000) {
-      return uploadConfigRef.current;
-    }
-    const res = await fetch("/api/admin/upload-signature", { method: "POST", credentials: "include" });
+    const cached = uploadConfigRef.current.get(galleryId);
+    const cachedTime = uploadConfigTimeRef.current.get(galleryId) ?? 0;
+    if (cached && now - cachedTime < 30 * 60 * 1000) return cached;
+    const res = await fetch("/api/admin/upload-signature", { method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ galleryId }) });
     if (!res.ok) { const err = await res.json().catch(() => ({})) as { error?: string }; throw new Error(err.error || `Error ${res.status}`); }
     const config = await res.json() as SignedConfig;
-    uploadConfigRef.current = config;
-    uploadConfigTimeRef.current = now;
+    uploadConfigRef.current.set(galleryId, config);
+    uploadConfigTimeRef.current.set(galleryId, now);
     return config;
   }, []);
 
@@ -1090,7 +1100,7 @@ export function AdminGalleries() {
       if (!item) return;
       updateItem(item.id, { status: "uploading", progress: 0 });
       try {
-        const config = await getUploadConfig();
+        const config = await getUploadConfig(gallery.id);
         // Compress just-in-time — only 6 canvas ops active at once, no freeze
         const toUpload = await compressImage(item.file);
         const url = await uploadFile(toUpload, config, (pct) => updateItem(item.id, { progress: pct }));
@@ -1135,7 +1145,7 @@ export function AdminGalleries() {
     setFileItems(items);
     setShowUploadPanel(true);
 
-    try { await getUploadConfig(); }
+    try { await getUploadConfig(gallery.id); }
     catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Could not get upload credentials";
       setFileItems((prev) => prev.map((item) => item.status === "queued" ? { ...item, status: "error", error: msg } : item));

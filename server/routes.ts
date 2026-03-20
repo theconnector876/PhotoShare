@@ -979,14 +979,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
     const timestamp = Math.round(Date.now() / 1000);
-    const params = { timestamp };
+    const { galleryId } = req.body || {};
+    const params: Record<string, string | number> = { timestamp };
+    if (galleryId) {
+      params.folder = `galleries/${galleryId}`;
+      params.use_filename = 'true';
+      params.unique_filename = 'false';
+    }
     const signature = generateSignature(params, config.apiSecret);
-    res.json({
-      cloudName: config.cloudName,
-      apiKey: config.apiKey,
-      timestamp,
-      signature,
-    });
+    res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp, signature,
+      ...(galleryId ? { folder: `galleries/${galleryId}`, useFilename: true, uniqueFilename: false } : {}) });
   });
 
   // Update gallery settings (download toggles, status, watermark)
@@ -1273,9 +1275,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const config = getCloudinarySignedConfig();
     if (!config) return res.status(503).json({ error: 'Upload service unavailable' });
     const timestamp = Math.round(Date.now() / 1000);
-    const params = { timestamp };
+    const { galleryId } = req.body || {};
+    const params: Record<string, string | number> = { timestamp };
+    if (galleryId) {
+      params.folder = `galleries/${galleryId}`;
+      params.use_filename = 'true';
+      params.unique_filename = 'false';
+    }
     const signature = generateSignature(params, config.apiSecret);
-    res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp, signature });
+    res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp, signature,
+      ...(galleryId ? { folder: `galleries/${galleryId}`, useFilename: true, uniqueFilename: false } : {}) });
   });
 
   // Reorder / bulk-update images in a photographer's gallery

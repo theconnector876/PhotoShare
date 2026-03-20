@@ -94,6 +94,9 @@ interface SignedConfig {
   apiKey: string;
   timestamp: number;
   signature: string;
+  folder?: string;
+  useFilename?: boolean;
+  uniqueFilename?: boolean;
 }
 
 type UploadFileStatus = "queued" | "uploading" | "done" | "error" | "duplicate";
@@ -180,6 +183,9 @@ function uploadPhotoWithProgress(file: File, config: SignedConfig, onProgress: (
     fd.append("api_key", config.apiKey);
     fd.append("timestamp", String(config.timestamp));
     fd.append("signature", config.signature);
+    if (config.folder) fd.append("folder", config.folder);
+    if (config.useFilename) fd.append("use_filename", "true");
+    if (config.uniqueFilename === false) fd.append("unique_filename", "false");
     xhr.open("POST", `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`);
     xhr.send(fd);
   });
@@ -652,7 +658,8 @@ export default function PhotographerDashboard() {
 
     let config: SignedConfig;
     try {
-      const res = await fetch("/api/photographer/upload-signature", { method: "POST", credentials: "include" });
+      const res = await fetch("/api/photographer/upload-signature", { method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ galleryId: gallery.id }) });
       if (!res.ok) { const err = await res.json().catch(() => ({})) as { error?: string }; throw new Error(err.error || `Error ${res.status}`); }
       config = await res.json() as SignedConfig;
     } catch (err: unknown) {

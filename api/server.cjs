@@ -75317,13 +75317,20 @@ async function registerRoutes(app2) {
       });
     }
     const timestamp2 = Math.round(Date.now() / 1e3);
+    const { galleryId } = req.body || {};
     const params = { timestamp: timestamp2 };
+    if (galleryId) {
+      params.folder = `galleries/${galleryId}`;
+      params.use_filename = "true";
+      params.unique_filename = "false";
+    }
     const signature = generateSignature(params, config.apiSecret);
     res.json({
       cloudName: config.cloudName,
       apiKey: config.apiKey,
       timestamp: timestamp2,
-      signature
+      signature,
+      ...galleryId ? { folder: `galleries/${galleryId}`, useFilename: true, uniqueFilename: false } : {}
     });
   });
   app2.patch("/api/admin/gallery/:id/settings", isAdmin, async (req, res) => {
@@ -75573,9 +75580,21 @@ async function registerRoutes(app2) {
     const config = getCloudinarySignedConfig();
     if (!config) return res.status(503).json({ error: "Upload service unavailable" });
     const timestamp2 = Math.round(Date.now() / 1e3);
+    const { galleryId } = req.body || {};
     const params = { timestamp: timestamp2 };
+    if (galleryId) {
+      params.folder = `galleries/${galleryId}`;
+      params.use_filename = "true";
+      params.unique_filename = "false";
+    }
     const signature = generateSignature(params, config.apiSecret);
-    res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp: timestamp2, signature });
+    res.json({
+      cloudName: config.cloudName,
+      apiKey: config.apiKey,
+      timestamp: timestamp2,
+      signature,
+      ...galleryId ? { folder: `galleries/${galleryId}`, useFilename: true, uniqueFilename: false } : {}
+    });
   });
   app2.patch("/api/photographer/gallery/:id/images", isPhotographerApproved, async (req, res) => {
     try {
