@@ -74528,7 +74528,8 @@ async function fetchExchangeRates() {
   return { JMD: 157, GBP: 0.79, CAD: 1.36, EUR: 0.92 };
 }
 async function createWiPayCheckout(params) {
-  const orderId = `${params.bookingId}_${params.paymentType}`;
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const orderId = `${params.bookingId}_${params.paymentType}_${suffix}`;
   const totalStr = params.amountJmd.toFixed(2);
   const body = new URLSearchParams({
     account_number: process.env.WIPAY_ACCOUNT_NUMBER,
@@ -75757,11 +75758,17 @@ async function registerRoutes(app2) {
     };
     try {
       if (!order_id) return fail("Missing order_id");
-      const lastUnderscore = order_id.lastIndexOf("_");
-      if (lastUnderscore === -1) return fail("Invalid order_id format");
-      const bookingId = order_id.substring(0, lastUnderscore);
-      const paymentType = order_id.substring(lastUnderscore + 1);
-      if (!["deposit", "balance"].includes(paymentType)) return fail("Invalid payment type");
+      const segments = order_id.split("_");
+      let paymentType = "";
+      let bookingId = "";
+      for (let i = segments.length - 1; i >= 0; i--) {
+        if (["deposit", "balance"].includes(segments[i])) {
+          paymentType = segments[i];
+          bookingId = segments.slice(0, i).join("_");
+          break;
+        }
+      }
+      if (!paymentType || !bookingId) return fail("Invalid order_id format");
       const booking = await storage.getBooking(bookingId);
       if (!booking) return fail(`Booking not found: ${bookingId}`);
       if (paymentType === "deposit" && booking.depositPaid) {

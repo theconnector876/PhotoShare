@@ -61,7 +61,10 @@ async function createWiPayCheckout(params: {
   phone: string;
   responseUrl: string;
 }): Promise<string> {
-  const orderId = `${params.bookingId}_${params.paymentType}`;
+  // Append a short random suffix so each attempt gets a unique order_id —
+  // WiPay rejects duplicate order IDs from previous (cancelled/failed) attempts.
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const orderId = `${params.bookingId}_${params.paymentType}_${suffix}`;
   const totalStr = params.amountJmd.toFixed(2);
   const body = new URLSearchParams({
     account_number: process.env.WIPAY_ACCOUNT_NUMBER!,
@@ -1484,13 +1487,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (!order_id) return fail('Missing order_id');
 
-      // order_id format: {bookingId}_{paymentType}
-      const lastUnderscore = order_id.lastIndexOf('_');
-      if (lastUnderscore === -1) return fail('Invalid order_id format');
-      const bookingId = order_id.substring(0, lastUnderscore);
-      const paymentType = order_id.substring(lastUnderscore + 1) as 'deposit' | 'balance';
-
-      if (!['deposit', 'balance'].includes(paymentType)) return fail('Invalid payment type');
+      // order_id format: {bookingId}_{paymentType} (legacy) or {bookingId}_{paymentType}_{suffix} (current)
+      // Find the segment that is 'deposit' or 'balance' — everything before it is the bookingId.
+      const segments = order_id.split('_');
+      let paymentType = '';
+      let bookingId = '';
+      for (let i = segments.length - 1; i >= 0; i--) {
+        if (['deposit', 'balance'].includes(segments[i])) {
+          paymentType = segments[i];
+          bookingId = segments.slice(0, i).join('_');
+          break;
+        }
+      }
+      if (!paymentType || !bookingId) return fail('Invalid order_id format');
 
       const booking = await storage.getBooking(bookingId);
       if (!booking) return fail(`Booking not found: ${bookingId}`);
