@@ -75629,7 +75629,16 @@ async function registerRoutes(app2) {
         if (booking.depositPaid) return res.status(400).json({ error: "Deposit already paid" });
         baseAmount = serverDepositAmount;
       } else {
-        if (!booking.depositPaid) return res.status(400).json({ error: "Deposit must be paid first" });
+        if (!booking.depositPaid) {
+          if (serverDepositAmount === 0) {
+            await storage.updateBookingPaymentStatus(bookingId, "deposit");
+            if (booking.status === "pending") {
+              await storage.updateBookingStatus(bookingId, "confirmed");
+            }
+          } else {
+            return res.status(400).json({ error: "Deposit must be paid first" });
+          }
+        }
         if (booking.balancePaid) return res.status(400).json({ error: "Balance already paid" });
         baseAmount = serverBalanceDue;
       }

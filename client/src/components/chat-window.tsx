@@ -349,8 +349,12 @@ function PaymentRequestWidget({ msg, currentUserId }: {
         tipAmount: parseFloat(tip) || 0,
       });
       if (!res.ok) throw new Error("Failed");
-      const { checkoutUrl } = await res.json();
-      window.location.href = checkoutUrl;
+      const responseData = await res.json();
+      if (responseData.autoMarked) {
+        window.location.href = responseData.redirectUrl || `/payment-success?booking=${data.bookingId}&type=balance`;
+        return;
+      }
+      window.location.href = responseData.checkoutUrl;
     } catch {
       toast({ title: "Failed to start payment", variant: "destructive" });
     } finally {
