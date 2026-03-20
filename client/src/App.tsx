@@ -18,6 +18,7 @@ const Home                  = lazy(() => import("@/pages/home"));
 const Portfolio             = lazy(() => import("@/pages/portfolio"));
 const Booking               = lazy(() => import("@/pages/booking"));
 const PhotographerBooking   = lazy(() => import("@/pages/photographer-booking"));
+const PhotographerProfile   = lazy(() => import("@/pages/photographer-profile"));
 const About                 = lazy(() => import("@/pages/about"));
 const Contact               = lazy(() => import("@/pages/contact"));
 const Gallery               = lazy(() => import("@/pages/gallery"));
@@ -48,6 +49,7 @@ function Router() {
         <Route path="/portfolio" component={Portfolio} />
         <Route path="/booking" component={Booking} />
         <Route path="/book/:photographerId" component={PhotographerBooking} />
+        <Route path="/photographer/:photographerId" component={PhotographerProfile} />
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/gallery" component={Gallery} />

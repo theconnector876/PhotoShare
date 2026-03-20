@@ -21,6 +21,7 @@ interface Catalogue {
   createdAt: string;
   publishedAt: string;
   photographerName?: string | null;
+  photographerId?: string | null;
 }
 
 interface Review {
@@ -359,9 +360,19 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                 </div>
                 <div className="text-lg font-semibold">{catalogue.title}</div>
                 {catalogue.photographerName && (
-                  <div className="text-xs text-primary font-medium mt-0.5">
-                    📷 {catalogue.photographerName}
-                  </div>
+                  catalogue.photographerId ? (
+                    <a
+                      href={`/photographer/${catalogue.photographerId}`}
+                      className="text-xs text-primary font-medium mt-0.5 hover:underline inline-block"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      📷 {catalogue.photographerName}
+                    </a>
+                  ) : (
+                    <div className="text-xs text-primary font-medium mt-0.5">
+                      📷 {catalogue.photographerName}
+                    </div>
+                  )
                 )}
                 {catalogue.description && (
                   <div className="text-sm text-muted-foreground mt-1">

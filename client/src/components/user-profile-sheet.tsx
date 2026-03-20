@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -95,6 +96,17 @@ export function UserProfileSheet({ userId, onClose }: UserProfileSheetProps) {
                 </Badge>
               </div>
             </div>
+
+            {/* View full profile for photographers */}
+            {profile.role === "photographer" && !profile.isAdmin && (
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() => { window.location.href = `/photographer/${profile.id}`; }}
+              >
+                View Full Profile & Packages
+              </Button>
+            )}
 
             {/* Bookings */}
             {profile.bookings && profile.bookings.length > 0 && (

@@ -74822,7 +74822,14 @@ async function registerRoutes(app2) {
       const displayName = profile?.displayName || [photographer.firstName, photographer.lastName].filter(Boolean).join(" ") || "Photographer";
       res.json({
         id: photographer.id,
-        displayName
+        displayName,
+        profileImageUrl: photographer.profileImageUrl,
+        bio: profile?.bio || null,
+        location: profile?.location || null,
+        specialties: profile?.specialties || [],
+        portfolioLinks: profile?.portfolioLinks || [],
+        availability: profile?.availability || null,
+        socials: profile?.socials || {}
       });
     } catch (error) {
       console.error("Error fetching photographer profile:", error);
@@ -75826,14 +75833,17 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/catalogues", async (req, res) => {
     try {
-      const { serviceType } = req.query;
-      let catalogues2;
-      if (serviceType && typeof serviceType === "string") {
-        catalogues2 = await storage.getCataloguesByServiceType(serviceType);
+      const { serviceType, photographerId } = req.query;
+      let cats;
+      if (photographerId && typeof photographerId === "string") {
+        cats = await storage.getCataloguesByPhotographerId(photographerId);
+        cats = cats.filter((c) => c.isPublished);
+      } else if (serviceType && typeof serviceType === "string") {
+        cats = await storage.getCataloguesByServiceType(serviceType);
       } else {
-        catalogues2 = await storage.getPublishedCatalogues();
+        cats = await storage.getPublishedCatalogues();
       }
-      res.json(catalogues2.map(createSafeCatalogueDTO));
+      res.json(cats.map(createSafeCatalogueDTO));
     } catch (error) {
       console.error("Error fetching catalogues:", error);
       res.status(500).json({ error: "Failed to fetch catalogues" });
