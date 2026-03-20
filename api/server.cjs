@@ -75665,7 +75665,7 @@ async function registerRoutes(app2) {
             return res.status(400).json({ error: "Deposit must be paid first" });
           }
         }
-        if (booking.balancePaid) return res.status(400).json({ error: "Balance already paid" });
+        if (booking.balancePaid && serverBalanceDue > 0) return res.status(400).json({ error: "Balance already paid" });
         baseAmount = serverBalanceDue;
       }
       const amount = baseAmount + (paymentType === "balance" ? tipAmount : 0);

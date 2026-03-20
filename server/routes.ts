@@ -1366,7 +1366,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(400).json({ error: 'Deposit must be paid first' });
           }
         }
-        if (booking.balancePaid) return res.status(400).json({ error: 'Balance already paid' });
+        // Only block if there's an actual balance owed — zero-balance (coupon) bookings allow tip-only payments
+        if (booking.balancePaid && serverBalanceDue > 0) return res.status(400).json({ error: 'Balance already paid' });
         baseAmount = serverBalanceDue;
       }
 

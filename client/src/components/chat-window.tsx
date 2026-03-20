@@ -387,13 +387,17 @@ function PaymentRequestWidget({ msg, currentUserId }: {
                 className="w-full text-xs border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
-            <button
-              onClick={handlePay}
-              disabled={loading}
-              className="w-full bg-primary text-primary-foreground text-xs rounded-lg px-3 py-1.5 hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {loading ? "Processing…" : `Pay Now${tip && parseFloat(tip) > 0 ? ` ($${(data.balanceDue + parseFloat(tip)).toFixed(2)})` : ""}`}
-            </button>
+            {data.balanceDue === 0 && (!tip || parseFloat(tip) <= 0) ? (
+              <p className="text-[10px] text-muted-foreground text-center py-1">Enter a tip amount above to pay</p>
+            ) : (
+              <button
+                onClick={handlePay}
+                disabled={loading}
+                className="w-full bg-primary text-primary-foreground text-xs rounded-lg px-3 py-1.5 hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {loading ? "Processing…" : `Pay Now ($${(data.balanceDue + (parseFloat(tip) || 0)).toFixed(2)})`}
+              </button>
+            )}
           </>
         )}
         {!isClient && (
