@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import webpush from "web-push";
 import { setupPasswordAuth, hashPassword } from "./auth";
 import { getSession } from "./session";
 import passport from "passport";
@@ -19,6 +20,33 @@ const wipayEnabled = Boolean(
 const WIPAY_BASE_URL = 'https://jm.wipayfinancial.com/plugins/payments/request';
 const WIPAY_ENVIRONMENT = process.env.WIPAY_ENVIRONMENT || 'live';
 const WIPAY_FEE_STRUCTURE = process.env.WIPAY_FEE_STRUCTURE || 'merchant_absorb';
+
+// ── Web Push ─────────────────────────────────────────────────────────────────
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    'mailto:support@connectagrapher.com',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
+
+async function sendPushToUsers(userIds: string[], payload: { title: string; body: string; url?: string }) {
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+  try {
+    const subs = await storage.getPushSubscriptionsForUsers(userIds);
+    await Promise.allSettled(subs.map(sub =>
+      webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        JSON.stringify(payload)
+      ).catch(async (err: any) => {
+        // 410 Gone means subscription expired — remove it
+        if (err.statusCode === 410) await storage.deletePushSubscription(sub.endpoint);
+      })
+    ));
+  } catch (err) {
+    console.error('Push send error:', err);
+  }
+}
 
 // ── Exchange Rate Cache ──────────────────────────────────────────────────────
 // Fetches live USD-based rates from open.er-api.com; falls back to admin config.
@@ -826,6 +854,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }),
               });
             }
+            // Push notification to participants
+            const participantIds = await storage.getConversationParticipantIds(conv.id);
+            sendPushToUsers(participantIds, {
+              title: `Booking ${validatedData.status}`,
+              body: `Your booking for ${booking?.serviceType || 'your session'} has been ${statusText}.`,
+              url: '/dashboard',
+            });
           }
         } catch (msgErr) {
           console.error('Failed to post status system message:', msgErr);
@@ -2733,6 +2768,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = msgSchema.parse(req.body);
       const msg = await storage.createMessage({ conversationId: id, senderId: userId, ...data });
       res.json(msg);
+      // Push notification: notify other participants (fire-and-forget)
+      if (data.messageType === 'text' || data.messageType === 'image') {
+        try {
+          const sender = await storage.getUser(userId);
+          const senderName = sender ? `${sender.firstName || ''} ${sender.lastName || ''}`.trim() || sender.email : 'Someone';
+          const participantIds = await storage.getConversationParticipantIds(id);
+          const otherIds = participantIds.filter(pid => pid !== userId);
+          const notifBody = data.messageType === 'image' ? 'Sent an image' : (data.body.length > 80 ? data.body.slice(0, 80) + '…' : data.body);
+          sendPushToUsers(otherIds, {
+            title: `New message from ${senderName}`,
+            body: notifBody,
+            url: '/dashboard',
+          });
+        } catch { /* non-critical */ }
+      }
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid data', details: error.errors });
       console.error('Error creating message:', error);
@@ -3597,6 +3647,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── SEO: robots.txt ─────────────────────────────────────────────────────────
+  // ── Push Notification Routes ──────────────────────────────────────────────
+  app.get('/api/push/vapid-public-key', (_req, res) => {
+    if (!process.env.VAPID_PUBLIC_KEY) return res.status(503).json({ error: 'Push not configured' });
+    res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+  });
+
+  app.post('/api/push/subscribe', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const schema = z.object({
+        endpoint: z.string().url(),
+        keys: z.object({ p256dh: z.string(), auth: z.string() }),
+      });
+      const { endpoint, keys } = schema.parse(req.body);
+      await storage.savePushSubscription(userId, { endpoint, p256dh: keys.p256dh, auth: keys.auth });
+      res.json({ ok: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid subscription data' });
+      console.error('Push subscribe error:', error);
+      res.status(500).json({ error: 'Failed to save subscription' });
+    }
+  });
+
+  app.delete('/api/push/unsubscribe', isAuthenticated, async (req, res) => {
+    try {
+      const { endpoint } = z.object({ endpoint: z.string() }).parse(req.body);
+      await storage.deletePushSubscription(endpoint);
+      res.json({ ok: true });
+    } catch {
+      res.status(400).json({ error: 'Invalid request' });
+    }
+  });
+
   app.get('/robots.txt', (_req, res) => {
     res.header('Content-Type', 'text/plain');
     res.send([

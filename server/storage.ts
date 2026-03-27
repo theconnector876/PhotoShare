@@ -50,9 +50,11 @@ import {
   type BroadcastResponse,
   customPackages,
   type CustomPackage,
+  pushSubscriptions,
+  type PushSubscription,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, sql, desc, lt, gt, isNull, or } from "drizzle-orm";
+import { eq, and, sql, desc, lt, gt, isNull, or, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -219,6 +221,12 @@ export interface IStorage {
   createCustomPackage(data: Omit<import('@shared/schema').CustomPackage, 'id' | 'createdAt'>): Promise<import('@shared/schema').CustomPackage>;
   updateCustomPackage(id: string, data: Partial<import('@shared/schema').CustomPackage>): Promise<import('@shared/schema').CustomPackage | undefined>;
   deleteCustomPackage(id: string): Promise<void>;
+
+  // Push notification operations
+  savePushSubscription(userId: string, sub: { endpoint: string; p256dh: string; auth: string }): Promise<void>;
+  deletePushSubscription(endpoint: string): Promise<void>;
+  getPushSubscriptionsForUsers(userIds: string[]): Promise<PushSubscription[]>;
+  getConversationParticipantIds(conversationId: string): Promise<string[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1509,6 +1517,29 @@ export class DatabaseStorage implements IStorage {
     }));
 
     return results.filter(Boolean) as (BookingBroadcast & { booking: Booking; myResponse: string })[];
+  }
+
+  async savePushSubscription(userId: string, sub: { endpoint: string; p256dh: string; auth: string }): Promise<void> {
+    await db.insert(pushSubscriptions)
+      .values({ userId, endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth })
+      .onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: { userId, p256dh: sub.p256dh, auth: sub.auth } });
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+  }
+
+  async getPushSubscriptionsForUsers(userIds: string[]): Promise<PushSubscription[]> {
+    if (!userIds.length) return [];
+    return db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.userId, userIds));
+  }
+
+  async getConversationParticipantIds(conversationId: string): Promise<string[]> {
+    const rows = await db
+      .select({ userId: conversationParticipants.userId })
+      .from(conversationParticipants)
+      .where(eq(conversationParticipants.conversationId, conversationId));
+    return rows.map(r => r.userId);
   }
 }
 

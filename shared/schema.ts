@@ -435,6 +435,16 @@ export const insertCustomPackageSchema = createInsertSchema(customPackages).omit
 export type CustomPackage = typeof customPackages.$inferSelect;
 export type InsertCustomPackage = z.infer<typeof insertCustomPackageSchema>;
 
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+
 export type PayoutDetails = {
   method: 'bank' | 'card';
   // Bank wire fields

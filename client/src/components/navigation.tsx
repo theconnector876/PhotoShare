@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Camera, Menu, LogOut, ChevronDown } from "lucide-react";
+import { Camera, Menu, LogOut, ChevronDown, Bell, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { useSiteConfig } from "@/context/site-config";
 import { useCurrency } from "@/context/currency";
 import { SUPPORTED_CURRENCIES, CURRENCY_SYMBOLS, type Currency } from "@shared/currency";
+import { usePush } from "@/hooks/use-push";
 
 export default function Navigation() {
   const [location] = useLocation();
@@ -15,6 +17,7 @@ export default function Navigation() {
   const { user, logoutMutation } = useAuth();
   const { config } = useSiteConfig();
   const { selectedCurrency, setCurrency } = useCurrency();
+  const { permission, subscribed, loading: pushLoading, supported: pushSupported, subscribe, unsubscribe } = usePush();
 
   const publicNavItems = [
     { href: "/", label: "Home" },
@@ -104,6 +107,23 @@ export default function Navigation() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            {user && pushSupported && permission !== 'denied' && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8"
+                    disabled={pushLoading}
+                    onClick={subscribed ? unsubscribe : subscribe}
+                    aria-label={subscribed ? 'Disable notifications' : 'Enable notifications'}
+                  >
+                    {subscribed ? <Bell className="w-4 h-4 text-primary" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{subscribed ? 'Notifications on — click to disable' : 'Enable push notifications'}</TooltipContent>
+              </Tooltip>
+            )}
             {user && (
               <div className="flex items-center gap-3 pl-2 border-l border-border/60">
                 <span className="text-xs text-muted-foreground hidden lg:inline">
@@ -147,10 +167,21 @@ export default function Navigation() {
                   ))}
                   
                   {user && (
-                    <div className="pt-4 border-t border-border">
-                      <div className="mb-4 text-sm text-muted-foreground">
+                    <div className="pt-4 border-t border-border space-y-2">
+                      <div className="mb-2 text-sm text-muted-foreground">
                         Hi, {user.firstName || user.email}
                       </div>
+                      {pushSupported && permission !== 'denied' && (
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          disabled={pushLoading}
+                          onClick={subscribed ? unsubscribe : subscribe}
+                        >
+                          {subscribed ? <Bell className="w-4 h-4 mr-2 text-primary" /> : <BellOff className="w-4 h-4 mr-2" />}
+                          {subscribed ? 'Notifications on' : 'Enable notifications'}
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         className="w-full"
