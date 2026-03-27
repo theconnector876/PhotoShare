@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ConnectAGrapher</string>
+    <string name="title_activity_main">ConnectAGrapher</string>
+    <string name="package_name">com.connectagrapher.app</string>
+    <string name="custom_url_scheme">com.connectagrapher.app</string>
+</resources>

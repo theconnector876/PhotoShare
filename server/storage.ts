@@ -52,6 +52,8 @@ import {
   type CustomPackage,
   pushSubscriptions,
   type PushSubscription,
+  nativePushTokens,
+  type NativePushToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql, desc, lt, gt, isNull, or, inArray } from "drizzle-orm";
@@ -227,6 +229,9 @@ export interface IStorage {
   deletePushSubscription(endpoint: string): Promise<void>;
   getPushSubscriptionsForUsers(userIds: string[]): Promise<PushSubscription[]>;
   getConversationParticipantIds(conversationId: string): Promise<string[]>;
+  saveNativePushToken(userId: string, token: string, platform: string): Promise<void>;
+  deleteNativePushToken(token: string): Promise<void>;
+  getNativeTokensForUsers(userIds: string[]): Promise<NativePushToken[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1540,6 +1545,21 @@ export class DatabaseStorage implements IStorage {
       .from(conversationParticipants)
       .where(eq(conversationParticipants.conversationId, conversationId));
     return rows.map(r => r.userId);
+  }
+
+  async saveNativePushToken(userId: string, token: string, platform: string): Promise<void> {
+    await db.insert(nativePushTokens)
+      .values({ userId, token, platform })
+      .onConflictDoUpdate({ target: nativePushTokens.token, set: { userId, platform } });
+  }
+
+  async deleteNativePushToken(token: string): Promise<void> {
+    await db.delete(nativePushTokens).where(eq(nativePushTokens.token, token));
+  }
+
+  async getNativeTokensForUsers(userIds: string[]): Promise<NativePushToken[]> {
+    if (!userIds.length) return [];
+    return db.select().from(nativePushTokens).where(inArray(nativePushTokens.userId, userIds));
   }
 }
 

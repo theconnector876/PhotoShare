@@ -38231,49 +38231,63 @@ var require_common = __commonJS({
         createDebug.namespaces = namespaces;
         createDebug.names = [];
         createDebug.skips = [];
-        let i;
-        const split = (typeof namespaces === "string" ? namespaces : "").split(/[\s,]+/);
-        const len = split.length;
-        for (i = 0; i < len; i++) {
-          if (!split[i]) {
-            continue;
-          }
-          namespaces = split[i].replace(/\*/g, ".*?");
-          if (namespaces[0] === "-") {
-            createDebug.skips.push(new RegExp("^" + namespaces.slice(1) + "$"));
+        const split = (typeof namespaces === "string" ? namespaces : "").trim().replace(/\s+/g, ",").split(",").filter(Boolean);
+        for (const ns2 of split) {
+          if (ns2[0] === "-") {
+            createDebug.skips.push(ns2.slice(1));
           } else {
-            createDebug.names.push(new RegExp("^" + namespaces + "$"));
+            createDebug.names.push(ns2);
           }
         }
       }
+      function matchesTemplate(search, template) {
+        let searchIndex = 0;
+        let templateIndex = 0;
+        let starIndex = -1;
+        let matchIndex = 0;
+        while (searchIndex < search.length) {
+          if (templateIndex < template.length && (template[templateIndex] === search[searchIndex] || template[templateIndex] === "*")) {
+            if (template[templateIndex] === "*") {
+              starIndex = templateIndex;
+              matchIndex = searchIndex;
+              templateIndex++;
+            } else {
+              searchIndex++;
+              templateIndex++;
+            }
+          } else if (starIndex !== -1) {
+            templateIndex = starIndex + 1;
+            matchIndex++;
+            searchIndex = matchIndex;
+          } else {
+            return false;
+          }
+        }
+        while (templateIndex < template.length && template[templateIndex] === "*") {
+          templateIndex++;
+        }
+        return templateIndex === template.length;
+      }
       function disable() {
         const namespaces = [
-          ...createDebug.names.map(toNamespace),
-          ...createDebug.skips.map(toNamespace).map((namespace) => "-" + namespace)
+          ...createDebug.names,
+          ...createDebug.skips.map((namespace) => "-" + namespace)
         ].join(",");
         createDebug.enable("");
         return namespaces;
       }
       function enabled(name) {
-        if (name[name.length - 1] === "*") {
-          return true;
-        }
-        let i;
-        let len;
-        for (i = 0, len = createDebug.skips.length; i < len; i++) {
-          if (createDebug.skips[i].test(name)) {
+        for (const skip of createDebug.skips) {
+          if (matchesTemplate(name, skip)) {
             return false;
           }
         }
-        for (i = 0, len = createDebug.names.length; i < len; i++) {
-          if (createDebug.names[i].test(name)) {
+        for (const ns2 of createDebug.names) {
+          if (matchesTemplate(name, ns2)) {
             return true;
           }
         }
         return false;
-      }
-      function toNamespace(regexp) {
-        return regexp.toString().substring(2, regexp.toString().length - 2).replace(/\.\*\?$/, "*");
       }
       function coerce2(val) {
         if (val instanceof Error) {
@@ -38435,7 +38449,7 @@ var require_browser5 = __commonJS({
     function load() {
       let r;
       try {
-        r = exports2.storage.getItem("debug");
+        r = exports2.storage.getItem("debug") || exports2.storage.getItem("DEBUG");
       } catch (error) {
       }
       if (!r && typeof process !== "undefined" && "env" in process) {
@@ -58291,6 +58305,7 @@ __export(schema_exports, {
   insertSiteConfigSchema: () => insertSiteConfigSchema,
   insertUserSchema: () => insertUserSchema,
   messages: () => messages,
+  nativePushTokens: () => nativePushTokens,
   passwordResetTokens: () => passwordResetTokens,
   payouts: () => payouts,
   photographerProfiles: () => photographerProfiles,
@@ -69380,6 +69395,14 @@ var customPackages = pgTable("custom_packages", {
   createdAt: timestamp("created_at").defaultNow()
 });
 var insertCustomPackageSchema = createInsertSchema(customPackages).omit({ id: true, createdAt: true });
+var nativePushTokens = pgTable("native_push_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  platform: varchar("platform", { length: 10 }).notNull(),
+  // 'ios' | 'android'
+  createdAt: timestamp("created_at").defaultNow()
+});
 var pushSubscriptions = pgTable("push_subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -76113,6 +76136,16 @@ var DatabaseStorage = class {
   async getConversationParticipantIds(conversationId) {
     const rows = await db.select({ userId: conversationParticipants.userId }).from(conversationParticipants).where(eq(conversationParticipants.conversationId, conversationId));
     return rows.map((r) => r.userId);
+  }
+  async saveNativePushToken(userId, token, platform) {
+    await db.insert(nativePushTokens).values({ userId, token, platform }).onConflictDoUpdate({ target: nativePushTokens.token, set: { userId, platform } });
+  }
+  async deleteNativePushToken(token) {
+    await db.delete(nativePushTokens).where(eq(nativePushTokens.token, token));
+  }
+  async getNativeTokensForUsers(userIds) {
+    if (!userIds.length) return [];
+    return db.select().from(nativePushTokens).where(inArray(nativePushTokens.userId, userIds));
   }
 };
 var storage = new DatabaseStorage();
@@ -84726,6 +84759,21 @@ Thank you!`
       res.json({ ok: true });
     } catch {
       res.status(400).json({ error: "Invalid request" });
+    }
+  });
+  app2.post("/api/push/native-token", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const { token, platform } = z.object({
+        token: z.string().min(1),
+        platform: z.enum(["ios", "android"])
+      }).parse(req.body);
+      await storage.saveNativePushToken(userId, token, platform);
+      res.json({ ok: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid token data" });
+      console.error("Native token save error:", error);
+      res.status(500).json({ error: "Failed to save token" });
     }
   });
   app2.get("/robots.txt", (_req, res) => {

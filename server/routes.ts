@@ -3680,6 +3680,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Native push token (iOS APNs / Android FCM) — saved by Capacitor app on registration
+  app.post('/api/push/native-token', isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const { token, platform } = z.object({
+        token: z.string().min(1),
+        platform: z.enum(['ios', 'android']),
+      }).parse(req.body);
+      await storage.saveNativePushToken(userId, token, platform);
+      res.json({ ok: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: 'Invalid token data' });
+      console.error('Native token save error:', error);
+      res.status(500).json({ error: 'Failed to save token' });
+    }
+  });
+
   app.get('/robots.txt', (_req, res) => {
     res.header('Content-Type', 'text/plain');
     res.send([

@@ -435,6 +435,15 @@ export const insertCustomPackageSchema = createInsertSchema(customPackages).omit
 export type CustomPackage = typeof customPackages.$inferSelect;
 export type InsertCustomPackage = z.infer<typeof insertCustomPackageSchema>;
 
+export const nativePushTokens = pgTable("native_push_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text("token").notNull().unique(),
+  platform: varchar("platform", { length: 10 }).notNull(), // 'ios' | 'android'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export type NativePushToken = typeof nativePushTokens.$inferSelect;
+
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),

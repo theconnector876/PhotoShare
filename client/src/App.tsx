@@ -4,7 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { SiteConfigProvider } from "@/context/site-config";
 import { CurrencyProvider } from "@/context/currency";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -12,6 +12,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { Analytics } from "@vercel/analytics/react";
 import Navigation from "@/components/navigation";
 import ConstellationBackground from "@/components/constellation-background";
+import { useNativePush } from "@/hooks/use-native-push";
 
 // Lazy-loaded pages — each splits into its own chunk, only loaded when visited
 const Home                  = lazy(() => import("@/pages/home"));
@@ -74,6 +75,12 @@ function Router() {
   );
 }
 
+function NativePushSetup() {
+  const { user } = useAuth();
+  useNativePush(!!user);
+  return null;
+}
+
 function App() {
   return (
     <HelmetProvider>
@@ -81,6 +88,7 @@ function App() {
         <SiteConfigProvider>
           <CurrencyProvider>
           <AuthProvider>
+            <NativePushSetup />
             <TooltipProvider>
               <div className="min-h-screen relative flex flex-col">
                 <ConstellationBackground />
