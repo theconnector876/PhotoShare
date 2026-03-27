@@ -31,6 +31,8 @@ const PaymentSuccess        = lazy(() => import("@/pages/payment-success").then(
 const CheckoutOverlay       = lazy(() => import("@/pages/checkout-overlay"));
 const Blog                  = lazy(() => import("@/pages/blog"));
 const BlogPost              = lazy(() => import("@/pages/blog-post"));
+const Terms                 = lazy(() => import("@/pages/terms"));
+const Privacy               = lazy(() => import("@/pages/privacy"));
 const NotFound              = lazy(() => import("@/pages/not-found"));
 
 function PageLoader() {
@@ -56,6 +58,8 @@ function Router() {
         <Route path="/gallery/:email/:code" component={Gallery} />
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:slug" component={BlogPost} />
+        <Route path="/terms" component={Terms} />
+        <Route path="/privacy" component={Privacy} />
         <Route path="/auth" component={AuthPage} />
         <ProtectedRoute path="/dashboard" component={Dashboard} />
         <ProtectedRoute path="/photographer" component={PhotographerDashboard} />
@@ -78,10 +82,22 @@ function App() {
           <CurrencyProvider>
           <AuthProvider>
             <TooltipProvider>
-              <div className="min-h-screen relative">
+              <div className="min-h-screen relative flex flex-col">
                 <ConstellationBackground />
                 <Navigation />
-                <Router />
+                <div className="flex-1">
+                  <Router />
+                </div>
+                <footer className="relative z-10 border-t bg-background/80 backdrop-blur-sm py-4 px-6">
+                  <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>© {new Date().getFullYear()} ConnectAGrapher. All rights reserved.</span>
+                    <div className="flex gap-4">
+                      <a href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</a>
+                      <a href="/terms" className="hover:text-foreground transition-colors">Terms & Conditions</a>
+                      <a href="/contact" className="hover:text-foreground transition-colors">Contact</a>
+                    </div>
+                  </div>
+                </footer>
                 <Toaster />
                 <Analytics />
               </div>

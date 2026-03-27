@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Loader2, Save, Lock } from "lucide-react";
+import { Camera, Loader2, Save, Lock, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
 
 export function UserProfileForm() {
   const { user } = useAuth();
@@ -17,6 +18,9 @@ export function UserProfileForm() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [, navigate] = useLocation();
 
   const [form, setForm] = useState({
     firstName: user?.firstName ?? "",
@@ -166,6 +170,53 @@ export function UserProfileForm() {
               <><Save className="w-4 h-4 mr-2" /> Save Profile</>
             )}
           </Button>
+
+          {/* Account Deletion — required by Apple App Store */}
+          <div className="pt-4 border-t mt-4">
+            {!showDeleteConfirm ? (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-xs text-destructive hover:underline flex items-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" /> Delete my account
+              </button>
+            ) : (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+                <p className="text-sm font-semibold text-destructive">Delete account?</p>
+                <p className="text-xs text-muted-foreground">
+                  This permanently removes your account, profile, and all associated data. Bookings
+                  may be retained for legal compliance. This cannot be undone.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={deletingAccount}
+                    onClick={async () => {
+                      setDeletingAccount(true);
+                      try {
+                        const res = await apiRequest("DELETE", "/api/user/account");
+                        if (!res.ok) throw new Error();
+                        queryClient.clear();
+                        navigate("/");
+                        toast({ title: "Account deleted", description: "Your account has been removed." });
+                      } catch {
+                        toast({ title: "Error", description: "Failed to delete account. Contact support.", variant: "destructive" });
+                        setDeletingAccount(false);
+                      }
+                    }}
+                  >
+                    {deletingAccount ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                    Yes, delete permanently
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </div>
     </Card>

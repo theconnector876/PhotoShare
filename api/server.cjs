@@ -76698,6 +76698,21 @@ Thank you!`
       res.status(500).json({ error: "Failed to update profile" });
     }
   });
+  app2.delete("/api/user/account", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      if (req.user?.isAdmin) return res.status(403).json({ error: "Admin accounts cannot be deleted this way" });
+      await storage.deleteUser(userId);
+      req.logout((err) => {
+        if (err) console.error("Logout error after account deletion:", err);
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      res.status(500).json({ error: "Failed to delete account" });
+    }
+  });
   app2.post("/api/user/upload-signature", isAuthenticated, async (req, res) => {
     try {
       const config = getCloudinarySignedConfig();

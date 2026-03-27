@@ -2595,6 +2595,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Account deletion — required by Apple App Store
+  app.delete('/api/user/account', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+      // Admins cannot self-delete via this endpoint
+      if (req.user?.isAdmin) return res.status(403).json({ error: 'Admin accounts cannot be deleted this way' });
+      await storage.deleteUser(userId);
+      req.logout((err: any) => {
+        if (err) console.error('Logout error after account deletion:', err);
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      res.status(500).json({ error: 'Failed to delete account' });
+    }
+  });
+
   app.post('/api/user/upload-signature', isAuthenticated, async (req, res) => {
     try {
       const config = getCloudinarySignedConfig();
