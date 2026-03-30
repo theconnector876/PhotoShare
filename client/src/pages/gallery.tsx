@@ -10,14 +10,14 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Key, Eye, Heart, Download, Check, Lock, ChevronLeft, ChevronRight, X, MessageSquare, Send } from "lucide-react";
+import { Key, Eye, Heart, Download, Check, Lock, ChevronLeft, ChevronRight, X, MessageSquare, Send, Share2, Copy, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useParams } from "wouter";
 import { WatermarkOverlay } from "@/components/watermark-overlay";
 
 const galleryAccessSchema = z.object({
-  email: z.string().email("Valid email is required"),
-  accessCode: z.string().min(1, "Access code is required"),
+  email: z.string().optional(),
+  accessCode: z.string().optional(),
 });
 type GalleryAccessData = z.infer<typeof galleryAccessSchema>;
 
@@ -36,7 +36,17 @@ interface Gallery {
   clientComment: string | null;
   imageComments: Record<string, string>;
   watermarkSettings?: Record<string, any>;
+  requireAccessCode: boolean;
+  requireEmail: boolean;
+  shareEnabled: boolean;
   createdAt: Date;
+}
+
+interface GalleryInfo {
+  id: string;
+  requireAccessCode: boolean;
+  requireEmail: boolean;
+  shareEnabled: boolean;
 }
 
 // Download a URL as a blob so it saves to device gallery rather than opening a new tab
@@ -71,7 +81,13 @@ async function downloadAll(images: string[], prefix: string) {
 
 export default function Gallery() {
   const params = useParams<{ email?: string; code?: string }>();
+  // Parse ?gallery=ID from URL for shareable links
+  const shareId = new URLSearchParams(window.location.search).get('gallery') || params.code && params.email ? null : null;
+  const urlGalleryId = new URLSearchParams(window.location.search).get('gallery');
+
   const [gallery, setGallery] = useState<Gallery | null>(null);
+  const [galleryInfo, setGalleryInfo] = useState<GalleryInfo | null>(null);
+  const [visitorEmail, setVisitorEmail] = useState("");
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [selectedFinalImages, setSelectedFinalImages] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'gallery' | 'selected' | 'final'>('gallery');
@@ -79,10 +95,12 @@ export default function Gallery() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [comment, setComment] = useState("");
   const [commentSaved, setCommentSaved] = useState(false);
-  // Per-image comments (keyed by image URL)
   const [imageComments, setImageComments] = useState<Record<string, string>>({});
   const [imageCommentDraft, setImageCommentDraft] = useState("");
   const [imageCommentSaving, setImageCommentSaving] = useState(false);
+  const [likedImages, setLikedImages] = useState<string[]>([]);
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<GalleryAccessData>({
@@ -93,9 +111,20 @@ export default function Gallery() {
     },
   });
 
+  // Fetch gallery info for share links
+  useEffect(() => {
+    if (!urlGalleryId || gallery) return;
+    apiRequest('GET', `/api/gallery/info/${urlGalleryId}`).then(r => r.ok ? r.json() : null).then(info => {
+      if (info) setGalleryInfo(info);
+    }).catch(() => {});
+  }, [urlGalleryId]);
+
   const accessGalleryMutation = useMutation({
     mutationFn: async (data: GalleryAccessData) => {
-      const response = await apiRequest('POST', '/api/gallery/access', data);
+      const body: any = { ...data };
+      if (urlGalleryId) body.galleryId = urlGalleryId;
+      const response = await apiRequest('POST', '/api/gallery/access', body);
+      if (!response.ok) { const e = await response.json(); throw new Error(e.error); }
       return response.json();
     },
     onSuccess: (data: Gallery) => {
@@ -103,19 +132,52 @@ export default function Gallery() {
       setSelectedImages(data.selectedImages || []);
       setComment(data.clientComment || "");
       setImageComments(data.imageComments || {});
+      const email = form.getValues('email') || '';
+      setVisitorEmail(email);
+      // Load likes
+      apiRequest('GET', `/api/gallery/${data.id}/likes?email=${encodeURIComponent(email)}`).then(r => r.json()).then(d => {
+        setLikedImages(d.likedByMe || []);
+        setLikeCounts(d.counts || {});
+      }).catch(() => {});
       toast({ title: "Gallery Accessed!", description: "Welcome to your photo gallery." });
     },
-    onError: () => {
-      toast({ title: "Access Failed", description: "Invalid email or access code. Please check your credentials.", variant: "destructive" });
+    onError: (e: any) => {
+      toast({ title: "Access Failed", description: e.message || "Invalid email or access code.", variant: "destructive" });
     },
   });
 
+  // Auto-submit for URL params (legacy /gallery/:email/:code) or no-credential share links
   useEffect(() => {
-    if (params.email && params.code && !autoSubmitted && !gallery) {
+    if (autoSubmitted || gallery) return;
+    if (params.email && params.code) {
       setAutoSubmitted(true);
       accessGalleryMutation.mutate({ email: decodeURIComponent(params.email), accessCode: params.code });
+    } else if (urlGalleryId && galleryInfo && !galleryInfo.requireAccessCode && !galleryInfo.requireEmail) {
+      setAutoSubmitted(true);
+      accessGalleryMutation.mutate({});
     }
-  }, [params.email, params.code, autoSubmitted, gallery]);
+  }, [params.email, params.code, urlGalleryId, galleryInfo, autoSubmitted, gallery]);
+
+  const toggleLike = async (imageUrl: string) => {
+    if (!gallery || !visitorEmail) return;
+    const res = await apiRequest('POST', `/api/gallery/${gallery.id}/like`, { email: visitorEmail, imageUrl });
+    if (!res.ok) return;
+    const { liked } = await res.json();
+    setLikedImages(prev => liked ? [...prev, imageUrl] : prev.filter(u => u !== imageUrl));
+    setLikeCounts(prev => ({ ...prev, [imageUrl]: (prev[imageUrl] || 0) + (liked ? 1 : -1) }));
+  };
+
+  const logDownload = (imageUrl: string, type: 'single' | 'bulk') => {
+    if (!gallery) return;
+    apiRequest('POST', `/api/gallery/${gallery.id}/log-download`, { email: visitorEmail || undefined, imageUrl, downloadType: type }).catch(() => {});
+  };
+
+  const shareLink = gallery ? `${window.location.origin}/gallery?gallery=${gallery.id}` : urlGalleryId ? `${window.location.origin}/gallery?gallery=${urlGalleryId}` : null;
+
+  const copyShareLink = () => {
+    if (!shareLink) return;
+    navigator.clipboard.writeText(shareLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
 
   const updateSelectionMutation = useMutation({
     mutationFn: async (images: string[]) => {
@@ -144,7 +206,15 @@ export default function Gallery() {
     },
   });
 
-  const onSubmit = (data: GalleryAccessData) => accessGalleryMutation.mutate(data);
+  const onSubmit = (data: GalleryAccessData) => {
+    if (urlGalleryId && galleryInfo) {
+      const needEmail = galleryInfo.requireEmail && !data.email;
+      const needCode = galleryInfo.requireAccessCode && !data.accessCode;
+      if (needEmail) { form.setError('email', { message: 'Email required' }); return; }
+      if (needCode) { form.setError('accessCode', { message: 'Access code required' }); return; }
+    }
+    accessGalleryMutation.mutate(data);
+  };
 
   const toggleImageSelection = (imageUrl: string) => {
     setSelectedImages(prev =>
@@ -243,24 +313,30 @@ export default function Gallery() {
               </div>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email Address</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="Enter your email" className="form-focus" data-testid="input-gallery-email" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="accessCode" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Access Code</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="Enter access code" className="form-focus" data-testid="input-gallery-code" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  {/* Email field — show always unless share link with requireEmail=false */}
+                  {(!galleryInfo || galleryInfo.requireEmail) && (
+                    <FormField control={form.control} name="email" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Address</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="Enter your email" className="form-focus" data-testid="input-gallery-email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  )}
+                  {/* Access code — show always unless share link with requireAccessCode=false */}
+                  {(!galleryInfo || galleryInfo.requireAccessCode) && (
+                    <FormField control={form.control} name="accessCode" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Access Code</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Enter access code" className="form-focus" data-testid="input-gallery-code" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  )}
                   <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-lg font-semibold magnetic-btn" disabled={accessGalleryMutation.isPending} data-testid="button-access-gallery">
                     <Key className="mr-2 h-4 w-4" />
                     {accessGalleryMutation.isPending ? 'Accessing...' : 'Access Gallery'}
@@ -379,6 +455,18 @@ export default function Gallery() {
           <p className="text-xl text-muted-foreground slide-in-up stagger-1">
             Welcome back! Select your favorite images for professional editing.
           </p>
+          {gallery?.shareEnabled && shareLink && (
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-1.5 text-sm text-muted-foreground max-w-sm overflow-hidden">
+                <Share2 className="w-4 h-4 shrink-0" />
+                <span className="truncate">{shareLink}</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={copyShareLink} className="shrink-0">
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Copied!' : 'Copy link'}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* View Mode Selector */}
@@ -486,11 +574,22 @@ export default function Gallery() {
                   </div>
                 )}
 
+                {/* Like button */}
+                {visitorEmail && (
+                  <button
+                    className={`absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors opacity-0 group-hover:opacity-100 ${likedImages.includes(imageUrl) ? 'bg-pink-500 text-white' : 'bg-black/60 text-white hover:bg-pink-500/80'}`}
+                    onClick={(e) => { e.stopPropagation(); toggleLike(imageUrl); }}
+                  >
+                    <ThumbsUp className="w-3 h-3" />
+                    {likeCounts[imageUrl] || ''}
+                  </button>
+                )}
+
                 {/* Per-image download */}
                 {downloadEnabled && (
                   <button
                     className="absolute bottom-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                    onClick={(e) => { e.stopPropagation(); downloadBlob(imageUrl, `photo-${index + 1}.jpg`); }}
+                    onClick={(e) => { e.stopPropagation(); logDownload(imageUrl, 'single'); downloadBlob(imageUrl, `photo-${index + 1}.jpg`); }}
                   >
                     <Download className="w-3.5 h-3.5" />
                   </button>
@@ -541,14 +640,14 @@ export default function Gallery() {
               )}
 
               {gallery.galleryDownloadEnabled && selectedImages.length > 0 && (
-                <Button variant="outline" onClick={() => downloadAll(selectedImages, 'selected')} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
+                <Button variant="outline" onClick={() => { selectedImages.forEach(u => logDownload(u, 'bulk')); downloadAll(selectedImages, 'selected'); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
                   <Download className="mr-2 h-4 w-4" />
                   Download Selected ({selectedImages.length})
                 </Button>
               )}
 
               {gallery.galleryDownloadEnabled && currentImages.length > 0 && (
-                <Button variant="outline" onClick={() => downloadAll(currentImages, 'photo')} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
+                <Button variant="outline" onClick={() => { currentImages.forEach(u => logDownload(u, 'bulk')); downloadAll(currentImages, 'photo'); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
                   <Download className="mr-2 h-4 w-4" />
                   Download All
                 </Button>

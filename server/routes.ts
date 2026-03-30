@@ -638,17 +638,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Removed public booking endpoints - these are now admin-only for security
 
   // Gallery routes
+  // Check gallery access settings by share ID (before requiring credentials)
+  app.get("/api/gallery/info/:id", async (req, res) => {
+    try {
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery || !gallery.shareEnabled) return res.status(404).json({ error: "Gallery not found" });
+      res.json({ id: gallery.id, requireAccessCode: gallery.requireAccessCode, requireEmail: gallery.requireEmail, shareEnabled: gallery.shareEnabled });
+    } catch { res.status(500).json({ error: "Failed to fetch gallery info" }); }
+  });
+
   app.post("/api/gallery/access", async (req, res) => {
     try {
-      const { email, accessCode } = req.body;
-      const gallery = await storage.getGalleryByAccess(email, accessCode);
-      if (!gallery) {
-        return res.status(404).json({ error: "Gallery not found or invalid access code" });
+      const { email, accessCode, galleryId } = req.body;
+      let gallery;
+      if (galleryId) {
+        gallery = await storage.getGalleryById(galleryId);
+        if (!gallery || !gallery.shareEnabled) return res.status(404).json({ error: "Gallery not found" });
+        if (gallery.requireAccessCode && gallery.accessCode !== accessCode) return res.status(401).json({ error: "Invalid access code" });
+        if (gallery.requireEmail && !email) return res.status(400).json({ error: "Email required" });
+      } else {
+        gallery = await storage.getGalleryByAccess(email, accessCode);
+        if (!gallery) return res.status(404).json({ error: "Gallery not found or invalid access code" });
       }
+      const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || null;
+      storage.logGalleryAccess(gallery.id, email || null, ip, req.headers['user-agent'] || null).catch(() => {});
       res.json(gallery);
     } catch (error) {
       res.status(500).json({ error: "Failed to access gallery" });
     }
+  });
+
+  app.post("/api/gallery/:id/log-download", async (req, res) => {
+    try {
+      const { email, imageUrl, downloadType } = z.object({ email: z.string().optional(), imageUrl: z.string(), downloadType: z.enum(['single','bulk']).default('single') }).parse(req.body);
+      await storage.logGalleryDownload(req.params.id, email || null, imageUrl, downloadType);
+      res.json({ ok: true });
+    } catch { res.status(400).json({ error: 'Invalid data' }); }
+  });
+
+  app.post("/api/gallery/:id/like", async (req, res) => {
+    try {
+      const { email, imageUrl } = z.object({ email: z.string().email(), imageUrl: z.string() }).parse(req.body);
+      const result = await storage.toggleGalleryLike(req.params.id, email, imageUrl);
+      res.json(result);
+    } catch { res.status(400).json({ error: 'Invalid data' }); }
+  });
+
+  app.get("/api/gallery/:id/likes", async (req, res) => {
+    try {
+      const likes = await storage.getGalleryLikes(req.params.id);
+      const counts: Record<string, number> = {};
+      for (const l of likes) { counts[l.imageUrl] = (counts[l.imageUrl] || 0) + 1; }
+      const email = req.query.email as string | undefined;
+      const likedByMe = email ? likes.filter(l => l.email === email).map(l => l.imageUrl) : [];
+      res.json({ counts, likedByMe });
+    } catch { res.status(500).json({ error: 'Failed to fetch likes' }); }
   });
 
   // Client gallery selection update (public, authenticated by gallery ownership via email+code)
@@ -1045,6 +1089,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalDownloadEnabled: z.boolean().optional(),
         status: z.enum(['pending', 'active', 'selection', 'editing', 'completed']).optional(),
         watermarkSettings: z.record(z.any()).optional(),
+        requireAccessCode: z.boolean().optional(),
+        requireEmail: z.boolean().optional(),
+        shareEnabled: z.boolean().optional(),
       });
       const settings = schema.parse(req.body);
       const gallery = await storage.updateGallerySettings(req.params.id, settings);
@@ -1053,6 +1100,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(400).json({ error: 'Invalid settings' });
     }
+  });
+
+  app.get('/api/admin/gallery/:id/logs', isAdmin, async (req, res) => {
+    try {
+      const [accessLogs, downloadLogs, likes] = await Promise.all([
+        storage.getGalleryAccessLogs(req.params.id),
+        storage.getGalleryDownloadLogs(req.params.id),
+        storage.getGalleryLikes(req.params.id),
+      ]);
+      res.json({ accessLogs, downloadLogs, likes });
+    } catch { res.status(500).json({ error: 'Failed to fetch logs' }); }
   });
 
   // Photographer gallery settings
@@ -1064,6 +1122,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalDownloadEnabled: z.boolean().optional(),
         status: z.enum(['pending', 'active', 'selection', 'editing', 'completed']).optional(),
         watermarkSettings: z.record(z.any()).optional(),
+        requireAccessCode: z.boolean().optional(),
+        requireEmail: z.boolean().optional(),
+        shareEnabled: z.boolean().optional(),
       });
       const settings = schema.parse(req.body);
       const gallery = await storage.getGalleryById(req.params.id);
@@ -1080,6 +1141,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(400).json({ error: 'Invalid settings' });
     }
+  });
+
+  app.get('/api/photographer/gallery/:id/logs', isPhotographerApproved, async (req, res) => {
+    try {
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
+      const userId = (req as any).user?.id;
+      if (gallery.bookingId) {
+        const booking = await storage.getBooking(gallery.bookingId);
+        if (!booking || booking.photographerId !== userId) return res.status(403).json({ error: 'Not assigned to this gallery' });
+      }
+      const [accessLogs, downloadLogs, likes] = await Promise.all([
+        storage.getGalleryAccessLogs(req.params.id),
+        storage.getGalleryDownloadLogs(req.params.id),
+        storage.getGalleryLikes(req.params.id),
+      ]);
+      res.json({ accessLogs, downloadLogs, likes });
+    } catch { res.status(500).json({ error: 'Failed to fetch logs' }); }
   });
 
   // Admin: update image folder mapping

@@ -28,6 +28,7 @@ import {
   MapPin, DollarSign, Users, GripVertical, X, Eye, Loader2, CheckCircle2,
   AlertCircle, Copy, MessageSquare, LayoutDashboard, LogOut, BanknoteIcon,
   Link as LinkIcon, Plus, Image as GalleryIcon, ChevronRight, ChevronDown, Tag, Save, Droplets, Trash2 as TrashIcon,
+  Download, ThumbsUp, History,
 } from "lucide-react";
 import {
   DropdownMenu as GalleryDropdownMenu,
@@ -75,6 +76,9 @@ interface UserGallery {
   selectedDownloadEnabled: boolean;
   finalDownloadEnabled: boolean;
   watermarkSettings?: Record<string, any>;
+  requireAccessCode: boolean;
+  requireEmail: boolean;
+  shareEnabled: boolean;
   createdAt: string;
 }
 
@@ -203,6 +207,82 @@ function capitalize(s: string) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
+
+function PhotographerGalleryLogs({ galleryId }: { galleryId: string }) {
+  const [open, setOpen] = useState(false);
+  const [logs, setLogs] = useState<{ accessLogs: any[]; downloadLogs: any[]; likes: any[] } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<'views' | 'downloads' | 'likes'>('views');
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await apiRequest('GET', `/api/photographer/gallery/${galleryId}/logs`);
+      if (res.ok) setLogs(await res.json());
+    } finally { setLoading(false); }
+  };
+
+  const fmt = (d: string) => new Date(d).toLocaleString();
+  const likesByImage = logs?.likes.reduce((acc: Record<string, number>, l: any) => {
+    acc[l.imageUrl] = (acc[l.imageUrl] || 0) + 1; return acc;
+  }, {}) ?? {};
+
+  return (
+    <div className="mb-5">
+      <button
+        className="flex items-center gap-1.5 text-xs text-purple-700 hover:text-purple-900 font-medium"
+        onClick={() => { setOpen(o => !o); if (!open && !logs) load(); }}
+      >
+        <History className="w-3.5 h-3.5" />
+        Activity Logs {open ? '▲' : '▼'}
+      </button>
+      {open && (
+        <div className="mt-2 border rounded-lg overflow-hidden">
+          <div className="flex border-b">
+            {(['views', 'downloads', 'likes'] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                className={`flex-1 py-1.5 text-xs font-medium capitalize transition-colors ${tab === t ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'}`}>
+                {t} {logs ? `(${t === 'views' ? logs.accessLogs.length : t === 'downloads' ? logs.downloadLogs.length : Object.keys(likesByImage).length})` : ''}
+              </button>
+            ))}
+            <button onClick={load} className="px-2 text-xs text-primary hover:text-primary/80">{loading ? '…' : '↻'}</button>
+          </div>
+          <div className="max-h-44 overflow-y-auto text-xs">
+            {!logs ? <div className="p-3 text-center text-muted-foreground">{loading ? 'Loading…' : 'No data'}</div>
+            : tab === 'views' ? (
+              logs.accessLogs.length === 0 ? <div className="p-3 text-center text-muted-foreground">No views yet</div> :
+              logs.accessLogs.map((l: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b last:border-0">
+                  <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="flex-1 truncate text-muted-foreground">{l.email || 'Anonymous'}</span>
+                  <span className="text-muted-foreground/60 shrink-0">{fmt(l.accessedAt)}</span>
+                </div>
+              ))
+            ) : tab === 'downloads' ? (
+              logs.downloadLogs.length === 0 ? <div className="p-3 text-center text-muted-foreground">No downloads yet</div> :
+              logs.downloadLogs.map((l: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b last:border-0">
+                  <Download className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="flex-1 truncate text-muted-foreground">{l.email || 'Anonymous'} — {l.downloadType}</span>
+                  <span className="text-muted-foreground/60 shrink-0">{fmt(l.downloadedAt)}</span>
+                </div>
+              ))
+            ) : (
+              Object.keys(likesByImage).length === 0 ? <div className="p-3 text-center text-muted-foreground">No likes yet</div> :
+              Object.entries(likesByImage).map(([url, count]: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b last:border-0">
+                  <ThumbsUp className="w-3 h-3 text-pink-400 shrink-0" />
+                  <span className="flex-1 truncate text-muted-foreground">{url.split('/').pop()}</span>
+                  <span className="font-medium text-pink-600">{count} like{count !== 1 ? 's' : ''}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PhotographerDashboard() {
   const { user, isLoading, logoutMutation } = useAuth();
@@ -1549,6 +1629,32 @@ export default function PhotographerDashboard() {
                             </div>
                           ))}
                         </div>
+
+                        {/* Share & Access controls */}
+                        <div className="mb-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {([
+                            { key: "shareEnabled" as const,       label: "Share link enabled" },
+                            { key: "requireAccessCode" as const,  label: "Require access code" },
+                            { key: "requireEmail" as const,       label: "Require email" },
+                          ]).map(({ key, label }) => (
+                            <div key={key} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                              <span className="text-xs font-medium text-muted-foreground">{label}</span>
+                              <Switch
+                                checked={gallery[key] ?? (key === 'shareEnabled' ? true : key === 'requireAccessCode' ? true : true)}
+                                onCheckedChange={checked => updateGallerySettingsMutation.mutate({ galleryId: gallery.id, settings: { [key]: checked } })}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        {gallery.shareEnabled && (
+                          <div className="mb-5 flex items-center gap-2 p-2 bg-muted/40 rounded-lg">
+                            <span className="text-xs text-muted-foreground flex-1 truncate">{window.location.origin}/gallery?gallery={gallery.id}</span>
+                            <button className="text-xs text-primary hover:underline shrink-0" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/gallery?gallery=${gallery.id}`)}>Copy link</button>
+                          </div>
+                        )}
+
+                        {/* Activity Logs */}
+                        <PhotographerGalleryLogs galleryId={gallery.id} />
 
                         {/* Watermark settings */}
                         {(() => {

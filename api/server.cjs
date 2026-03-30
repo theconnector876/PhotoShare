@@ -58287,6 +58287,9 @@ __export(schema_exports, {
   coupons: () => coupons,
   customPackages: () => customPackages,
   galleries: () => galleries,
+  galleryAccessLogs: () => galleryAccessLogs,
+  galleryDownloadLogs: () => galleryDownloadLogs,
+  galleryLikes: () => galleryLikes,
   inboundEmails: () => inboundEmails,
   insertBlogPostSchema: () => insertBlogPostSchema,
   insertBookingSchema: () => insertBookingSchema,
@@ -69167,8 +69170,38 @@ var galleries = pgTable("galleries", {
   imageFolders: jsonb("image_folders").default({}),
   // Watermark settings: { enabled: {gallery,selected,final}, type, text, imageUrl, imagePublicId, opacity, scale }
   watermarkSettings: jsonb("watermark_settings").default({}),
+  // Sharing & access controls
+  requireAccessCode: boolean("require_access_code").notNull().default(true),
+  requireEmail: boolean("require_email").notNull().default(true),
+  shareEnabled: boolean("share_enabled").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow()
 });
+var galleryAccessLogs = pgTable("gallery_access_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  galleryId: varchar("gallery_id").notNull().references(() => galleries.id, { onDelete: "cascade" }),
+  email: text("email"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  accessedAt: timestamp("accessed_at").defaultNow()
+});
+var galleryDownloadLogs = pgTable("gallery_download_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  galleryId: varchar("gallery_id").notNull().references(() => galleries.id, { onDelete: "cascade" }),
+  email: text("email"),
+  imageUrl: text("image_url").notNull(),
+  downloadType: text("download_type").notNull().default("single"),
+  // single | bulk
+  downloadedAt: timestamp("downloaded_at").defaultNow()
+});
+var galleryLikes = pgTable("gallery_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  galleryId: varchar("gallery_id").notNull().references(() => galleries.id, { onDelete: "cascade" }),
+  email: text("email"),
+  imageUrl: text("image_url").notNull(),
+  likedAt: timestamp("liked_at").defaultNow()
+}, (t) => ({
+  uniq: sql`UNIQUE(${t.galleryId}, ${t.email}, ${t.imageUrl})`
+}));
 var contactMessages = pgTable("contact_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -76133,6 +76166,31 @@ var DatabaseStorage = class {
     if (!userIds.length) return [];
     return db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.userId, userIds));
   }
+  async logGalleryAccess(galleryId, email, ipAddress, userAgent2) {
+    await db.insert(galleryAccessLogs).values({ galleryId, email, ipAddress, userAgent: userAgent2 });
+  }
+  async logGalleryDownload(galleryId, email, imageUrl, downloadType) {
+    await db.insert(galleryDownloadLogs).values({ galleryId, email, imageUrl, downloadType });
+  }
+  async toggleGalleryLike(galleryId, email, imageUrl) {
+    const existing = await db.select().from(galleryLikes).where(and(eq(galleryLikes.galleryId, galleryId), eq(galleryLikes.email, email), eq(galleryLikes.imageUrl, imageUrl)));
+    if (existing.length > 0) {
+      await db.delete(galleryLikes).where(and(eq(galleryLikes.galleryId, galleryId), eq(galleryLikes.email, email), eq(galleryLikes.imageUrl, imageUrl)));
+      return { liked: false };
+    } else {
+      await db.insert(galleryLikes).values({ galleryId, email, imageUrl });
+      return { liked: true };
+    }
+  }
+  async getGalleryLikes(galleryId) {
+    return db.select().from(galleryLikes).where(eq(galleryLikes.galleryId, galleryId));
+  }
+  async getGalleryAccessLogs(galleryId) {
+    return db.select().from(galleryAccessLogs).where(eq(galleryAccessLogs.galleryId, galleryId)).orderBy(desc(galleryAccessLogs.accessedAt));
+  }
+  async getGalleryDownloadLogs(galleryId) {
+    return db.select().from(galleryDownloadLogs).where(eq(galleryDownloadLogs.galleryId, galleryId)).orderBy(desc(galleryDownloadLogs.downloadedAt));
+  }
   async getConversationParticipantIds(conversationId) {
     const rows = await db.select({ userId: conversationParticipants.userId }).from(conversationParticipants).where(eq(conversationParticipants.conversationId, conversationId));
     return rows.map((r) => r.userId);
@@ -82117,16 +82175,66 @@ async function registerRoutes(app2) {
       }
     }
   });
+  app2.get("/api/gallery/info/:id", async (req, res) => {
+    try {
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery || !gallery.shareEnabled) return res.status(404).json({ error: "Gallery not found" });
+      res.json({ id: gallery.id, requireAccessCode: gallery.requireAccessCode, requireEmail: gallery.requireEmail, shareEnabled: gallery.shareEnabled });
+    } catch {
+      res.status(500).json({ error: "Failed to fetch gallery info" });
+    }
+  });
   app2.post("/api/gallery/access", async (req, res) => {
     try {
-      const { email, accessCode } = req.body;
-      const gallery = await storage.getGalleryByAccess(email, accessCode);
-      if (!gallery) {
-        return res.status(404).json({ error: "Gallery not found or invalid access code" });
+      const { email, accessCode, galleryId } = req.body;
+      let gallery;
+      if (galleryId) {
+        gallery = await storage.getGalleryById(galleryId);
+        if (!gallery || !gallery.shareEnabled) return res.status(404).json({ error: "Gallery not found" });
+        if (gallery.requireAccessCode && gallery.accessCode !== accessCode) return res.status(401).json({ error: "Invalid access code" });
+        if (gallery.requireEmail && !email) return res.status(400).json({ error: "Email required" });
+      } else {
+        gallery = await storage.getGalleryByAccess(email, accessCode);
+        if (!gallery) return res.status(404).json({ error: "Gallery not found or invalid access code" });
       }
+      const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0] || req.socket.remoteAddress || null;
+      storage.logGalleryAccess(gallery.id, email || null, ip, req.headers["user-agent"] || null).catch(() => {
+      });
       res.json(gallery);
     } catch (error) {
       res.status(500).json({ error: "Failed to access gallery" });
+    }
+  });
+  app2.post("/api/gallery/:id/log-download", async (req, res) => {
+    try {
+      const { email, imageUrl, downloadType } = z.object({ email: z.string().optional(), imageUrl: z.string(), downloadType: z.enum(["single", "bulk"]).default("single") }).parse(req.body);
+      await storage.logGalleryDownload(req.params.id, email || null, imageUrl, downloadType);
+      res.json({ ok: true });
+    } catch {
+      res.status(400).json({ error: "Invalid data" });
+    }
+  });
+  app2.post("/api/gallery/:id/like", async (req, res) => {
+    try {
+      const { email, imageUrl } = z.object({ email: z.string().email(), imageUrl: z.string() }).parse(req.body);
+      const result = await storage.toggleGalleryLike(req.params.id, email, imageUrl);
+      res.json(result);
+    } catch {
+      res.status(400).json({ error: "Invalid data" });
+    }
+  });
+  app2.get("/api/gallery/:id/likes", async (req, res) => {
+    try {
+      const likes = await storage.getGalleryLikes(req.params.id);
+      const counts = {};
+      for (const l of likes) {
+        counts[l.imageUrl] = (counts[l.imageUrl] || 0) + 1;
+      }
+      const email = req.query.email;
+      const likedByMe = email ? likes.filter((l) => l.email === email).map((l) => l.imageUrl) : [];
+      res.json({ counts, likedByMe });
+    } catch {
+      res.status(500).json({ error: "Failed to fetch likes" });
     }
   });
   app2.patch("/api/gallery/:id/images", async (req, res) => {
@@ -82487,7 +82595,10 @@ async function registerRoutes(app2) {
         selectedDownloadEnabled: z.boolean().optional(),
         finalDownloadEnabled: z.boolean().optional(),
         status: z.enum(["pending", "active", "selection", "editing", "completed"]).optional(),
-        watermarkSettings: z.record(z.any()).optional()
+        watermarkSettings: z.record(z.any()).optional(),
+        requireAccessCode: z.boolean().optional(),
+        requireEmail: z.boolean().optional(),
+        shareEnabled: z.boolean().optional()
       });
       const settings = schema.parse(req.body);
       const gallery = await storage.updateGallerySettings(req.params.id, settings);
@@ -82497,6 +82608,18 @@ async function registerRoutes(app2) {
       res.status(400).json({ error: "Invalid settings" });
     }
   });
+  app2.get("/api/admin/gallery/:id/logs", isAdmin, async (req, res) => {
+    try {
+      const [accessLogs, downloadLogs, likes] = await Promise.all([
+        storage.getGalleryAccessLogs(req.params.id),
+        storage.getGalleryDownloadLogs(req.params.id),
+        storage.getGalleryLikes(req.params.id)
+      ]);
+      res.json({ accessLogs, downloadLogs, likes });
+    } catch {
+      res.status(500).json({ error: "Failed to fetch logs" });
+    }
+  });
   app2.patch("/api/photographer/gallery/:id/settings", isPhotographerApproved, async (req, res) => {
     try {
       const schema = z.object({
@@ -82504,7 +82627,10 @@ async function registerRoutes(app2) {
         selectedDownloadEnabled: z.boolean().optional(),
         finalDownloadEnabled: z.boolean().optional(),
         status: z.enum(["pending", "active", "selection", "editing", "completed"]).optional(),
-        watermarkSettings: z.record(z.any()).optional()
+        watermarkSettings: z.record(z.any()).optional(),
+        requireAccessCode: z.boolean().optional(),
+        requireEmail: z.boolean().optional(),
+        shareEnabled: z.boolean().optional()
       });
       const settings = schema.parse(req.body);
       const gallery = await storage.getGalleryById(req.params.id);
@@ -82520,6 +82646,25 @@ async function registerRoutes(app2) {
       res.json(updated);
     } catch (error) {
       res.status(400).json({ error: "Invalid settings" });
+    }
+  });
+  app2.get("/api/photographer/gallery/:id/logs", isPhotographerApproved, async (req, res) => {
+    try {
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      const userId = req.user?.id;
+      if (gallery.bookingId) {
+        const booking = await storage.getBooking(gallery.bookingId);
+        if (!booking || booking.photographerId !== userId) return res.status(403).json({ error: "Not assigned to this gallery" });
+      }
+      const [accessLogs, downloadLogs, likes] = await Promise.all([
+        storage.getGalleryAccessLogs(req.params.id),
+        storage.getGalleryDownloadLogs(req.params.id),
+        storage.getGalleryLikes(req.params.id)
+      ]);
+      res.json({ accessLogs, downloadLogs, likes });
+    } catch {
+      res.status(500).json({ error: "Failed to fetch logs" });
     }
   });
   app2.patch("/api/admin/gallery/:id/folders", isAuthenticated, isAdmin, async (req, res) => {

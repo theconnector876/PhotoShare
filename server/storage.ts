@@ -54,6 +54,12 @@ import {
   type PushSubscription,
   nativePushTokens,
   type NativePushToken,
+  galleryAccessLogs,
+  galleryDownloadLogs,
+  galleryLikes,
+  type GalleryAccessLog,
+  type GalleryDownloadLog,
+  type GalleryLike,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql, desc, lt, gt, isNull, or, inArray } from "drizzle-orm";
@@ -100,7 +106,14 @@ export interface IStorage {
   getGalleryByBookingId(bookingId: string): Promise<Gallery | undefined>;
   updateGallery(id: string, data: Partial<Gallery>): Promise<Gallery | undefined>;
   updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined>;
-  updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string; watermarkSettings?: Record<string, any> }): Promise<Gallery | undefined>;
+  updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string; watermarkSettings?: Record<string, any>; requireAccessCode?: boolean; requireEmail?: boolean; shareEnabled?: boolean }): Promise<Gallery | undefined>;
+  // Gallery logs
+  logGalleryAccess(galleryId: string, email: string | null, ipAddress: string | null, userAgent: string | null): Promise<void>;
+  logGalleryDownload(galleryId: string, email: string | null, imageUrl: string, downloadType: string): Promise<void>;
+  toggleGalleryLike(galleryId: string, email: string, imageUrl: string): Promise<{ liked: boolean }>;
+  getGalleryLikes(galleryId: string): Promise<GalleryLike[]>;
+  getGalleryAccessLogs(galleryId: string): Promise<GalleryAccessLog[]>;
+  getGalleryDownloadLogs(galleryId: string): Promise<GalleryDownloadLog[]>;
   updateGalleryComment(id: string, comment: string): Promise<Gallery | undefined>;
   updateImageComment(id: string, imageUrl: string, comment: string): Promise<Gallery | undefined>;
   deleteUser(id: string): Promise<boolean>;
@@ -1537,6 +1550,41 @@ export class DatabaseStorage implements IStorage {
   async getPushSubscriptionsForUsers(userIds: string[]): Promise<PushSubscription[]> {
     if (!userIds.length) return [];
     return db.select().from(pushSubscriptions).where(inArray(pushSubscriptions.userId, userIds));
+  }
+
+  async logGalleryAccess(galleryId: string, email: string | null, ipAddress: string | null, userAgent: string | null): Promise<void> {
+    await db.insert(galleryAccessLogs).values({ galleryId, email, ipAddress, userAgent });
+  }
+
+  async logGalleryDownload(galleryId: string, email: string | null, imageUrl: string, downloadType: string): Promise<void> {
+    await db.insert(galleryDownloadLogs).values({ galleryId, email, imageUrl, downloadType });
+  }
+
+  async toggleGalleryLike(galleryId: string, email: string, imageUrl: string): Promise<{ liked: boolean }> {
+    const existing = await db.select().from(galleryLikes)
+      .where(and(eq(galleryLikes.galleryId, galleryId), eq(galleryLikes.email, email), eq(galleryLikes.imageUrl, imageUrl)));
+    if (existing.length > 0) {
+      await db.delete(galleryLikes)
+        .where(and(eq(galleryLikes.galleryId, galleryId), eq(galleryLikes.email, email), eq(galleryLikes.imageUrl, imageUrl)));
+      return { liked: false };
+    } else {
+      await db.insert(galleryLikes).values({ galleryId, email, imageUrl });
+      return { liked: true };
+    }
+  }
+
+  async getGalleryLikes(galleryId: string): Promise<GalleryLike[]> {
+    return db.select().from(galleryLikes).where(eq(galleryLikes.galleryId, galleryId));
+  }
+
+  async getGalleryAccessLogs(galleryId: string): Promise<GalleryAccessLog[]> {
+    return db.select().from(galleryAccessLogs).where(eq(galleryAccessLogs.galleryId, galleryId))
+      .orderBy(desc(galleryAccessLogs.accessedAt));
+  }
+
+  async getGalleryDownloadLogs(galleryId: string): Promise<GalleryDownloadLog[]> {
+    return db.select().from(galleryDownloadLogs).where(eq(galleryDownloadLogs.galleryId, galleryId))
+      .orderBy(desc(galleryDownloadLogs.downloadedAt));
   }
 
   async getConversationParticipantIds(conversationId: string): Promise<string[]> {

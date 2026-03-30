@@ -134,8 +134,45 @@ export const galleries = pgTable("galleries", {
   imageFolders: jsonb("image_folders").default({}),
   // Watermark settings: { enabled: {gallery,selected,final}, type, text, imageUrl, imagePublicId, opacity, scale }
   watermarkSettings: jsonb("watermark_settings").default({}),
+  // Sharing & access controls
+  requireAccessCode: boolean("require_access_code").notNull().default(true),
+  requireEmail: boolean("require_email").notNull().default(true),
+  shareEnabled: boolean("share_enabled").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Gallery activity logs
+export const galleryAccessLogs = pgTable("gallery_access_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  galleryId: varchar("gallery_id").notNull().references(() => galleries.id, { onDelete: 'cascade' }),
+  email: text("email"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  accessedAt: timestamp("accessed_at").defaultNow(),
+});
+
+export const galleryDownloadLogs = pgTable("gallery_download_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  galleryId: varchar("gallery_id").notNull().references(() => galleries.id, { onDelete: 'cascade' }),
+  email: text("email"),
+  imageUrl: text("image_url").notNull(),
+  downloadType: text("download_type").notNull().default("single"), // single | bulk
+  downloadedAt: timestamp("downloaded_at").defaultNow(),
+});
+
+export const galleryLikes = pgTable("gallery_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  galleryId: varchar("gallery_id").notNull().references(() => galleries.id, { onDelete: 'cascade' }),
+  email: text("email"),
+  imageUrl: text("image_url").notNull(),
+  likedAt: timestamp("liked_at").defaultNow(),
+}, (t) => ({
+  uniq: sql`UNIQUE(${t.galleryId}, ${t.email}, ${t.imageUrl})`,
+}));
+
+export type GalleryAccessLog = typeof galleryAccessLogs.$inferSelect;
+export type GalleryDownloadLog = typeof galleryDownloadLogs.$inferSelect;
+export type GalleryLike = typeof galleryLikes.$inferSelect;
 
 export const contactMessages = pgTable("contact_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

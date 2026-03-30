@@ -34,7 +34,7 @@ import {
   ImageIcon, UploadIcon, Eye, X,
   ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
   Clock, Loader2, Copy, ArrowUpDown, Download, GripVertical,
-  FolderPlus, Folder, Trash2, Droplets, Save,
+  FolderPlus, Folder, Trash2, Droplets, Save, Share2, Lock, ThumbsUp, History,
 } from "lucide-react";
 import { type WatermarkSettings, DEFAULT_WATERMARK_SETTINGS } from "@/lib/cloudinary-watermark";
 import { WatermarkPreviewCanvas } from "@/components/watermark-overlay";
@@ -55,6 +55,9 @@ interface Gallery {
   selectedDownloadEnabled: boolean;
   finalDownloadEnabled: boolean;
   watermarkSettings?: Record<string, any>;
+  requireAccessCode: boolean;
+  requireEmail: boolean;
+  shareEnabled: boolean;
   createdAt: string;
 }
 
@@ -819,6 +822,85 @@ function ImageSection({
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+function GalleryLogsPanel({ galleryId, endpoint }: { galleryId: string; endpoint: string }) {
+  const [open, setOpen] = useState(false);
+  const [logs, setLogs] = useState<{ accessLogs: any[]; downloadLogs: any[]; likes: any[] } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<'views' | 'downloads' | 'likes'>('views');
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await apiRequest('GET', endpoint);
+      if (res.ok) setLogs(await res.json());
+    } finally { setLoading(false); }
+  };
+
+  const fmt = (d: string) => new Date(d).toLocaleString();
+
+  // Group likes by image URL
+  const likesByImage = logs?.likes.reduce((acc: Record<string, number>, l: any) => {
+    acc[l.imageUrl] = (acc[l.imageUrl] || 0) + 1; return acc;
+  }, {}) ?? {};
+
+  return (
+    <div className="mt-1">
+      <button
+        className="flex items-center gap-1.5 text-xs text-purple-700 hover:text-purple-900 font-medium"
+        onClick={() => { setOpen(o => !o); if (!open && !logs) load(); }}
+      >
+        <History className="w-3.5 h-3.5" />
+        Activity Logs {open ? '▲' : '▼'}
+      </button>
+      {open && (
+        <div className="mt-2 border border-purple-100 rounded-xl overflow-hidden">
+          <div className="flex border-b border-purple-100">
+            {(['views', 'downloads', 'likes'] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                className={`flex-1 py-1.5 text-xs font-medium capitalize transition-colors ${tab === t ? 'bg-purple-100 text-purple-800' : 'text-muted-foreground hover:bg-purple-50'}`}>
+                {t} {logs ? `(${t === 'views' ? logs.accessLogs.length : t === 'downloads' ? logs.downloadLogs.length : Object.keys(likesByImage).length})` : ''}
+              </button>
+            ))}
+            <button onClick={load} className="px-2 text-xs text-purple-600 hover:text-purple-800" title="Refresh">{loading ? '…' : '↻'}</button>
+          </div>
+          <div className="max-h-48 overflow-y-auto text-xs">
+            {!logs ? (
+              <div className="p-3 text-center text-muted-foreground">{loading ? 'Loading…' : 'No data'}</div>
+            ) : tab === 'views' ? (
+              logs.accessLogs.length === 0 ? <div className="p-3 text-center text-muted-foreground">No views yet</div> :
+              logs.accessLogs.map((l: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b border-purple-50 last:border-0">
+                  <Eye className="w-3 h-3 text-purple-400 shrink-0" />
+                  <span className="flex-1 truncate text-muted-foreground">{l.email || 'Anonymous'}</span>
+                  <span className="text-muted-foreground/60 shrink-0">{fmt(l.accessedAt)}</span>
+                </div>
+              ))
+            ) : tab === 'downloads' ? (
+              logs.downloadLogs.length === 0 ? <div className="p-3 text-center text-muted-foreground">No downloads yet</div> :
+              logs.downloadLogs.map((l: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b border-purple-50 last:border-0">
+                  <Download className="w-3 h-3 text-purple-400 shrink-0" />
+                  <span className="flex-1 truncate text-muted-foreground">{l.email || 'Anonymous'} — {l.downloadType}</span>
+                  <span className="text-muted-foreground/60 shrink-0">{fmt(l.downloadedAt)}</span>
+                </div>
+              ))
+            ) : (
+              Object.keys(likesByImage).length === 0 ? <div className="p-3 text-center text-muted-foreground">No likes yet</div> :
+              Object.entries(likesByImage).map(([url, count]: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b border-purple-50 last:border-0">
+                  <ThumbsUp className="w-3 h-3 text-pink-400 shrink-0" />
+                  <span className="flex-1 truncate text-muted-foreground">{url.split('/').pop()}</span>
+                  <span className="font-medium text-pink-600">{count} like{count !== 1 ? 's' : ''}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminGalleries() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1341,6 +1423,44 @@ export function AdminGalleries() {
                               </label>
                             </div>
                           </div>
+
+                          {/* Share & Access controls */}
+                          <div className="flex items-center gap-3 flex-wrap mt-1">
+                            <Share2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            <span className="text-xs text-blue-700 font-medium">Access:</span>
+                            <label className="flex items-center gap-1 text-xs text-blue-700">
+                              <Switch
+                                checked={gallery.shareEnabled ?? true}
+                                onCheckedChange={(v) => updateSettingsMutation.mutate({ galleryId: gallery.id, settings: { shareEnabled: v } })}
+                              />
+                              Share link
+                            </label>
+                            <label className="flex items-center gap-1 text-xs text-blue-700">
+                              <Switch
+                                checked={gallery.requireAccessCode ?? true}
+                                onCheckedChange={(v) => updateSettingsMutation.mutate({ galleryId: gallery.id, settings: { requireAccessCode: v } })}
+                              />
+                              Require code
+                            </label>
+                            <label className="flex items-center gap-1 text-xs text-blue-700">
+                              <Switch
+                                checked={gallery.requireEmail ?? true}
+                                onCheckedChange={(v) => updateSettingsMutation.mutate({ galleryId: gallery.id, settings: { requireEmail: v } })}
+                              />
+                              Require email
+                            </label>
+                            {gallery.shareEnabled && (
+                              <button
+                                className="flex items-center gap-1 text-xs text-blue-600 hover:underline ml-1"
+                                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/gallery?gallery=${gallery.id}`); }}
+                              >
+                                <Copy className="w-3 h-3" /> Copy share link
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Activity Logs button */}
+                          <GalleryLogsPanel galleryId={gallery.id} endpoint={`/api/admin/gallery/${gallery.id}/logs`} />
 
                           {/* Watermark settings */}
                           {(() => {
