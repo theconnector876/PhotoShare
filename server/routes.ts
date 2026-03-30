@@ -1033,6 +1033,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create a standalone gallery (not tied to a booking)
+  app.post('/api/admin/galleries', isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        clientEmail: z.string().email(),
+        accessCode: z.string().min(1).optional(),
+        title: z.string().optional(),
+      });
+      const { clientEmail, accessCode, title } = schema.parse(req.body);
+      const code = accessCode || Math.random().toString(36).substr(2, 8).toUpperCase();
+      const gallery = await storage.createGallery({
+        bookingId: null,
+        clientEmail,
+        accessCode: code,
+        galleryImages: [],
+        selectedImages: [],
+        finalImages: [],
+      });
+      res.json(gallery);
+    } catch (error: any) {
+      console.error('Error creating gallery:', error);
+      res.status(400).json({ error: 'Failed to create gallery', details: error?.message });
+    }
+  });
+
+  // Delete a gallery
+  app.delete('/api/admin/gallery/:id', isAdmin, async (req, res) => {
+    try {
+      await storage.deleteGallery(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error deleting gallery:', error);
+      res.status(500).json({ error: 'Failed to delete gallery' });
+    }
+  });
+
   // Ensure a gallery exists for a booking (create one if missing)
   app.post('/api/admin/bookings/:id/ensure-gallery', isAdmin, async (req, res) => {
     try {

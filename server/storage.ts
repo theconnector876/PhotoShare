@@ -107,6 +107,7 @@ export interface IStorage {
   updateGallery(id: string, data: Partial<Gallery>): Promise<Gallery | undefined>;
   updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined>;
   updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string; watermarkSettings?: Record<string, any>; requireAccessCode?: boolean; requireEmail?: boolean; shareEnabled?: boolean }): Promise<Gallery | undefined>;
+  deleteGallery(id: string): Promise<void>;
   // Gallery logs
   logGalleryAccess(galleryId: string, email: string | null, ipAddress: string | null, userAgent: string | null): Promise<void>;
   logGalleryDownload(galleryId: string, email: string | null, imageUrl: string, downloadType: string): Promise<void>;
@@ -449,6 +450,10 @@ export class DatabaseStorage implements IStorage {
       .values(insertGallery)
       .returning();
     return gallery;
+  }
+
+  async deleteGallery(id: string): Promise<void> {
+    await db.delete(galleries).where(eq(galleries.id, id));
   }
 
   async getGalleryByAccess(email: string, accessCode: string): Promise<Gallery | undefined> {

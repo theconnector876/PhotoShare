@@ -28,13 +28,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
   ImageIcon, UploadIcon, Eye, X,
   ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
   Clock, Loader2, Copy, ArrowUpDown, Download, GripVertical,
-  FolderPlus, Folder, Trash2, Droplets, Save, Share2, Lock, ThumbsUp, History,
+  FolderPlus, Folder, Trash2, Droplets, Save, Share2, Lock, ThumbsUp, History, Plus,
 } from "lucide-react";
 import { type WatermarkSettings, DEFAULT_WATERMARK_SETTINGS } from "@/lib/cloudinary-watermark";
 import { WatermarkPreviewCanvas } from "@/components/watermark-overlay";
@@ -916,6 +917,12 @@ export function AdminGalleries() {
   const [dragSrc, setDragSrc]           = useState<{ galleryId: string; type: ImageType; index: number } | null>(null);
   const [dragOver, setDragOver]         = useState<{ galleryId: string; type: ImageType; index: number } | null>(null);
 
+  // Create gallery dialog
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createEmail, setCreateEmail]           = useState("");
+  const [createCode, setCreateCode]             = useState("");
+  const [deleteConfirmId, setDeleteConfirmId]   = useState<string | null>(null);
+
   // Watermark state
   const [watermarkForms, setWatermarkForms] = useState<Record<string, WatermarkSettings>>({});
   const [watermarkPanelOpen, setWatermarkPanelOpen] = useState<Record<string, boolean>>({});
@@ -1005,6 +1012,29 @@ export function AdminGalleries() {
       apiRequest("PATCH", `/api/admin/gallery/${galleryId}/folders`, { folders }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] }),
     onError: () => toast({ title: "Failed to save folder assignments", variant: "destructive" }),
+  });
+
+  const createGalleryMutation = useMutation({
+    mutationFn: ({ clientEmail, accessCode }: { clientEmail: string; accessCode?: string }) =>
+      apiRequest("POST", "/api/admin/galleries", { clientEmail, accessCode: accessCode || undefined }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
+      setShowCreateDialog(false);
+      setCreateEmail("");
+      setCreateCode("");
+      toast({ title: "Gallery created" });
+    },
+    onError: () => toast({ title: "Failed to create gallery", variant: "destructive" }),
+  });
+
+  const deleteGalleryMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/gallery/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
+      setDeleteConfirmId(null);
+      toast({ title: "Gallery deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete gallery", variant: "destructive" }),
   });
 
   // ── Watermark helpers ─────────────────────────────────────────────────────────
@@ -1289,12 +1319,19 @@ export function AdminGalleries() {
     <div className="space-y-6">
       <Card className="border-green-100">
         <CardHeader className="bg-gradient-to-r from-green-50 to-yellow-50 rounded-t-xl border-b border-green-100">
-          <CardTitle className="flex items-center gap-2 text-green-800">
-            <ImageIcon className="w-5 h-5" /> Gallery Management
-          </CardTitle>
-          <CardDescription className="text-green-600">
-            Upload photos, organise into folders (e.g. Reception, Ceremony), drag to reorder.
-          </CardDescription>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-green-800">
+                <ImageIcon className="w-5 h-5" /> Gallery Management
+              </CardTitle>
+              <CardDescription className="text-green-600 mt-1">
+                Upload photos, organise into folders (e.g. Reception, Ceremony), drag to reorder.
+              </CardDescription>
+            </div>
+            <Button onClick={() => setShowCreateDialog(true)} className="bg-green-600 hover:bg-green-700 shrink-0">
+              <Plus className="w-4 h-4 mr-1" /> New Gallery
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="pt-6">
           {/* Filters */}
@@ -1374,6 +1411,11 @@ export function AdminGalleries() {
                             onClick={() => setExpandedId(isExpanded ? null : gallery.id)}>
                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             <span className="ml-1">{isExpanded ? "Collapse" : "Manage"}</span>
+                          </Button>
+                          <Button size="sm" variant="outline"
+                            className="border-red-200 text-red-600 hover:bg-red-50"
+                            onClick={() => setDeleteConfirmId(gallery.id)}>
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
@@ -1687,6 +1729,66 @@ export function AdminGalleries() {
       <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
         <DialogContent className="max-w-4xl p-2 bg-black/95 border-0">
           <img src={previewImage || ""} alt="" className="w-full h-auto max-h-[85vh] object-contain rounded" />
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Gallery Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => { setShowCreateDialog(open); if (!open) { setCreateEmail(""); setCreateCode(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogTitle>Create New Gallery</DialogTitle>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="create-email">Client Email <span className="text-red-500">*</span></Label>
+              <Input
+                id="create-email"
+                type="email"
+                placeholder="client@example.com"
+                value={createEmail}
+                onChange={(e) => setCreateEmail(e.target.value)}
+                className="border-green-200 focus-visible:ring-green-500"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-code">Access Code <span className="text-green-600 font-normal text-xs">(leave blank to auto-generate)</span></Label>
+              <Input
+                id="create-code"
+                placeholder="e.g. WEDDING24"
+                value={createCode}
+                onChange={(e) => setCreateCode(e.target.value.toUpperCase())}
+                className="border-green-200 focus-visible:ring-green-500 font-mono"
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              disabled={!createEmail || createGalleryMutation.isPending}
+              onClick={() => createGalleryMutation.mutate({ clientEmail: createEmail, accessCode: createCode || undefined })}
+            >
+              {createGalleryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
+              Create Gallery
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogTitle>Delete Gallery?</DialogTitle>
+          <p className="text-sm text-gray-600 pt-1">This will permanently delete the gallery and all its photos. This cannot be undone.</p>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteGalleryMutation.isPending}
+              onClick={() => deleteConfirmId && deleteGalleryMutation.mutate(deleteConfirmId)}
+            >
+              {deleteGalleryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              Delete
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

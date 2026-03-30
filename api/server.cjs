@@ -75479,6 +75479,9 @@ var DatabaseStorage = class {
     const [gallery] = await db.insert(galleries).values(insertGallery).returning();
     return gallery;
   }
+  async deleteGallery(id) {
+    await db.delete(galleries).where(eq(galleries.id, id));
+  }
   async getGalleryByAccess(email, accessCode) {
     const [gallery] = await db.select().from(galleries).where(and(
       eq(galleries.clientEmail, email),
@@ -82540,6 +82543,38 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("Error generating upload URL:", error);
       res.status(500).json({ error: "Failed to generate upload URL" });
+    }
+  });
+  app2.post("/api/admin/galleries", isAdmin, async (req, res) => {
+    try {
+      const schema = z.object({
+        clientEmail: z.string().email(),
+        accessCode: z.string().min(1).optional(),
+        title: z.string().optional()
+      });
+      const { clientEmail, accessCode, title } = schema.parse(req.body);
+      const code = accessCode || Math.random().toString(36).substr(2, 8).toUpperCase();
+      const gallery = await storage.createGallery({
+        bookingId: null,
+        clientEmail,
+        accessCode: code,
+        galleryImages: [],
+        selectedImages: [],
+        finalImages: []
+      });
+      res.json(gallery);
+    } catch (error) {
+      console.error("Error creating gallery:", error);
+      res.status(400).json({ error: "Failed to create gallery", details: error?.message });
+    }
+  });
+  app2.delete("/api/admin/gallery/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.deleteGallery(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting gallery:", error);
+      res.status(500).json({ error: "Failed to delete gallery" });
     }
   });
   app2.post("/api/admin/bookings/:id/ensure-gallery", isAdmin, async (req, res) => {
