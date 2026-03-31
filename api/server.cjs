@@ -83717,9 +83717,6 @@ Log in to your dashboard to view full booking details.`
       const { paymentType, sendEmail: sendEmail2 } = z.object({ paymentType: z.enum(["deposit", "balance"]), sendEmail: z.boolean().optional().default(false) }).parse(req.body);
       const booking = await storage.getBooking(req.params.id);
       if (!booking) return res.status(404).json({ error: "Booking not found" });
-      if (booking.status !== "confirmed" && booking.status !== "pending") {
-        return res.status(400).json({ error: "Booking must be confirmed or pending" });
-      }
       const serverDepositAmount = Math.round(booking.totalPrice * 0.5);
       const serverBalanceDue = booking.totalPrice - serverDepositAmount;
       let amount;

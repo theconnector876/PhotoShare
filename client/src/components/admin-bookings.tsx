@@ -1078,8 +1078,8 @@ export function AdminBookings() {
                                   await navigator.clipboard.writeText(data.url);
                                   toast({ title: "Deposit link copied to clipboard" });
                                 }
-                              } catch {
-                                toast({ title: "Failed to get payment link", variant: "destructive" });
+                              } catch (err) {
+                                toast({ title: "Failed to get payment link", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
                               }
                             }}
                           >
@@ -1123,8 +1123,8 @@ export function AdminBookings() {
                                   await navigator.clipboard.writeText(data.url);
                                   toast({ title: "Balance link copied to clipboard" });
                                 }
-                              } catch {
-                                toast({ title: "Failed to get payment link", variant: "destructive" });
+                              } catch (err) {
+                                toast({ title: "Failed to get payment link", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
                               }
                             }}
                           >
