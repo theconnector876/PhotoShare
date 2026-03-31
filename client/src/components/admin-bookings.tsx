@@ -1,4 +1,23 @@
 import { useState } from "react";
+
+// Clipboard helper — tries modern API first, falls back to execCommand for Safari
+async function copyToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    try {
+      if (!document.execCommand("copy")) throw new Error("execCommand copy failed");
+    } finally {
+      document.body.removeChild(el);
+    }
+  }
+}
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -1075,7 +1094,7 @@ export function AdminBookings() {
                                 const res = await apiRequest('POST', `/api/admin/bookings/${selectedBooking.id}/send-payment-link`, { paymentType: 'deposit' });
                                 const data = await res.json();
                                 if (data.url) {
-                                  await navigator.clipboard.writeText(data.url);
+                                  await copyToClipboard(data.url);
                                   toast({ title: "Deposit link copied to clipboard" });
                                 }
                               } catch (err) {
@@ -1120,7 +1139,7 @@ export function AdminBookings() {
                                 const res = await apiRequest('POST', `/api/admin/bookings/${selectedBooking.id}/send-payment-link`, { paymentType: 'balance' });
                                 const data = await res.json();
                                 if (data.url) {
-                                  await navigator.clipboard.writeText(data.url);
+                                  await copyToClipboard(data.url);
                                   toast({ title: "Balance link copied to clipboard" });
                                 }
                               } catch (err) {
