@@ -10,7 +10,7 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Key, Eye, Heart, Download, Check, Lock, ChevronLeft, ChevronRight, X, MessageSquare, Send, Share2, Copy, ThumbsUp, Loader2 } from "lucide-react";
+import { Key, Eye, Heart, Download, Check, Lock, ChevronLeft, ChevronRight, X, MessageSquare, Send, Share2, Copy, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useParams } from "wouter";
 import { WatermarkOverlay } from "@/components/watermark-overlay";
@@ -73,31 +73,16 @@ async function downloadBlob(url: string, filename: string) {
   }
 }
 
-// Bundle all images into a single zip — avoids the multi-download problem on mobile
-async function downloadAllAsZip(
-  images: string[],
-  prefix: string,
-  onProgress: (current: number, total: number) => void,
-) {
-  const JSZip = (await import('jszip')).default;
-  const zip = new JSZip();
-  for (let i = 0; i < images.length; i++) {
-    try {
-      const res = await fetch(images[i], { mode: 'cors' });
-      const blob = await res.blob();
-      zip.file(`${prefix}-${String(i + 1).padStart(3, '0')}.jpg`, blob);
-    } catch { /* skip failed images */ }
-    onProgress(i + 1, images.length);
-  }
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-  const url = URL.createObjectURL(zipBlob);
+// Trigger a server-side zip download — browser starts saving immediately
+function triggerZipDownload(galleryId: string, type: string, email: string, code: string) {
+  const params = new URLSearchParams({ type, code });
+  if (email) params.set('email', email);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `${prefix}.zip`;
+  a.href = `/api/gallery/${galleryId}/download-zip?${params}`;
+  a.download = `${type}-photos.zip`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
 export default function Gallery() {
@@ -121,7 +106,6 @@ export default function Gallery() {
   const [imageCommentSaving, setImageCommentSaving] = useState(false);
   const [likedImages, setLikedImages] = useState<string[]>([]);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
-  const [zipProgress, setZipProgress] = useState<{ current: number; total: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
@@ -151,10 +135,12 @@ export default function Gallery() {
     },
     onSuccess: (data: Gallery) => {
       setGallery(data);
-      setSelectedImages(data.selectedImages || []);
+      // Load this visitor's own selections (not the merged global set)
+      const email = form.getValues('email') || '';
+      const emailSels = (data.emailSelections as Record<string, string[]>) || {};
+      setSelectedImages(email && emailSels[email] ? emailSels[email] : data.selectedImages || []);
       setComment(data.clientComment || "");
       setImageComments(data.imageComments || {});
-      const email = form.getValues('email') || '';
       setVisitorEmail(email);
       // Load likes
       apiRequest('GET', `/api/gallery/${data.id}/likes?email=${encodeURIComponent(email)}`).then(r => r.json()).then(d => {
@@ -204,7 +190,7 @@ export default function Gallery() {
   const updateSelectionMutation = useMutation({
     mutationFn: async (images: string[]) => {
       if (!gallery) return;
-      return apiRequest('PATCH', `/api/gallery/${gallery.id}/images`, { images, type: 'selected' });
+      return apiRequest('PATCH', `/api/gallery/${gallery.id}/images`, { images, type: 'selected', email: visitorEmail || undefined });
     },
     onSuccess: () => {
       toast({ title: "Selection Updated!", description: "Your image selection has been saved." });
@@ -663,14 +649,14 @@ export default function Gallery() {
               )}
 
               {gallery.galleryDownloadEnabled && selectedImages.length > 0 && (
-                <Button variant="outline" disabled={!!zipProgress} onClick={async () => { selectedImages.forEach(u => logDownload(u, 'bulk')); await downloadAllAsZip(selectedImages, 'selected', (c, t) => setZipProgress({ current: c, total: t })); setZipProgress(null); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
-                  {zipProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Zipping {zipProgress.current}/{zipProgress.total}</> : <><Download className="mr-2 h-4 w-4" />Download Selected ({selectedImages.length})</>}
+                <Button variant="outline" onClick={() => { selectedImages.forEach(u => logDownload(u, 'bulk')); triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
+                  <Download className="mr-2 h-4 w-4" />Download Selected ({selectedImages.length})
                 </Button>
               )}
 
               {gallery.galleryDownloadEnabled && currentImages.length > 0 && (
-                <Button variant="outline" disabled={!!zipProgress} onClick={async () => { currentImages.forEach(u => logDownload(u, 'bulk')); await downloadAllAsZip(currentImages, 'photos', (c, t) => setZipProgress({ current: c, total: t })); setZipProgress(null); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
-                  {zipProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Zipping {zipProgress.current}/{zipProgress.total}</> : <><Download className="mr-2 h-4 w-4" />Download All</>}
+                <Button variant="outline" onClick={() => { currentImages.forEach(u => logDownload(u, 'bulk')); triggerZipDownload(gallery.id, 'gallery', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
+                  <Download className="mr-2 h-4 w-4" />Download All
                 </Button>
               )}
             </div>

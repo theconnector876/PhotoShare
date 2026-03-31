@@ -700,22 +700,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/gallery/:id/images", async (req, res) => {
     try {
       const { id } = req.params;
-      const { images, type } = req.body;
+      const { images, type, email } = req.body;
       if (!["gallery", "selected", "final"].includes(type)) {
         return res.status(400).json({ error: "Invalid type" });
       }
-      // Only allow clients to update their selected images
       if (type !== "selected") {
         return res.status(403).json({ error: "Clients can only update selected images" });
       }
       const gallery = await storage.getGalleryById(id);
-      if (!gallery) {
-        return res.status(404).json({ error: "Gallery not found" });
-      }
-      const updated = await storage.updateGalleryImages(id, images, type);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      // Save per-email selection (and merge into selectedImages)
+      const updated = email
+        ? await storage.updateEmailSelections(id, email, images)
+        : await storage.updateGalleryImages(id, images, type);
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update gallery" });
+    }
+  });
+
+  // Server-side ZIP download — starts immediately in the browser
+  app.get("/api/gallery/:id/download-zip", async (req, res) => {
+    try {
+      const { type = 'final', email, code } = req.query as Record<string, string>;
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
+      if (gallery.requireAccessCode && gallery.accessCode !== code) {
+        return res.status(401).json({ error: 'Invalid access code' });
+      }
+      let images: string[] = [];
+      if (type === 'gallery') {
+        images = gallery.galleryImages || [];
+      } else if (type === 'selected') {
+        const emailSels = (gallery.emailSelections as Record<string, string[]>) || {};
+        images = email && emailSels[email] ? emailSels[email] : gallery.selectedImages || [];
+      } else {
+        images = gallery.finalImages || [];
+      }
+      if (images.length === 0) return res.status(400).json({ error: 'No images to download' });
+      // Fetch all images in parallel then zip
+      const JSZip = require('jszip');
+      const zip = new JSZip();
+      await Promise.all(images.map(async (url, i) => {
+        try {
+          const r = await fetch(url);
+          const buf = await r.arrayBuffer();
+          zip.file(`photo-${String(i + 1).padStart(3, '0')}.jpg`, buf);
+        } catch { /* skip */ }
+      }));
+      const zipBuf = await zip.generateAsync({ type: 'nodebuffer' });
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${type}-photos.zip"`);
+      res.setHeader('Content-Length', zipBuf.length);
+      res.send(zipBuf);
+    } catch (error: any) {
+      res.status(500).json({ error: 'Download failed', details: error?.message });
     }
   });
 

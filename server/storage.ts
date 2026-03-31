@@ -108,6 +108,7 @@ export interface IStorage {
   updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined>;
   updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string; watermarkSettings?: Record<string, any>; requireAccessCode?: boolean; requireEmail?: boolean; shareEnabled?: boolean }): Promise<Gallery | undefined>;
   deleteGallery(id: string): Promise<void>;
+  updateEmailSelections(id: string, email: string, images: string[]): Promise<Gallery | undefined>;
   // Gallery logs
   logGalleryAccess(galleryId: string, email: string | null, ipAddress: string | null, userAgent: string | null): Promise<void>;
   logGalleryDownload(galleryId: string, email: string | null, imageUrl: string, downloadType: string): Promise<void>;
@@ -454,6 +455,20 @@ export class DatabaseStorage implements IStorage {
 
   async deleteGallery(id: string): Promise<void> {
     await db.delete(galleries).where(eq(galleries.id, id));
+  }
+
+  async updateEmailSelections(id: string, email: string, images: string[]): Promise<Gallery | undefined> {
+    const gallery = await this.getGalleryById(id);
+    if (!gallery) return undefined;
+    const current = ((gallery.emailSelections as Record<string, string[]>) || {});
+    current[email] = images;
+    // Merge all selections into selectedImages so admin still sees combined view
+    const merged = [...new Set(Object.values(current).flat())];
+    const [updated] = await db.update(galleries)
+      .set({ emailSelections: current, selectedImages: merged })
+      .where(eq(galleries.id, id))
+      .returning();
+    return updated;
   }
 
   async getGalleryByAccess(email: string, accessCode: string): Promise<Gallery | undefined> {

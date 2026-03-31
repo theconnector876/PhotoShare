@@ -138,6 +138,8 @@ export const galleries = pgTable("galleries", {
   requireAccessCode: boolean("require_access_code").notNull().default(true),
   requireEmail: boolean("require_email").notNull().default(true),
   shareEnabled: boolean("share_enabled").notNull().default(true),
+  // Per-visitor selections: { "email": ["url1", "url2", ...] }
+  emailSelections: jsonb("email_selections").default({}),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
