@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { pool } from "./db";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import webpush from "web-push";
@@ -1039,19 +1040,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schema = z.object({
         clientEmail: z.string().email(),
         accessCode: z.string().min(1).optional(),
-        title: z.string().optional(),
       });
-      const { clientEmail, accessCode, title } = schema.parse(req.body);
+      const { clientEmail, accessCode } = schema.parse(req.body);
       const code = accessCode || Math.random().toString(36).substr(2, 8).toUpperCase();
-      const gallery = await storage.createGallery({
-        bookingId: null,
-        clientEmail,
-        accessCode: code,
-        galleryImages: [],
-        selectedImages: [],
-        finalImages: [],
-      });
-      res.json(gallery);
+      const { rows } = await (pool as any).query(
+        `INSERT INTO galleries (client_email, access_code, gallery_images, selected_images, final_images, status)
+         VALUES ($1, $2, '{}', '{}', '{}', 'pending') RETURNING *`,
+        [clientEmail, code]
+      );
+      res.json(rows[0]);
     } catch (error: any) {
       console.error('Error creating gallery:', error);
       res.status(400).json({ error: 'Failed to create gallery', details: error?.message });
