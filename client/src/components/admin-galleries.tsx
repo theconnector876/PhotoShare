@@ -1764,11 +1764,11 @@ export function AdminGalleries() {
           <DialogTitle>Create New Gallery</DialogTitle>
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label htmlFor="create-email">Client Email <span className="text-red-500">*</span></Label>
+              <Label htmlFor="create-email">Gallery Name <span className="text-red-500">*</span></Label>
               <Input
                 id="create-email"
-                type="email"
-                placeholder="client@example.com"
+                type="text"
+                placeholder="e.g. Smith Wedding 2024"
                 value={createEmail}
                 onChange={(e) => setCreateEmail(e.target.value)}
                 className="border-green-200 focus-visible:ring-green-500"

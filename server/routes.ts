@@ -1038,7 +1038,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/galleries', isAdmin, async (req, res) => {
     try {
       const gallerySchema = z.object({
-        clientEmail: z.string().email(),
+        clientEmail: z.string().min(1),
         accessCode: z.string().min(1).optional(),
       });
       const { clientEmail, accessCode } = gallerySchema.parse(req.body);
