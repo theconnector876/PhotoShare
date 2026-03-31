@@ -12,6 +12,7 @@ import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
 import { sendBookingReceived, sendBookingConfirmation, sendPaymentConfirmation, sendPasswordReset, sendPhotographerApproved, sendPhotographerRejected, sendAdminEmail, sendInboundEmailNotification } from "./email";
 import { getCloudinarySignedConfig, generateSignature } from "./upload";
+import { v2 as cloudinary } from "cloudinary";
 
 const wipayEnabled = Boolean(
   process.env.WIPAY_ACCOUNT_NUMBER &&
@@ -719,8 +720,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Server-side ZIP download — starts immediately in the browser
-  async function buildAndSendZip(res: any, gallery: any, type: string, email: string, overrideImages?: string[]) {
+  // Extract Cloudinary public_id from a full URL
+  function cloudinaryPublicId(url: string): string {
+    // e.g. https://res.cloudinary.com/cloud/image/upload/v123/folder/file.jpg => folder/file
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+    return match ? match[1] : url;
+  }
+
+  // ZIP download — redirects browser to Cloudinary-generated archive URL
+  async function sendZipRedirect(res: any, gallery: any, type: string, email: string, overrideImages?: string[]) {
     let images: string[] = overrideImages || [];
     if (!overrideImages) {
       if (type === 'gallery') {
@@ -733,20 +741,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
     if (images.length === 0) return res.status(400).json({ error: 'No images to download' });
-    const JSZip = require('jszip');
-    const zip = new JSZip();
-    await Promise.all(images.map(async (url, i) => {
-      try {
-        const r = await fetch(url);
-        const buf = await r.arrayBuffer();
-        zip.file(`photo-${String(i + 1).padStart(3, '0')}.jpg`, buf);
-      } catch { /* skip */ }
-    }));
-    const zipBuf = await zip.generateAsync({ type: 'nodebuffer' });
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${type}-photos.zip"`);
-    res.setHeader('Content-Length', zipBuf.length);
-    res.send(zipBuf);
+
+    const cfg = getCloudinarySignedConfig();
+    if (!cfg) return res.status(500).json({ error: 'Cloudinary not configured' });
+
+    cloudinary.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
+    const publicIds = images.map(cloudinaryPublicId);
+    const archiveUrl = cloudinary.utils.download_zip_url({ public_ids: publicIds, resource_type: 'image' });
+    res.redirect(archiveUrl);
   }
 
   app.get("/api/gallery/:id/download-zip", async (req, res) => {
@@ -757,7 +759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gallery.requireAccessCode && gallery.accessCode !== code) {
         return res.status(401).json({ error: 'Invalid access code' });
       }
-      await buildAndSendZip(res, gallery, type, email);
+      await sendZipRedirect(res, gallery, type, email);
     } catch (error: any) {
       res.status(500).json({ error: 'Download failed', details: error?.message });
     }
@@ -772,7 +774,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Invalid access code' });
       }
       const overrideImages = imagesJson ? JSON.parse(imagesJson) : undefined;
-      await buildAndSendZip(res, gallery, type, email, overrideImages);
+      await sendZipRedirect(res, gallery, type, email, overrideImages);
     } catch (error: any) {
       res.status(500).json({ error: 'Download failed', details: error?.message });
     }
