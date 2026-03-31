@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { Client as PgClient } from "pg";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import webpush from "web-push";
@@ -1036,20 +1037,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a standalone gallery (not tied to a booking)
   app.post('/api/admin/galleries', isAdmin, async (req, res) => {
     try {
-      const schema = z.object({
+      const gallerySchema = z.object({
         clientEmail: z.string().email(),
         accessCode: z.string().min(1).optional(),
       });
-      const { clientEmail, accessCode } = schema.parse(req.body);
+      const { clientEmail, accessCode } = gallerySchema.parse(req.body);
       const code = accessCode || Math.random().toString(36).substr(2, 8).toUpperCase();
-      const gallery = await storage.createGallery({
-        clientEmail,
-        accessCode: code,
-        galleryImages: [],
-        selectedImages: [],
-        finalImages: [],
-      });
-      res.json(gallery);
+      // Use a fresh pg.Client (standard TCP/SSL) to avoid NeonPool WebSocket cold-start hangs
+      const client = new PgClient({ connectionString: process.env.DATABASE_URL!.trim() });
+      await client.connect();
+      const { rows } = await client.query(
+        `INSERT INTO galleries (client_email, access_code, gallery_images, selected_images, final_images)
+         VALUES ($1, $2, ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[]) RETURNING *`,
+        [clientEmail, code]
+      );
+      await client.end();
+      res.json(rows[0]);
     } catch (error: any) {
       console.error('Error creating gallery:', error);
       res.status(400).json({ error: 'Failed to create gallery', details: error?.message });

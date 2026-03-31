@@ -58270,6 +58270,21 @@ __export(vercel_exports, {
 module.exports = __toCommonJS(vercel_exports);
 var import_express = __toESM(require_express2(), 1);
 
+// node_modules/pg/esm/index.mjs
+var import_lib = __toESM(require_lib4(), 1);
+var Client = import_lib.default.Client;
+var Pool = import_lib.default.Pool;
+var Connection = import_lib.default.Connection;
+var types = import_lib.default.types;
+var Query = import_lib.default.Query;
+var DatabaseError = import_lib.default.DatabaseError;
+var escapeIdentifier = import_lib.default.escapeIdentifier;
+var escapeLiteral = import_lib.default.escapeLiteral;
+var Result = import_lib.default.Result;
+var TypeOverrides = import_lib.default.TypeOverrides;
+var defaults = import_lib.default.defaults;
+var esm_default = import_lib.default;
+
 // server/routes.ts
 var import_http = require("http");
 
@@ -74853,21 +74868,6 @@ var export_Query = Qe.Query;
 var export_defaults = Qe.defaults;
 var export_types = Qe.types;
 
-// node_modules/pg/esm/index.mjs
-var import_lib = __toESM(require_lib4(), 1);
-var Client = import_lib.default.Client;
-var Pool = import_lib.default.Pool;
-var Connection = import_lib.default.Connection;
-var types = import_lib.default.types;
-var Query = import_lib.default.Query;
-var DatabaseError = import_lib.default.DatabaseError;
-var escapeIdentifier = import_lib.default.escapeIdentifier;
-var escapeLiteral = import_lib.default.escapeLiteral;
-var Result = import_lib.default.Result;
-var TypeOverrides = import_lib.default.TypeOverrides;
-var defaults = import_lib.default.defaults;
-var esm_default = import_lib.default;
-
 // node_modules/drizzle-orm/neon-serverless/session.js
 var NeonPreparedQuery = class extends PgPreparedQuery {
   constructor(client, queryString, params, logger, fields, name, _isResponseInArrayMode, customResultMapper) {
@@ -82548,20 +82548,21 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/admin/galleries", isAdmin, async (req, res) => {
     try {
-      const schema = z.object({
+      const gallerySchema = z.object({
         clientEmail: z.string().email(),
         accessCode: z.string().min(1).optional()
       });
-      const { clientEmail, accessCode } = schema.parse(req.body);
+      const { clientEmail, accessCode } = gallerySchema.parse(req.body);
       const code = accessCode || Math.random().toString(36).substr(2, 8).toUpperCase();
-      const gallery = await storage.createGallery({
-        clientEmail,
-        accessCode: code,
-        galleryImages: [],
-        selectedImages: [],
-        finalImages: []
-      });
-      res.json(gallery);
+      const client = new Client({ connectionString: process.env.DATABASE_URL.trim() });
+      await client.connect();
+      const { rows } = await client.query(
+        `INSERT INTO galleries (client_email, access_code, gallery_images, selected_images, final_images)
+         VALUES ($1, $2, ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[]) RETURNING *`,
+        [clientEmail, code]
+      );
+      await client.end();
+      res.json(rows[0]);
     } catch (error) {
       console.error("Error creating gallery:", error);
       res.status(400).json({ error: "Failed to create gallery", details: error?.message });
