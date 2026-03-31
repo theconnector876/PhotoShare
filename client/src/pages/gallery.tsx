@@ -10,7 +10,7 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Key, Eye, Heart, Download, Check, Lock, ChevronLeft, ChevronRight, X, MessageSquare, Send, Share2, Copy, ThumbsUp } from "lucide-react";
+import { Key, Eye, Heart, Download, Check, Lock, ChevronLeft, ChevronRight, X, MessageSquare, Send, Share2, Copy, ThumbsUp, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useParams } from "wouter";
 import { WatermarkOverlay } from "@/components/watermark-overlay";
@@ -49,7 +49,13 @@ interface GalleryInfo {
   shareEnabled: boolean;
 }
 
-// Download a URL as a blob so it saves to device gallery rather than opening a new tab
+// Serve a smaller Cloudinary thumbnail for the grid view (saves bandwidth on mobile)
+function cloudinaryThumb(url: string, width = 400): string {
+  if (!url.includes('res.cloudinary.com') || url.includes('/upload/c_') || url.includes('/upload/w_')) return url;
+  return url.replace('/image/upload/', `/image/upload/c_fill,w_${width},q_auto,f_auto/`);
+}
+
+// Download a single URL as a blob
 async function downloadBlob(url: string, filename: string) {
   try {
     const res = await fetch(url, { mode: 'cors' });
@@ -61,22 +67,37 @@ async function downloadBlob(url: string, filename: string) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
   } catch {
-    // CORS fallback – open in new tab (user can long-press to save)
     window.open(url, '_blank', 'noreferrer');
   }
 }
 
-async function downloadAll(images: string[], prefix: string) {
+// Bundle all images into a single zip — avoids the multi-download problem on mobile
+async function downloadAllAsZip(
+  images: string[],
+  prefix: string,
+  onProgress: (current: number, total: number) => void,
+) {
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
   for (let i = 0; i < images.length; i++) {
-    await new Promise<void>((resolve) => {
-      setTimeout(async () => {
-        await downloadBlob(images[i], `${prefix}-${i + 1}.jpg`);
-        resolve();
-      }, i * 300);
-    });
+    try {
+      const res = await fetch(images[i], { mode: 'cors' });
+      const blob = await res.blob();
+      zip.file(`${prefix}-${String(i + 1).padStart(3, '0')}.jpg`, blob);
+    } catch { /* skip failed images */ }
+    onProgress(i + 1, images.length);
   }
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(zipBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${prefix}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
 export default function Gallery() {
@@ -100,6 +121,7 @@ export default function Gallery() {
   const [imageCommentSaving, setImageCommentSaving] = useState(false);
   const [likedImages, setLikedImages] = useState<string[]>([]);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [zipProgress, setZipProgress] = useState<{ current: number; total: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
@@ -511,8 +533,9 @@ export default function Gallery() {
                 data-testid={`gallery-image-${index}`}
               >
                 <img
-                  src={imageUrl}
+                  src={cloudinaryThumb(imageUrl, 400)}
                   alt={`Gallery image ${index + 1}`}
+                  loading="lazy"
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 pointer-events-none"
                   draggable={false}
                   onDragStart={(e) => e.preventDefault()}
@@ -640,16 +663,14 @@ export default function Gallery() {
               )}
 
               {gallery.galleryDownloadEnabled && selectedImages.length > 0 && (
-                <Button variant="outline" onClick={() => { selectedImages.forEach(u => logDownload(u, 'bulk')); downloadAll(selectedImages, 'selected'); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Selected ({selectedImages.length})
+                <Button variant="outline" disabled={!!zipProgress} onClick={async () => { selectedImages.forEach(u => logDownload(u, 'bulk')); await downloadAllAsZip(selectedImages, 'selected', (c, t) => setZipProgress({ current: c, total: t })); setZipProgress(null); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
+                  {zipProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Zipping {zipProgress.current}/{zipProgress.total}</> : <><Download className="mr-2 h-4 w-4" />Download Selected ({selectedImages.length})</>}
                 </Button>
               )}
 
               {gallery.galleryDownloadEnabled && currentImages.length > 0 && (
-                <Button variant="outline" onClick={() => { currentImages.forEach(u => logDownload(u, 'bulk')); downloadAll(currentImages, 'photo'); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
-                  <Download className="mr-2 h-4 w-4" />
-                  Download All
+                <Button variant="outline" disabled={!!zipProgress} onClick={async () => { currentImages.forEach(u => logDownload(u, 'bulk')); await downloadAllAsZip(currentImages, 'photos', (c, t) => setZipProgress({ current: c, total: t })); setZipProgress(null); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
+                  {zipProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Zipping {zipProgress.current}/{zipProgress.total}</> : <><Download className="mr-2 h-4 w-4" />Download All</>}
                 </Button>
               )}
             </div>
@@ -658,9 +679,8 @@ export default function Gallery() {
 
         {viewMode === 'selected' && gallery.selectedDownloadEnabled && currentImages.length > 0 && (
           <div className="text-center">
-            <Button variant="outline" onClick={() => downloadAll(currentImages, 'selected')} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-selected">
-              <Download className="mr-2 h-4 w-4" />
-              Download All Selected
+            <Button variant="outline" disabled={!!zipProgress} onClick={async () => { currentImages.forEach(u => logDownload(u, 'bulk')); await downloadAllAsZip(currentImages, 'selected', (c, t) => setZipProgress({ current: c, total: t })); setZipProgress(null); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-selected">
+              {zipProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Zipping {zipProgress.current}/{zipProgress.total}</> : <><Download className="mr-2 h-4 w-4" />Download All Selected</>}
             </Button>
           </div>
         )}
@@ -672,14 +692,12 @@ export default function Gallery() {
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
               {selectedFinalImages.length > 0 && (
-                <Button onClick={() => downloadAll(selectedFinalImages, 'final')} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Selected ({selectedFinalImages.length})
+                <Button disabled={!!zipProgress} onClick={async () => { await downloadAllAsZip(selectedFinalImages, 'final', (c, t) => setZipProgress({ current: c, total: t })); setZipProgress(null); }} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
+                  {zipProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Zipping {zipProgress.current}/{zipProgress.total}</> : <><Download className="mr-2 h-4 w-4" />Download Selected ({selectedFinalImages.length})</>}
                 </Button>
               )}
-              <Button variant="outline" onClick={() => downloadAll(currentImages, 'final')} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-final">
-                <Download className="mr-2 h-4 w-4" />
-                Download All ({currentImages.length})
+              <Button variant="outline" disabled={!!zipProgress} onClick={async () => { await downloadAllAsZip(currentImages, 'final', (c, t) => setZipProgress({ current: c, total: t })); setZipProgress(null); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-final">
+                {zipProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Zipping {zipProgress.current}/{zipProgress.total}</> : <><Download className="mr-2 h-4 w-4" />Download All ({currentImages.length})</>}
               </Button>
               <Button
                 variant="outline"
