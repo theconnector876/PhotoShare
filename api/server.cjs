@@ -91956,15 +91956,9 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to update gallery" });
     }
   });
-  app2.get("/api/gallery/:id/download-zip", async (req, res) => {
-    try {
-      const { type = "final", email, code } = req.query;
-      const gallery = await storage.getGalleryById(req.params.id);
-      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
-      if (gallery.requireAccessCode && gallery.accessCode !== code) {
-        return res.status(401).json({ error: "Invalid access code" });
-      }
-      let images = [];
+  async function buildAndSendZip(res, gallery, type, email, overrideImages) {
+    let images = overrideImages || [];
+    if (!overrideImages) {
       if (type === "gallery") {
         images = gallery.galleryImages || [];
       } else if (type === "selected") {
@@ -91973,22 +91967,47 @@ async function registerRoutes(app2) {
       } else {
         images = gallery.finalImages || [];
       }
-      if (images.length === 0) return res.status(400).json({ error: "No images to download" });
-      const JSZip = require_lib10();
-      const zip = new JSZip();
-      await Promise.all(images.map(async (url, i) => {
-        try {
-          const r = await fetch(url);
-          const buf = await r.arrayBuffer();
-          zip.file(`photo-${String(i + 1).padStart(3, "0")}.jpg`, buf);
-        } catch {
-        }
-      }));
-      const zipBuf = await zip.generateAsync({ type: "nodebuffer" });
-      res.setHeader("Content-Type", "application/zip");
-      res.setHeader("Content-Disposition", `attachment; filename="${type}-photos.zip"`);
-      res.setHeader("Content-Length", zipBuf.length);
-      res.send(zipBuf);
+    }
+    if (images.length === 0) return res.status(400).json({ error: "No images to download" });
+    const JSZip = require_lib10();
+    const zip = new JSZip();
+    await Promise.all(images.map(async (url, i) => {
+      try {
+        const r = await fetch(url);
+        const buf = await r.arrayBuffer();
+        zip.file(`photo-${String(i + 1).padStart(3, "0")}.jpg`, buf);
+      } catch {
+      }
+    }));
+    const zipBuf = await zip.generateAsync({ type: "nodebuffer" });
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${type}-photos.zip"`);
+    res.setHeader("Content-Length", zipBuf.length);
+    res.send(zipBuf);
+  }
+  app2.get("/api/gallery/:id/download-zip", async (req, res) => {
+    try {
+      const { type = "final", email = "", code } = req.query;
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      if (gallery.requireAccessCode && gallery.accessCode !== code) {
+        return res.status(401).json({ error: "Invalid access code" });
+      }
+      await buildAndSendZip(res, gallery, type, email);
+    } catch (error) {
+      res.status(500).json({ error: "Download failed", details: error?.message });
+    }
+  });
+  app2.post("/api/gallery/:id/download-zip", async (req, res) => {
+    try {
+      const { type = "final", email = "", code, images: imagesJson } = req.body;
+      const gallery = await storage.getGalleryById(req.params.id);
+      if (!gallery) return res.status(404).json({ error: "Gallery not found" });
+      if (gallery.requireAccessCode && gallery.accessCode !== code) {
+        return res.status(401).json({ error: "Invalid access code" });
+      }
+      const overrideImages = imagesJson ? JSON.parse(imagesJson) : void 0;
+      await buildAndSendZip(res, gallery, type, email, overrideImages);
     } catch (error) {
       res.status(500).json({ error: "Download failed", details: error?.message });
     }

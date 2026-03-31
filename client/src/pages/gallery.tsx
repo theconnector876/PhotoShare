@@ -74,15 +74,34 @@ async function downloadBlob(url: string, filename: string) {
 }
 
 // Trigger a server-side zip download — browser starts saving immediately
-function triggerZipDownload(galleryId: string, type: string, email: string, code: string) {
-  const params = new URLSearchParams({ type, code });
-  if (email) params.set('email', email);
-  const a = document.createElement('a');
-  a.href = `/api/gallery/${galleryId}/download-zip?${params}`;
-  a.download = `${type}-photos.zip`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+function triggerZipDownload(galleryId: string, type: string, email: string, code: string, selectedUrls?: string[]) {
+  if (selectedUrls && selectedUrls.length > 0) {
+    // POST form for custom image list (avoids URL length limits)
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/api/gallery/${galleryId}/download-zip`;
+    form.target = '_self';
+    [['type', type], ['code', code], ['email', email]].forEach(([k, v]) => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = k; inp.value = v || '';
+      form.appendChild(inp);
+    });
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'images'; inp.value = JSON.stringify(selectedUrls);
+    form.appendChild(inp);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+  } else {
+    const params = new URLSearchParams({ type, code });
+    if (email) params.set('email', email);
+    const a = document.createElement('a');
+    a.href = `/api/gallery/${galleryId}/download-zip?${params}`;
+    a.download = `${type}-photos.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 }
 
 export default function Gallery() {
@@ -665,8 +684,8 @@ export default function Gallery() {
 
         {viewMode === 'selected' && gallery.selectedDownloadEnabled && currentImages.length > 0 && (
           <div className="text-center">
-            <Button variant="outline" disabled={!!zipProgress} onClick={async () => { currentImages.forEach(u => logDownload(u, 'bulk')); await downloadAllAsZip(currentImages, 'selected', (c, t) => setZipProgress({ current: c, total: t })); setZipProgress(null); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-selected">
-              {zipProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Zipping {zipProgress.current}/{zipProgress.total}</> : <><Download className="mr-2 h-4 w-4" />Download All Selected</>}
+            <Button variant="outline" onClick={() => { currentImages.forEach(u => logDownload(u, 'bulk')); triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-selected">
+              <Download className="mr-2 h-4 w-4" />Download All Selected
             </Button>
           </div>
         )}
@@ -678,12 +697,12 @@ export default function Gallery() {
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
               {selectedFinalImages.length > 0 && (
-                <Button disabled={!!zipProgress} onClick={async () => { await downloadAllAsZip(selectedFinalImages, 'final', (c, t) => setZipProgress({ current: c, total: t })); setZipProgress(null); }} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
-                  {zipProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Zipping {zipProgress.current}/{zipProgress.total}</> : <><Download className="mr-2 h-4 w-4" />Download Selected ({selectedFinalImages.length})</>}
+                <Button onClick={() => { selectedFinalImages.forEach(u => logDownload(u, 'bulk')); triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode, selectedFinalImages); }} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
+                  <Download className="mr-2 h-4 w-4" />Download Selected ({selectedFinalImages.length})
                 </Button>
               )}
-              <Button variant="outline" disabled={!!zipProgress} onClick={async () => { await downloadAllAsZip(currentImages, 'final', (c, t) => setZipProgress({ current: c, total: t })); setZipProgress(null); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-final">
-                {zipProgress ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Zipping {zipProgress.current}/{zipProgress.total}</> : <><Download className="mr-2 h-4 w-4" />Download All ({currentImages.length})</>}
+              <Button variant="outline" onClick={() => { currentImages.forEach(u => logDownload(u, 'bulk')); triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-final">
+                <Download className="mr-2 h-4 w-4" />Download All ({currentImages.length})
               </Button>
               <Button
                 variant="outline"
