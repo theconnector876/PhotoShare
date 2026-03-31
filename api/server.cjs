@@ -75361,6 +75361,7 @@ if (isLocalDb) {
   pool = new eo({ connectionString: databaseUrl });
   db = drizzle({ client: pool, schema: schema_exports });
 }
+var neonHttp = isLocalDb ? null : Xs(databaseUrl);
 
 // server/routes.ts
 var import_http = require("http");
@@ -82553,12 +82554,21 @@ async function registerRoutes(app2) {
       });
       const { clientEmail, accessCode } = schema.parse(req.body);
       const code = accessCode || Math.random().toString(36).substr(2, 8).toUpperCase();
-      const { rows } = await pool.query(
-        `INSERT INTO galleries (client_email, access_code, gallery_images, selected_images, final_images, status)
-         VALUES ($1, $2, '{}', '{}', '{}', 'pending') RETURNING *`,
-        [clientEmail, code]
-      );
-      res.json(rows[0]);
+      let gallery;
+      if (neonHttp) {
+        const rows = await neonHttp`
+          INSERT INTO galleries (client_email, access_code, gallery_images, selected_images, final_images, status)
+          VALUES (${clientEmail}, ${code}, '{}', '{}', '{}', 'pending') RETURNING *`;
+        gallery = rows[0];
+      } else {
+        const { rows } = await pool.query(
+          `INSERT INTO galleries (client_email, access_code, gallery_images, selected_images, final_images, status)
+           VALUES ($1, $2, '{}', '{}', '{}', 'pending') RETURNING *`,
+          [clientEmail, code]
+        );
+        gallery = rows[0];
+      }
+      res.json(gallery);
     } catch (error) {
       console.error("Error creating gallery:", error);
       res.status(400).json({ error: "Failed to create gallery", details: error?.message });

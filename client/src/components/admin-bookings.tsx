@@ -1,21 +1,14 @@
 import { useState } from "react";
 
-// Clipboard helper — tries modern API first, falls back to execCommand for Safari
-async function copyToClipboard(text: string): Promise<void> {
+// Clipboard helper — tries modern API first, falls back to window.prompt for Safari
+// (Safari invalidates user gesture context after async operations, blocking clipboard writes)
+async function copyToClipboard(text: string): Promise<"copied" | "prompt"> {
   try {
     await navigator.clipboard.writeText(text);
+    return "copied";
   } catch {
-    const el = document.createElement("textarea");
-    el.value = text;
-    el.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
-    document.body.appendChild(el);
-    el.focus();
-    el.select();
-    try {
-      if (!document.execCommand("copy")) throw new Error("execCommand copy failed");
-    } finally {
-      document.body.removeChild(el);
-    }
+    window.prompt("Copy this link (Cmd+A then Cmd+C):", text);
+    return "prompt";
   }
 }
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1094,8 +1087,8 @@ export function AdminBookings() {
                                 const res = await apiRequest('POST', `/api/admin/bookings/${selectedBooking.id}/send-payment-link`, { paymentType: 'deposit' });
                                 const data = await res.json();
                                 if (data.url) {
-                                  await copyToClipboard(data.url);
-                                  toast({ title: "Deposit link copied to clipboard" });
+                                  const result = await copyToClipboard(data.url);
+                                  if (result === "copied") toast({ title: "Deposit link copied to clipboard" });
                                 }
                               } catch (err) {
                                 toast({ title: "Failed to get payment link", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
@@ -1139,8 +1132,8 @@ export function AdminBookings() {
                                 const res = await apiRequest('POST', `/api/admin/bookings/${selectedBooking.id}/send-payment-link`, { paymentType: 'balance' });
                                 const data = await res.json();
                                 if (data.url) {
-                                  await copyToClipboard(data.url);
-                                  toast({ title: "Balance link copied to clipboard" });
+                                  const result = await copyToClipboard(data.url);
+                                  if (result === "copied") toast({ title: "Balance link copied to clipboard" });
                                 }
                               } catch (err) {
                                 toast({ title: "Failed to get payment link", description: err instanceof Error ? err.message : String(err), variant: "destructive" });

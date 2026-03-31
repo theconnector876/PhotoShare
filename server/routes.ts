@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { pool } from "./db";
+import { pool, neonHttp } from "./db";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import webpush from "web-push";
@@ -1043,12 +1043,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const { clientEmail, accessCode } = schema.parse(req.body);
       const code = accessCode || Math.random().toString(36).substr(2, 8).toUpperCase();
-      const { rows } = await (pool as any).query(
-        `INSERT INTO galleries (client_email, access_code, gallery_images, selected_images, final_images, status)
-         VALUES ($1, $2, '{}', '{}', '{}', 'pending') RETURNING *`,
-        [clientEmail, code]
-      );
-      res.json(rows[0]);
+      let gallery: any;
+      if (neonHttp) {
+        // Use Neon HTTP client (reliable in Vercel serverless — no WebSocket stall)
+        const rows = await neonHttp`
+          INSERT INTO galleries (client_email, access_code, gallery_images, selected_images, final_images, status)
+          VALUES (${clientEmail}, ${code}, '{}', '{}', '{}', 'pending') RETURNING *`;
+        gallery = rows[0];
+      } else {
+        const { rows } = await (pool as any).query(
+          `INSERT INTO galleries (client_email, access_code, gallery_images, selected_images, final_images, status)
+           VALUES ($1, $2, '{}', '{}', '{}', 'pending') RETURNING *`,
+          [clientEmail, code]
+        );
+        gallery = rows[0];
+      }
+      res.json(gallery);
     } catch (error: any) {
       console.error('Error creating gallery:', error);
       res.status(400).json({ error: 'Failed to create gallery', details: error?.message });

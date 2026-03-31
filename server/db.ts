@@ -1,4 +1,4 @@
-import { Pool as NeonPool, neonConfig } from '@neondatabase/serverless';
+import { Pool as NeonPool, neonConfig, neon } from '@neondatabase/serverless';
 import { Pool as PgPool } from 'pg';
 import { drizzle as drizzleNeon } from 'drizzle-orm/neon-serverless';
 import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
@@ -28,5 +28,9 @@ if (isLocalDb) {
   pool = new NeonPool({ connectionString: databaseUrl });
   db = drizzleNeon({ client: pool, schema });
 }
+
+// HTTP-based Neon client — use for one-off queries in serverless contexts
+// where the WebSocket pool can stall (e.g. INSERT in cold-start functions)
+export const neonHttp = isLocalDb ? null : neon(databaseUrl);
 
 export { pool, db };
