@@ -1015,8 +1015,26 @@ export function AdminGalleries() {
   });
 
   const createGalleryMutation = useMutation({
-    mutationFn: ({ clientEmail, accessCode }: { clientEmail: string; accessCode?: string }) =>
-      apiRequest("POST", "/api/admin/galleries", { clientEmail, accessCode: accessCode || undefined }),
+    mutationFn: async ({ clientEmail, accessCode }: { clientEmail: string; accessCode?: string }) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 20000);
+      try {
+        const res = await fetch("/api/admin/galleries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientEmail, accessCode: accessCode || undefined }),
+          credentials: "include",
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`${res.status}: ${text}`);
+        }
+        return res;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/galleries"] });
       setShowCreateDialog(false);

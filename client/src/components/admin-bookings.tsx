@@ -1,14 +1,12 @@
 import { useState } from "react";
 
-// Clipboard helper — tries modern API first, falls back to window.prompt for Safari
-// (Safari invalidates user gesture context after async operations, blocking clipboard writes)
-async function copyToClipboard(text: string): Promise<"copied" | "prompt"> {
+// Clipboard helper — tries modern API, returns false if it fails (caller shows fallback UI)
+async function tryClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
-    return "copied";
+    return true;
   } catch {
-    window.prompt("Copy this link (Cmd+A then Cmd+C):", text);
-    return "prompt";
+    return false;
   }
 }
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -197,6 +195,7 @@ export function AdminBookings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [paymentLinkUrl, setPaymentLinkUrl] = useState<string | null>(null);
   const [managementModalOpen, setManagementModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'edit' | 'email' | 'gallery' | 'upload' | 'catalogue'>('details');
   const [uploadType, setUploadType] = useState<'gallery' | 'selected' | 'final'>('gallery');
@@ -1087,8 +1086,9 @@ export function AdminBookings() {
                                 const res = await apiRequest('POST', `/api/admin/bookings/${selectedBooking.id}/send-payment-link`, { paymentType: 'deposit' });
                                 const data = await res.json();
                                 if (data.url) {
-                                  const result = await copyToClipboard(data.url);
-                                  if (result === "copied") toast({ title: "Deposit link copied to clipboard" });
+                                  const copied = await tryClipboard(data.url);
+                                  if (copied) toast({ title: "Deposit link copied to clipboard" });
+                                  else setPaymentLinkUrl(data.url);
                                 }
                               } catch (err) {
                                 toast({ title: "Failed to get payment link", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
@@ -1132,8 +1132,9 @@ export function AdminBookings() {
                                 const res = await apiRequest('POST', `/api/admin/bookings/${selectedBooking.id}/send-payment-link`, { paymentType: 'balance' });
                                 const data = await res.json();
                                 if (data.url) {
-                                  const result = await copyToClipboard(data.url);
-                                  if (result === "copied") toast({ title: "Balance link copied to clipboard" });
+                                  const copied = await tryClipboard(data.url);
+                                  if (copied) toast({ title: "Balance link copied to clipboard" });
+                                  else setPaymentLinkUrl(data.url);
                                 }
                               } catch (err) {
                                 toast({ title: "Failed to get payment link", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
@@ -1939,6 +1940,27 @@ export function AdminBookings() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Payment link fallback dialog — shown when clipboard copy fails (Safari) */}
+      <Dialog open={!!paymentLinkUrl} onOpenChange={() => setPaymentLinkUrl(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Payment Link</DialogTitle>
+            <DialogDescription>Clipboard access was blocked. Select the link below and copy it manually.</DialogDescription>
+          </DialogHeader>
+          <input
+            readOnly
+            value={paymentLinkUrl || ""}
+            className="w-full border rounded px-3 py-2 text-sm font-mono bg-gray-50 select-all"
+            onFocus={(e) => e.target.select()}
+            onClick={(e) => (e.target as HTMLInputElement).select()}
+            autoFocus
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setPaymentLinkUrl(null)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
