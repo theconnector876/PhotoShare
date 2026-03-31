@@ -1024,7 +1024,11 @@ export function AdminGalleries() {
       setCreateCode("");
       toast({ title: "Gallery created" });
     },
-    onError: () => toast({ title: "Failed to create gallery", variant: "destructive" }),
+    onError: (err: unknown) => toast({
+      title: "Failed to create gallery",
+      description: err instanceof Error ? err.message : String(err),
+      variant: "destructive",
+    }),
   });
 
   const deleteGalleryMutation = useMutation({
@@ -1034,7 +1038,11 @@ export function AdminGalleries() {
       setDeleteConfirmId(null);
       toast({ title: "Gallery deleted" });
     },
-    onError: () => toast({ title: "Failed to delete gallery", variant: "destructive" }),
+    onError: (err: unknown) => toast({
+      title: "Failed to delete gallery",
+      description: err instanceof Error ? err.message : String(err),
+      variant: "destructive",
+    }),
   });
 
   // ── Watermark helpers ─────────────────────────────────────────────────────────
