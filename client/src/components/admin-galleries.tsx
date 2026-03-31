@@ -1427,7 +1427,7 @@ export function AdminGalleries() {
                         <div className="flex gap-2 shrink-0">
                           <Button size="sm" variant="outline"
                             className="border-green-200 text-green-700 hover:bg-green-50"
-                            onClick={() => window.open(`/gallery/${gallery.clientEmail}/${gallery.accessCode}`, "_blank")}>
+                            onClick={() => window.open(`/gallery/${encodeURIComponent(gallery.clientEmail)}/${gallery.accessCode}`, "_blank")}>
                             <Eye className="w-4 h-4 sm:mr-1" />
                             <span className="hidden sm:inline">Client View</span>
                           </Button>

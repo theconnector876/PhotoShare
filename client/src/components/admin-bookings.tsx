@@ -1739,7 +1739,7 @@ export function AdminBookings() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            const galleryUrl = `/gallery?email=${selectedBooking?.email}&code=${selectedGallery.accessCode}`;
+                            const galleryUrl = `/gallery/${encodeURIComponent(selectedBooking?.email || '')}/${selectedGallery.accessCode}`;
                             window.open(galleryUrl, '_blank');
                           }}
                           data-testid="button-view-gallery"
