@@ -747,8 +747,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     cloudinary.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
     const publicIds = images.map(cloudinaryPublicId);
-    const archiveUrl = cloudinary.utils.download_zip_url({ public_ids: publicIds, resource_type: 'image' });
-    res.json({ url: archiveUrl });
+    const archive = await cloudinary.api.create_archive({
+      public_ids: publicIds,
+      resource_type: 'image',
+      target_format: 'zip',
+      flatten_folders: true,
+    } as any);
+    res.json({ url: archive.secure_url });
   }
 
   app.get("/api/gallery/:id/download-zip", async (req, res) => {

@@ -95775,8 +95775,13 @@ async function registerRoutes(app2) {
     if (!cfg) return res.status(500).json({ error: "Cloudinary not configured" });
     import_cloudinary.v2.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
     const publicIds = images.map(cloudinaryPublicId);
-    const archiveUrl = import_cloudinary.v2.utils.download_zip_url({ public_ids: publicIds, resource_type: "image" });
-    res.json({ url: archiveUrl });
+    const archive = await import_cloudinary.v2.api.create_archive({
+      public_ids: publicIds,
+      resource_type: "image",
+      target_format: "zip",
+      flatten_folders: true
+    });
+    res.json({ url: archive.secure_url });
   }
   app2.get("/api/gallery/:id/download-zip", async (req, res) => {
     try {
