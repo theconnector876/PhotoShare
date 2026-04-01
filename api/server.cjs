@@ -95776,7 +95776,7 @@ async function registerRoutes(app2) {
     import_cloudinary.v2.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
     const publicIds = images.map(cloudinaryPublicId);
     const archiveUrl = import_cloudinary.v2.utils.download_zip_url({ public_ids: publicIds, resource_type: "image" });
-    res.redirect(archiveUrl);
+    res.json({ url: archiveUrl });
   }
   app2.get("/api/gallery/:id/download-zip", async (req, res) => {
     try {
@@ -95793,13 +95793,13 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/gallery/:id/download-zip", async (req, res) => {
     try {
-      const { type = "final", email = "", code, images: imagesJson } = req.body;
+      const { type = "final", email = "", code, images } = req.body;
       const gallery = await storage.getGalleryById(req.params.id);
       if (!gallery) return res.status(404).json({ error: "Gallery not found" });
       if (gallery.requireAccessCode && gallery.accessCode !== code) {
         return res.status(401).json({ error: "Invalid access code" });
       }
-      const overrideImages = imagesJson ? JSON.parse(imagesJson) : void 0;
+      const overrideImages = Array.isArray(images) && images.length > 0 ? images : void 0;
       await sendZipRedirect(res, gallery, type, email, overrideImages);
     } catch (error) {
       res.status(500).json({ error: "Download failed", details: error?.message });
