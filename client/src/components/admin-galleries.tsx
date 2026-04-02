@@ -1183,14 +1183,8 @@ export function AdminGalleries() {
     setFileItems(items);
     setShowUploadPanel(true);
 
-    try { await getUploadConfig(gallery.id); }
-    catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Could not get upload credentials";
-      setFileItems((prev) => prev.map((item) => item.status === "queued" ? { ...item, status: "error", error: msg } : item));
-      return;
-    }
     await runUploadQueue(items.filter((i) => i.status !== "duplicate"), gallery, type);
-  }, [getUploadConfig, runUploadQueue]);
+  }, [runUploadQueue]);
 
   const handleRetryFailed = useCallback(async () => {
     const ctx = currentUploadCtxRef.current;
