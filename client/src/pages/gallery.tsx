@@ -74,26 +74,29 @@ async function downloadBlob(url: string, filename: string) {
 }
 
 // Trigger a server-side zip download — browser starts saving immediately
-async function triggerZipDownload(galleryId: string, type: string, email: string, code: string, selectedUrls?: string[]) {
-  try {
-    let res: Response;
-    if (selectedUrls && selectedUrls.length > 0) {
-      res = await fetch(`/api/gallery/${galleryId}/download-zip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, code, email, images: selectedUrls }),
-      });
-    } else {
-      const params = new URLSearchParams({ type, code });
-      if (email) params.set('email', email);
-      res = await fetch(`/api/gallery/${galleryId}/download-zip?${params}`);
-    }
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    }
-  } catch {
-    // silently fail
+function triggerZipDownload(galleryId: string, type: string, email: string, code: string, selectedUrls?: string[]) {
+  if (selectedUrls && selectedUrls.length > 0) {
+    // POST with JSON body for custom image list
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/api/gallery/${galleryId}/download-zip`;
+    const fields: Record<string, string> = { type, code, email: email || '' };
+    Object.entries(fields).forEach(([k, v]) => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = k; inp.value = v;
+      form.appendChild(inp);
+    });
+    // Pass images as JSON string field
+    const imagesInp = document.createElement('input');
+    imagesInp.type = 'hidden'; imagesInp.name = 'images'; imagesInp.value = JSON.stringify(selectedUrls);
+    form.appendChild(imagesInp);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+  } else {
+    const params = new URLSearchParams({ type, code });
+    if (email) params.set('email', email);
+    window.location.href = `/api/gallery/${galleryId}/download-zip?${params}`;
   }
 }
 
@@ -661,13 +664,13 @@ export default function Gallery() {
               )}
 
               {gallery.galleryDownloadEnabled && selectedImages.length > 0 && (
-                <Button variant="outline" onClick={async () => { await triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
+                <Button variant="outline" onClick={() => { triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
                   <Download className="mr-2 h-4 w-4" />Download Selected ({selectedImages.length})
                 </Button>
               )}
 
               {gallery.galleryDownloadEnabled && currentImages.length > 0 && (
-                <Button variant="outline" onClick={async () => { await triggerZipDownload(gallery.id, 'gallery', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
+                <Button variant="outline" onClick={() => { triggerZipDownload(gallery.id, 'gallery', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
                   <Download className="mr-2 h-4 w-4" />Download All
                 </Button>
               )}
@@ -677,7 +680,7 @@ export default function Gallery() {
 
         {viewMode === 'selected' && gallery.selectedDownloadEnabled && currentImages.length > 0 && (
           <div className="text-center">
-            <Button variant="outline" onClick={async () => { await triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-selected">
+            <Button variant="outline" onClick={() => { triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-selected">
               <Download className="mr-2 h-4 w-4" />Download All Selected
             </Button>
           </div>
@@ -690,11 +693,11 @@ export default function Gallery() {
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
               {selectedFinalImages.length > 0 && (
-                <Button onClick={async () => { await triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode, selectedFinalImages); }} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
+                <Button onClick={() => { triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode, selectedFinalImages); }} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
                   <Download className="mr-2 h-4 w-4" />Download Selected ({selectedFinalImages.length})
                 </Button>
               )}
-              <Button variant="outline" onClick={async () => { await triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-final">
+              <Button variant="outline" onClick={() => { triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-final">
                 <Download className="mr-2 h-4 w-4" />Download All ({currentImages.length})
               </Button>
               <Button

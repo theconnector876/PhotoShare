@@ -11,8 +11,9 @@ import { defaultPricingConfig } from "@shared/pricing";
 import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
 import { sendBookingReceived, sendBookingConfirmation, sendPaymentConfirmation, sendPasswordReset, sendPhotographerApproved, sendPhotographerRejected, sendAdminEmail, sendInboundEmailNotification } from "./email";
-import { getCloudinarySignedConfig, generateSignature } from "./upload";
+import { getCloudinarySignedConfig, generateSignature, generateR2PresignedPut } from "./upload";
 import { v2 as cloudinary } from "cloudinary";
+import archiver from "archiver";
 
 const wipayEnabled = Boolean(
   process.env.WIPAY_ACCOUNT_NUMBER &&
@@ -720,40 +721,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Extract Cloudinary public_id from a full URL
-  function cloudinaryPublicId(url: string): string {
-    // e.g. https://res.cloudinary.com/cloud/image/upload/v123/folder/file.jpg => folder/file
-    const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-    return match ? match[1] : url;
+  // Resolve which images to zip based on type/email
+  function resolveImages(gallery: any, type: string, email: string, overrideImages?: string[]): string[] {
+    if (overrideImages && overrideImages.length > 0) return overrideImages;
+    if (type === 'gallery') return gallery.galleryImages || [];
+    if (type === 'selected') {
+      const emailSels = (gallery.emailSelections as Record<string, string[]>) || {};
+      return email && emailSels[email] ? emailSels[email] : gallery.selectedImages || [];
+    }
+    return gallery.finalImages || [];
   }
 
-  // ZIP download — redirects browser to Cloudinary-generated archive URL
-  async function sendZipRedirect(res: any, gallery: any, type: string, email: string, overrideImages?: string[]) {
-    let images: string[] = overrideImages || [];
-    if (!overrideImages) {
-      if (type === 'gallery') {
-        images = gallery.galleryImages || [];
-      } else if (type === 'selected') {
-        const emailSels = (gallery.emailSelections as Record<string, string[]>) || {};
-        images = email && emailSels[email] ? emailSels[email] : gallery.selectedImages || [];
-      } else {
-        images = gallery.finalImages || [];
-      }
-    }
+  // Returns JSON { url } with a presigned or public URL pointing to the archive.
+  // Client does window.location.href = url to trigger the download.
+  async function buildZipUrl(res: any, gallery: any, type: string, email: string, overrideImages?: string[]) {
+    const images = resolveImages(gallery, type, email, overrideImages);
     if (images.length === 0) return res.status(400).json({ error: 'No images to download' });
 
-    const cfg = getCloudinarySignedConfig();
-    if (!cfg) return res.status(500).json({ error: 'Cloudinary not configured' });
+    // Stream a ZIP directly to the client — no Cloudinary, no egress fees from R2
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${type}-photos.zip"`);
 
-    cloudinary.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
-    const publicIds = images.map(cloudinaryPublicId);
-    const archive = await cloudinary.api.create_archive({
-      public_ids: publicIds,
-      resource_type: 'image',
-      target_format: 'zip',
-      flatten_folders: true,
-    } as any);
-    res.json({ url: archive.secure_url });
+    const zip = archiver('zip', { store: true }); // store=no compression (JPEGs don't compress)
+    zip.pipe(res);
+
+    // Fetch all images in parallel, buffer, append to archive
+    const results = await Promise.all(images.map(async (url, i) => {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) return null;
+        const buf = Buffer.from(await r.arrayBuffer());
+        const ext = (url.split('?')[0].split('.').pop() || 'jpg').toLowerCase();
+        return { buf, name: `photo-${String(i + 1).padStart(3, '0')}.${ext}` };
+      } catch { return null; }
+    }));
+
+    for (const item of results) {
+      if (item) zip.append(item.buf, { name: item.name });
+    }
+    await zip.finalize();
   }
 
   app.get("/api/gallery/:id/download-zip", async (req, res) => {
@@ -764,24 +770,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gallery.requireAccessCode && gallery.accessCode !== code) {
         return res.status(401).json({ error: 'Invalid access code' });
       }
-      await sendZipRedirect(res, gallery, type, email);
+      await buildZipUrl(res, gallery, type, email);
     } catch (error: any) {
-      res.status(500).json({ error: 'Download failed', details: error?.message });
+      if (!res.headersSent) res.status(500).json({ error: 'Download failed', details: error?.message });
     }
   });
 
   app.post("/api/gallery/:id/download-zip", async (req, res) => {
     try {
-      const { type = 'final', email = '', code, images } = req.body as { type?: string; email?: string; code?: string; images?: string[] };
+      const { type = 'final', email = '', code, images: imagesRaw } = req.body as { type?: string; email?: string; code?: string; images?: string | string[] };
       const gallery = await storage.getGalleryById(req.params.id);
       if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
       if (gallery.requireAccessCode && gallery.accessCode !== code) {
         return res.status(401).json({ error: 'Invalid access code' });
       }
-      const overrideImages = Array.isArray(images) && images.length > 0 ? images : undefined;
-      await sendZipRedirect(res, gallery, type, email, overrideImages);
+      let overrideImages: string[] | undefined;
+      if (imagesRaw) {
+        overrideImages = typeof imagesRaw === 'string' ? JSON.parse(imagesRaw) : imagesRaw;
+      }
+      await buildZipUrl(res, gallery, type, email, overrideImages);
     } catch (error: any) {
-      res.status(500).json({ error: 'Download failed', details: error?.message });
+      if (!res.headersSent) res.status(500).json({ error: 'Download failed', details: error?.message });
     }
   });
 
@@ -1181,6 +1190,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const signature = generateSignature(params, config.apiSecret);
     res.json({ cloudName: config.cloudName, apiKey: config.apiKey, timestamp, signature,
       ...(galleryId ? { folder: `galleries/${galleryId}`, useFilename: true, uniqueFilename: false } : {}) });
+  });
+
+  // R2 presigned PUT URL for browser-direct upload
+  app.post('/api/admin/upload-r2-url', isAdmin, async (req, res) => {
+    try {
+      const { filename, contentType, galleryId } = req.body as { filename: string; contentType: string; galleryId?: string };
+      const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const key = galleryId
+        ? `galleries/${galleryId}/${Date.now()}-${safeName}`
+        : `uploads/${Date.now()}-${safeName}`;
+      const result = await generateR2PresignedPut(key, contentType || 'image/jpeg');
+      if (!result) return res.status(503).json({ error: 'R2 storage not configured' });
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Update gallery settings (download toggles, status, watermark)

@@ -64,14 +64,9 @@ interface Gallery {
 
 type ImageType = "gallery" | "selected" | "final";
 
-interface SignedConfig {
-  cloudName: string;
-  apiKey: string;
-  timestamp: number;
-  signature: string;
-  folder?: string;
-  useFilename?: boolean;
-  uniqueFilename?: boolean;
+interface R2UploadConfig {
+  uploadUrl: string;
+  publicUrl: string;
 }
 
 type FileStatus = "queued" | "uploading" | "done" | "error" | "duplicate";
@@ -85,11 +80,7 @@ interface FileItem {
   error?: string;
 }
 
-// ── Cloudinary upload ─────────────────────────────────────────────────────────
 // ── Image compression ─────────────────────────────────────────────────────────
-// Called just-in-time inside the upload queue (max 6 concurrent) so we never
-// run hundreds of canvas operations at once. Keeps files under Cloudinary's
-// 10 MB free-plan limit while preserving 3 K resolution for client viewing.
 
 function compressImage(file: File, maxDimension = 3000, quality = 0.82): Promise<File> {
   return new Promise((resolve) => {
@@ -108,7 +99,6 @@ function compressImage(file: File, maxDimension = 3000, quality = 0.82): Promise
       canvas.toBlob(
         (blob) => {
           if (!blob) { resolve(file); return; }
-          // If compression actually made it larger, keep the original
           if (blob.size >= file.size) { resolve(file); return; }
           resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
         },
@@ -120,99 +110,37 @@ function compressImage(file: File, maxDimension = 3000, quality = 0.82): Promise
   });
 }
 
-function uploadWithProgress(file: File, config: SignedConfig, onProgress: (pct: number) => void): Promise<string> {
-  return new Promise((resolve, reject) => {
+// ── R2 upload ─────────────────────────────────────────────────────────────────
+
+async function uploadFileToR2(
+  file: File, galleryId: string, onProgress: (pct: number) => void,
+): Promise<string> {
+  // Get a presigned PUT URL for this file
+  const res = await fetch("/api/admin/upload-r2-url", {
+    method: "POST", credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: file.name, contentType: file.type || "image/jpeg", galleryId }),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})) as { error?: string }; throw new Error(e.error || `Error ${res.status}`); }
+  const { uploadUrl, publicUrl } = await res.json() as R2UploadConfig;
+
+  // Upload directly to R2 via presigned PUT
+  await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
     });
     xhr.addEventListener("load", () => {
-      if (xhr.status === 200) {
-        try { resolve((JSON.parse(xhr.responseText) as { secure_url: string }).secure_url); }
-        catch { reject(new Error("Bad response")); }
-      } else {
-        try { const e = JSON.parse(xhr.responseText) as { error?: { message?: string } }; reject(new Error(e?.error?.message || `Error ${xhr.status}`)); }
-        catch { reject(new Error(`Upload failed (${xhr.status})`)); }
-      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`R2 upload failed (${xhr.status})`));
     });
     xhr.addEventListener("error", () => reject(new Error("Network error")));
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("api_key", config.apiKey);
-    fd.append("timestamp", String(config.timestamp));
-    fd.append("signature", config.signature);
-    if (config.folder) fd.append("folder", config.folder);
-    if (config.useFilename) fd.append("use_filename", "true");
-    if (config.uniqueFilename === false) fd.append("unique_filename", "false");
-    xhr.open("POST", `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`);
-    xhr.send(fd);
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader("Content-Type", file.type || "image/jpeg");
+    xhr.send(file);
   });
-}
 
-// Sends one chunk via XHR so we get per-byte progress even for large files.
-// 9 MB per chunk — safely under Cloudinary's 10 MB single-upload limit.
-// Any file larger than 9 MB is split into chunks, bypassing the limit.
-const CHUNK_SIZE = 9 * 1024 * 1024;
-
-function uploadChunkXHR(
-  chunk: Blob, byteStart: number, totalSize: number,
-  uploadId: string, config: SignedConfig,
-  onBytesLoaded: (totalLoaded: number) => void,
-): Promise<{ secureUrl?: string }> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) onBytesLoaded(byteStart + e.loaded);
-    });
-    xhr.addEventListener("load", () => {
-      if (xhr.status === 200 || xhr.status === 308) {
-        try { resolve({ secureUrl: (JSON.parse(xhr.responseText) as { secure_url?: string }).secure_url }); }
-        catch { resolve({}); }
-      } else {
-        try { const e = JSON.parse(xhr.responseText) as { error?: { message?: string } }; reject(new Error(e?.error?.message || `Chunk failed (${xhr.status})`)); }
-        catch { reject(new Error(`Chunk failed (${xhr.status})`)); }
-      }
-    });
-    xhr.addEventListener("error", () => reject(new Error("Network error")));
-    const fd = new FormData();
-    fd.append("file", chunk);
-    fd.append("api_key", config.apiKey);
-    fd.append("timestamp", String(config.timestamp));
-    fd.append("signature", config.signature);
-    if (config.folder) fd.append("folder", config.folder);
-    if (config.useFilename) fd.append("use_filename", "true");
-    if (config.uniqueFilename === false) fd.append("unique_filename", "false");
-    const byteEnd = byteStart + chunk.size - 1;
-    xhr.open("POST", `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`);
-    xhr.setRequestHeader("X-Unique-Upload-Id", uploadId);
-    xhr.setRequestHeader("Content-Range", `bytes ${byteStart}-${byteEnd}/${totalSize}`);
-    xhr.send(fd);
-  });
-}
-
-// Unified upload: single XHR for files ≤ 9 MB, chunked for larger files.
-// Chunked uploads bypass Cloudinary's 10 MB per-request limit.
-async function uploadFile(
-  file: File, config: SignedConfig, onProgress: (pct: number) => void,
-): Promise<string> {
-  if (file.size < CHUNK_SIZE) {
-    return uploadWithProgress(file, config, onProgress);
-  }
-  const uploadId = crypto.randomUUID();
-  const total = file.size;
-  const chunks = Math.ceil(total / CHUNK_SIZE);
-  let secureUrl = "";
-  for (let i = 0; i < chunks; i++) {
-    const start = i * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, total);
-    const result = await uploadChunkXHR(
-      file.slice(start, end), start, total, uploadId, config,
-      (loaded) => onProgress(Math.round((loaded / total) * 100)),
-    );
-    if (result.secureUrl) secureUrl = result.secureUrl;
-  }
-  if (!secureUrl) throw new Error("Upload incomplete — no URL returned");
-  return secureUrl;
+  return publicUrl;
 }
 
 // ── Upload panel ──────────────────────────────────────────────────────────────
@@ -940,9 +868,7 @@ export function AdminGalleries() {
   // Cancel flag for uploads
   const cancelRef = useRef(false);
 
-  // Cached upload signature — refreshed automatically if > 30 minutes old, keyed by galleryId
-  const uploadConfigRef    = useRef<Map<string, SignedConfig>>(new Map());
-  const uploadConfigTimeRef = useRef<Map<string, number>>(new Map());
+  // (R2 upload: no cached config needed — presigned URL generated per file)
 
   // ETA tracking
   const [uploadStartTime, setUploadStartTime] = useState<number | null>(null);
@@ -1068,19 +994,10 @@ export function AdminGalleries() {
   const uploadWatermarkImage = async (galleryId: string, file: File) => {
     setUploadingWatermarkImg(prev => ({ ...prev, [galleryId]: true }));
     try {
-      const res = await fetch("/api/admin/upload-signature", { method: "POST", credentials: "include" });
-      if (!res.ok) throw new Error("Upload signature failed");
-      const config: SignedConfig = await res.json();
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("api_key", config.apiKey);
-      fd.append("timestamp", String(config.timestamp));
-      fd.append("signature", config.signature);
-      const up = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`, { method: "POST", body: fd });
-      const data = await up.json();
+      const url = await uploadFileToR2(file, galleryId, () => {});
       setWatermarkForms(prev => ({
         ...prev,
-        [galleryId]: { ...prev[galleryId], imageUrl: data.secure_url, imagePublicId: data.public_id },
+        [galleryId]: { ...prev[galleryId], imageUrl: url, imagePublicId: url },
       }));
       toast({ title: "Watermark image uploaded" });
     } catch {
@@ -1210,21 +1127,6 @@ export function AdminGalleries() {
     setFileItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
-  // Returns a fresh (or cached) upload signature, auto-refreshing every 30 min, per galleryId.
-  const getUploadConfig = useCallback(async (galleryId: string): Promise<SignedConfig> => {
-    const now = Date.now();
-    const cached = uploadConfigRef.current.get(galleryId);
-    const cachedTime = uploadConfigTimeRef.current.get(galleryId) ?? 0;
-    if (cached && now - cachedTime < 30 * 60 * 1000) return cached;
-    const res = await fetch("/api/admin/upload-signature", { method: "POST", credentials: "include",
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ galleryId }) });
-    if (!res.ok) { const err = await res.json().catch(() => ({})) as { error?: string }; throw new Error(err.error || `Error ${res.status}`); }
-    const config = await res.json() as SignedConfig;
-    uploadConfigRef.current.set(galleryId, config);
-    uploadConfigTimeRef.current.set(galleryId, now);
-    return config;
-  }, []);
-
   // Shared upload runner used by both handleFilesSelected and retryFailed
   const runUploadQueue = useCallback(async (queue: FileItem[], gallery: Gallery, type: ImageType) => {
     cancelRef.current = false;
@@ -1238,10 +1140,8 @@ export function AdminGalleries() {
       if (!item) return;
       updateItem(item.id, { status: "uploading", progress: 0 });
       try {
-        const config = await getUploadConfig(gallery.id);
-        // Compress just-in-time — only 6 canvas ops active at once, no freeze
         const toUpload = await compressImage(item.file);
-        const url = await uploadFile(toUpload, config, (pct) => updateItem(item.id, { progress: pct }));
+        const url = await uploadFileToR2(toUpload, gallery.id, (pct) => updateItem(item.id, { progress: pct }));
         updateItem(item.id, { status: "done", progress: 100, cloudUrl: url });
         uploadedUrls.push(url);
         await addImageMutation.mutateAsync({ galleryId: gallery.id, imageURL: url, type });
@@ -1264,7 +1164,7 @@ export function AdminGalleries() {
       uploadedUrls.forEach((u) => { if (!existing.has(u)) typeFolders[destFolder].push(u); });
       await updateFoldersMutation.mutateAsync({ galleryId: gallery.id, folders: { ...currentFolders, [type]: typeFolders } });
     }
-  }, [addImageMutation, queryClient, updateItem, updateFoldersMutation, getUploadConfig]);
+  }, [addImageMutation, queryClient, updateItem, updateFoldersMutation]);
 
   const handleFilesSelected = useCallback(async (files: File[], gallery: Gallery, type: ImageType) => {
     currentUploadCtxRef.current = { gallery, type };
