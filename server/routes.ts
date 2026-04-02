@@ -735,23 +735,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const images = resolveImages(gallery, type, email, overrideImages);
     if (images.length === 0) return res.status(400).json({ error: 'No images to download' });
 
+    const allCloudinary = images.every((u: string) => u.includes('res.cloudinary.com'));
+
+    if (allCloudinary) {
+      // Cloudinary images: generate a signed archive URL (no server-side fetching)
+      const cfg = getCloudinarySignedConfig();
+      if (!cfg) return res.status(500).json({ error: 'Not configured' });
+      cloudinary.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
+
+      let archiveUrl: string;
+      if (type === 'gallery') {
+        // Folder prefix — short URL regardless of image count
+        archiveUrl = (cloudinary.utils as any).download_zip_url({
+          prefixes: [`galleries/${gallery.id}`],
+          resource_type: 'image',
+        });
+      } else {
+        // Selected/final — public_ids (smaller sets, URL stays under limit)
+        const publicIds = images.map((url: string) => {
+          const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+          return m ? m[1] : url;
+        });
+        archiveUrl = (cloudinary.utils as any).download_zip_url({
+          public_ids: publicIds,
+          resource_type: 'image',
+        });
+      }
+      return res.redirect(archiveUrl);
+    }
+
+    // R2 or other: server-side zip (fast, zero egress)
     const JSZip = require('jszip');
     const zip = new JSZip();
-
-    // Fetch all images in parallel (R2 = no egress, Cloudinary = transitional)
-    await Promise.all(images.map(async (url, i) => {
+    await Promise.all(images.map(async (url: string, i: number) => {
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
-        const r = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeout);
+        const r = await fetch(url);
         if (!r.ok) return;
         const buf = Buffer.from(await r.arrayBuffer());
         const ext = (url.split('?')[0].split('.').pop() || 'jpg').toLowerCase();
         zip.file(`photo-${String(i + 1).padStart(3, '0')}.${ext}`, buf);
       } catch { /* skip */ }
     }));
-
     const zipBuf = await zip.generateAsync({ type: 'nodebuffer', compression: 'STORE' });
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${type}-photos.zip"`);
