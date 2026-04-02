@@ -74,40 +74,10 @@ async function downloadBlob(url: string, filename: string) {
 }
 
 // Trigger a server-side zip download — browser starts saving immediately
-function triggerZipDownload(galleryId: string, type: string, email: string, code: string, selectedUrls?: string[]) {
+function triggerZipDownload(galleryId: string, type: string, email: string, code: string) {
   const params = new URLSearchParams({ type, code });
   if (email) params.set('email', email);
-  const url = `/api/gallery/${galleryId}/download-zip?${params}`;
-
-  if (selectedUrls && selectedUrls.length > 0) {
-    // For custom image lists use a form POST so we can pass the URL array
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/api/gallery/${galleryId}/download-zip`;
-    [['type', type], ['code', code], ['email', email || '']].forEach(([k, v]) => {
-      const inp = document.createElement('input');
-      inp.type = 'hidden'; inp.name = k; inp.value = v;
-      form.appendChild(inp);
-    });
-    const inp = document.createElement('input');
-    inp.type = 'hidden'; inp.name = 'images'; inp.value = JSON.stringify(selectedUrls);
-    form.appendChild(inp);
-    const iframe = document.createElement('iframe');
-    iframe.name = `dl-${Date.now()}`;
-    iframe.style.display = 'none';
-    form.target = iframe.name;
-    document.body.appendChild(iframe);
-    document.body.appendChild(form);
-    form.submit();
-    setTimeout(() => { document.body.removeChild(form); document.body.removeChild(iframe); }, 60000);
-  } else {
-    // Hidden iframe — download starts without navigating away from the gallery
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = url;
-    document.body.appendChild(iframe);
-    setTimeout(() => document.body.removeChild(iframe), 60000);
-  }
+  window.open(`/api/gallery/${galleryId}/download-zip?${params}`, '_blank');
 }
 
 export default function Gallery() {
@@ -555,7 +525,7 @@ export default function Gallery() {
         {viewMode === 'final' && gallery.finalDownloadEnabled && currentImages.length > 0 && (
           <div className="flex flex-wrap justify-center gap-3 mb-6">
             {selectedFinalImages.length > 0 && (
-              <Button size="sm" onClick={() => triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode, selectedFinalImages)} className="bg-gradient-to-r from-primary to-secondary text-white">
+              <Button size="sm" onClick={() => triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode)} className="bg-gradient-to-r from-primary to-secondary text-white">
                 <Download className="mr-2 h-4 w-4" />Download Selected ({selectedFinalImages.length})
               </Button>
             )}
@@ -746,7 +716,7 @@ export default function Gallery() {
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
               {selectedFinalImages.length > 0 && (
-                <Button onClick={() => { triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode, selectedFinalImages); }} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
+                <Button onClick={() => { triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode); }} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
                   <Download className="mr-2 h-4 w-4" />Download Selected ({selectedFinalImages.length})
                 </Button>
               )}
