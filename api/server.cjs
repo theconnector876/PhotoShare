@@ -138699,7 +138699,40 @@ async function registerRoutes(app2) {
       const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0] || req.socket.remoteAddress || null;
       storage.logGalleryAccess(gallery.id, email || null, ip, req.headers["user-agent"] || null).catch(() => {
       });
-      res.json(gallery);
+      const downloadUrls = {};
+      try {
+        const cfg = getCloudinarySignedConfig();
+        if (cfg) {
+          import_cloudinary.v2.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
+          const galleryImages = gallery.galleryImages || [];
+          if (gallery.galleryDownloadEnabled && galleryImages.length > 0 && galleryImages.every((u5) => u5.includes("res.cloudinary.com"))) {
+            downloadUrls.gallery = import_cloudinary.v2.utils.download_zip_url({
+              prefixes: [`galleries/${gallery.id}`],
+              resource_type: "image"
+            });
+          }
+          const emailSels = gallery.emailSelections || {};
+          const resolvedSelected = email && emailSels[email] ? emailSels[email] : gallery.selectedImages || [];
+          if (gallery.selectedDownloadEnabled && resolvedSelected.length > 0 && resolvedSelected.every((u5) => u5.includes("res.cloudinary.com"))) {
+            const publicIds = resolvedSelected.map((url) => {
+              const m6 = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+              return m6 ? m6[1] : url;
+            });
+            downloadUrls.selected = import_cloudinary.v2.utils.download_zip_url({ public_ids: publicIds, resource_type: "image" });
+          }
+          const finalImages = gallery.finalImages || [];
+          if (gallery.finalDownloadEnabled && finalImages.length > 0 && finalImages.every((u5) => u5.includes("res.cloudinary.com"))) {
+            const publicIds = finalImages.map((url) => {
+              const m6 = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+              return m6 ? m6[1] : url;
+            });
+            downloadUrls.final = import_cloudinary.v2.utils.download_zip_url({ public_ids: publicIds, resource_type: "image" });
+          }
+        }
+      } catch (e5) {
+        console.warn("[gallery/access] download URL pre-gen failed:", e5.message);
+      }
+      res.json({ ...gallery, downloadUrls });
     } catch (error2) {
       res.status(500).json({ error: "Failed to access gallery" });
     }

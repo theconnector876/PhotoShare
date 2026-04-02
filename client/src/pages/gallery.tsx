@@ -40,6 +40,7 @@ interface Gallery {
   requireEmail: boolean;
   shareEnabled: boolean;
   createdAt: Date;
+  downloadUrls?: Record<string, string>;
 }
 
 interface GalleryInfo {
@@ -73,8 +74,12 @@ async function downloadBlob(url: string, filename: string) {
   }
 }
 
-// Trigger a server-side zip download — browser starts saving immediately
-function triggerZipDownload(galleryId: string, type: string, email: string, code: string) {
+// Trigger a zip download — uses pre-generated URL when available (instant), falls back to server endpoint
+function triggerZipDownload(galleryId: string, type: string, email: string, code: string, preGenUrl?: string) {
+  if (preGenUrl) {
+    window.open(preGenUrl, '_blank');
+    return;
+  }
   const params = new URLSearchParams({ type, code });
   if (email) params.set('email', email);
   window.open(`/api/gallery/${galleryId}/download-zip?${params}`, '_blank');
@@ -102,6 +107,7 @@ export default function Gallery() {
   const [likedImages, setLikedImages] = useState<string[]>([]);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [copied, setCopied] = useState(false);
+  const [downloadUrls, setDownloadUrls] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   const form = useForm<GalleryAccessData>({
@@ -130,6 +136,7 @@ export default function Gallery() {
     },
     onSuccess: (data: Gallery) => {
       setGallery(data);
+      if (data.downloadUrls) setDownloadUrls(data.downloadUrls);
       // Load this visitor's own selections (not the merged global set)
       const email = form.getValues('email') || '';
       const emailSels = (data.emailSelections as Record<string, string[]>) || {};
@@ -504,12 +511,12 @@ export default function Gallery() {
         {viewMode === 'gallery' && (gallery.galleryDownloadEnabled) && currentImages.length > 0 && (
           <div className="flex flex-wrap justify-center gap-3 mb-6">
             {gallery.galleryDownloadEnabled && selectedImages.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode)}>
+              <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode, downloadUrls['selected'])}>
                 <Download className="mr-2 h-4 w-4" />Download Selected ({selectedImages.length})
               </Button>
             )}
             {gallery.galleryDownloadEnabled && (
-              <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'gallery', visitorEmail, gallery.accessCode)}>
+              <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'gallery', visitorEmail, gallery.accessCode, downloadUrls['gallery'])}>
                 <Download className="mr-2 h-4 w-4" />Download All
               </Button>
             )}
@@ -517,7 +524,7 @@ export default function Gallery() {
         )}
         {viewMode === 'selected' && gallery.selectedDownloadEnabled && currentImages.length > 0 && (
           <div className="flex justify-center mb-6">
-            <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode)}>
+            <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode, downloadUrls['selected'])}>
               <Download className="mr-2 h-4 w-4" />Download All Selected
             </Button>
           </div>
@@ -525,11 +532,11 @@ export default function Gallery() {
         {viewMode === 'final' && gallery.finalDownloadEnabled && currentImages.length > 0 && (
           <div className="flex flex-wrap justify-center gap-3 mb-6">
             {selectedFinalImages.length > 0 && (
-              <Button size="sm" onClick={() => triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode)} className="bg-gradient-to-r from-primary to-secondary text-white">
+              <Button size="sm" onClick={() => triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode, downloadUrls['final'])} className="bg-gradient-to-r from-primary to-secondary text-white">
                 <Download className="mr-2 h-4 w-4" />Download Selected ({selectedFinalImages.length})
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode)}>
+            <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode, downloadUrls['final'])}>
               <Download className="mr-2 h-4 w-4" />Download All ({currentImages.length})
             </Button>
           </div>

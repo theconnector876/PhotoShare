@@ -664,7 +664,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || null;
       storage.logGalleryAccess(gallery.id, email || null, ip, req.headers['user-agent'] || null).catch(() => {});
-      res.json(gallery);
+
+      // Pre-generate Cloudinary archive URLs synchronously — no extra DB or network call needed.
+      // These are stored client-side so button clicks open the URL immediately (no server round-trip).
+      const downloadUrls: Record<string, string> = {};
+      try {
+        const cfg = getCloudinarySignedConfig();
+        if (cfg) {
+          cloudinary.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
+
+          const galleryImages: string[] = gallery.galleryImages || [];
+          if (gallery.galleryDownloadEnabled && galleryImages.length > 0 && galleryImages.every((u: string) => u.includes('res.cloudinary.com'))) {
+            downloadUrls.gallery = (cloudinary.utils as any).download_zip_url({
+              prefixes: [`galleries/${gallery.id}`],
+              resource_type: 'image',
+            });
+          }
+
+          const emailSels: Record<string, string[]> = gallery.emailSelections || {};
+          const resolvedSelected: string[] = (email && emailSels[email]) ? emailSels[email] : (gallery.selectedImages || []);
+          if (gallery.selectedDownloadEnabled && resolvedSelected.length > 0 && resolvedSelected.every((u: string) => u.includes('res.cloudinary.com'))) {
+            const publicIds = resolvedSelected.map((url: string) => {
+              const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+              return m ? m[1] : url;
+            });
+            downloadUrls.selected = (cloudinary.utils as any).download_zip_url({ public_ids: publicIds, resource_type: 'image' });
+          }
+
+          const finalImages: string[] = gallery.finalImages || [];
+          if (gallery.finalDownloadEnabled && finalImages.length > 0 && finalImages.every((u: string) => u.includes('res.cloudinary.com'))) {
+            const publicIds = finalImages.map((url: string) => {
+              const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+              return m ? m[1] : url;
+            });
+            downloadUrls.final = (cloudinary.utils as any).download_zip_url({ public_ids: publicIds, resource_type: 'image' });
+          }
+        }
+      } catch (e) {
+        console.warn('[gallery/access] download URL pre-gen failed:', (e as any).message);
+      }
+
+      res.json({ ...gallery, downloadUrls });
     } catch (error) {
       res.status(500).json({ error: "Failed to access gallery" });
     }
