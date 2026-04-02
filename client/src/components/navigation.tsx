@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Camera, Menu, LogOut, ChevronDown, Bell, BellOff } from "lucide-react";
+import { Menu, LogOut, ChevronDown, Bell, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -23,7 +23,6 @@ export default function Navigation() {
     { href: "/", label: "Home" },
     { href: "/portfolio", label: "Portfolio" },
     { href: "/blog", label: "Blog" },
-    { href: "/booking", label: "Book Now" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },
   ];
@@ -36,10 +35,7 @@ export default function Navigation() {
     ...publicNavItems,
     dashboardLink,
     ...(user.isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
-  ] : [
-    ...publicNavItems,
-    { href: "/auth", label: "Login" },
-  ];
+  ] : publicNavItems;
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -48,168 +44,258 @@ export default function Navigation() {
 
   const NavLink = ({ href, label, mobile = false }: { href: string; label: string; mobile?: boolean }) => {
     const isActive = location === href;
-    const baseClasses = mobile 
-      ? "block px-3 py-2 text-lg font-medium transition-colors duration-300"
-      : "nav-link relative px-2 py-2 text-sm font-medium text-foreground transition-all duration-300 magnetic-btn whitespace-nowrap";
-    
-    const activeClasses = isActive 
-      ? "text-primary" 
-      : mobile 
-        ? "text-muted-foreground hover:text-primary" 
-        : "hover:text-primary";
-
+    if (mobile) {
+      return (
+        <Link href={href}>
+          <span
+            className={`flex items-center px-4 py-3 text-[15px] font-medium rounded-xl transition-colors ${
+              isActive ? "bg-amber-500/10 text-amber-400" : "text-white/65 hover:text-white hover:bg-white/5"
+            }`}
+            onClick={() => setIsOpen(false)}
+          >
+            {label}
+          </span>
+        </Link>
+      );
+    }
     return (
       <Link href={href}>
-        <span className={`${baseClasses} ${activeClasses}`} onClick={() => mobile && setIsOpen(false)}>
+        <span
+          className={`text-[13px] font-medium transition-colors whitespace-nowrap ${
+            isActive ? "text-amber-400" : "text-white/55 hover:text-white"
+          }`}
+        >
           {label}
-          {!mobile && <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-jamaica-green to-jamaica-yellow transition-all duration-300 group-hover:w-full"></span>}
         </span>
       </Link>
     );
   };
 
   return (
-    <nav className="fixed top-0 w-full bg-card/80 backdrop-blur-lg border-b border-border z-50 transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+    <nav className="fixed top-0 w-full z-50 bg-black/85 backdrop-blur-2xl border-b border-white/[0.06]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-14">
+
+          {/* ── Logo ── */}
           <Link href="/">
-            <div className="flex items-center space-x-4 cursor-pointer group" data-testid="logo-link">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center group-hover:rotate-12 transition-transform duration-300 overflow-hidden">
-                <img src="/logo-white.png" alt="ConnectAGrapher" className="w-16 h-16 object-contain scale-[1.8]" />
+            <div className="flex items-center gap-2.5 cursor-pointer shrink-0" data-testid="logo-link">
+              <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-500/20">
+                <img src="/logo-white.png" alt={config.branding.appName} className="w-12 h-12 object-contain scale-[1.6]" />
               </div>
-              <span className="text-xl font-bold gradient-text font-serif">{config.branding.appName}</span>
+              <span className="text-white font-bold text-[15px] tracking-tight">{config.branding.appName}</span>
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-4">
-            {authNavItems.map((item) => (
-              <NavLink key={item.href} {...item} />
-            ))}
-            {/* Currency Switcher */}
+          {/* ── Desktop nav links ── */}
+          <div className="hidden md:flex items-center gap-5">
+            {authNavItems.map(item => <NavLink key={item.href} {...item} />)}
+          </div>
+
+          {/* ── Desktop right actions ── */}
+          <div className="hidden md:flex items-center gap-2">
+            {/* Currency switcher */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-xs font-medium gap-1 px-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-[12px] text-white/45 hover:text-white hover:bg-white/6 gap-1 px-2.5 rounded-lg"
+                >
                   {CURRENCY_SYMBOLS[selectedCurrency]} {selectedCurrency}
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[140px]">
+              <DropdownMenuContent
+                align="end"
+                className="min-w-[140px] bg-[#141414] border-white/8 rounded-xl p-1"
+              >
                 {SUPPORTED_CURRENCIES.map((c) => (
                   <DropdownMenuItem
                     key={c}
                     onClick={() => setCurrency(c as Currency)}
-                    className={selectedCurrency === c ? "font-semibold bg-accent" : ""}
+                    className={`rounded-lg text-sm cursor-pointer ${
+                      selectedCurrency === c ? "text-amber-400 bg-amber-500/8" : "text-white/70 hover:text-white hover:bg-white/5"
+                    }`}
                   >
                     {CURRENCY_SYMBOLS[c as Currency]} {c}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            {user && pushSupported && permission !== 'denied' && (
+
+            {/* Push notifications */}
+            {user && pushSupported && permission !== "denied" && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-8 h-8"
+                    className="w-8 h-8 rounded-lg text-white/45 hover:text-white hover:bg-white/6"
                     disabled={pushLoading}
                     onClick={subscribed ? unsubscribe : subscribe}
-                    aria-label={subscribed ? 'Disable notifications' : 'Enable notifications'}
+                    aria-label={subscribed ? "Disable notifications" : "Enable notifications"}
                   >
-                    {subscribed ? <Bell className="w-4 h-4 text-primary" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
+                    {subscribed
+                      ? <Bell className="w-[15px] h-[15px] text-amber-400" />
+                      : <BellOff className="w-[15px] h-[15px]" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{subscribed ? 'Notifications on — click to disable' : 'Enable push notifications'}</TooltipContent>
+                <TooltipContent className="bg-[#1a1a1a] text-white border-white/10 text-xs">
+                  {subscribed ? "Notifications on — click to disable" : "Enable push notifications"}
+                </TooltipContent>
               </Tooltip>
             )}
-            {user && (
-              <div className="flex items-center gap-3 pl-2 border-l border-border/60">
-                <span className="text-xs text-muted-foreground hidden lg:inline">
+
+            {/* Logged-in user / login */}
+            {user ? (
+              <div className="flex items-center gap-2 pl-2 border-l border-white/8">
+                <span className="text-[11px] text-white/35 hidden lg:inline">
                   Hi, {user.firstName || user.email}
                 </span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={handleLogout}
                   disabled={logoutMutation.isPending}
+                  className="h-8 text-[12px] text-white/45 hover:text-white hover:bg-white/6 rounded-lg"
                   data-testid="button-logout"
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  {logoutMutation.isPending ? "Logging out..." : "Logout"}
+                  <LogOut className="w-3.5 h-3.5 mr-1.5" />
+                  {logoutMutation.isPending ? "Logging out…" : "Logout"}
                 </Button>
               </div>
+            ) : (
+              <Link href="/auth">
+                <Button
+                  size="sm"
+                  className="h-8 text-[12px] bg-white/8 hover:bg-white/12 text-white border-0 rounded-full px-4"
+                >
+                  Login
+                </Button>
+              </Link>
             )}
+
+            {/* Book Now CTA */}
+            <Link href="/booking" data-testid="nav-book-now">
+              <Button
+                size="sm"
+                className="h-8 text-[12px] bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full px-5 shadow-md shadow-amber-500/20 transition-all"
+              >
+                Book Now
+              </Button>
+            </Link>
           </div>
 
-          {/* Mobile Navigation */}
-          <div className="md:hidden">
+          {/* ── Mobile ── */}
+          <div className="md:hidden flex items-center gap-2">
+            <Link href="/booking">
+              <Button
+                size="sm"
+                className="h-7 text-[12px] bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full px-3.5"
+              >
+                Book
+              </Button>
+            </Link>
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-foreground hover:text-primary magnetic-btn" data-testid="mobile-menu-button">
-                  <Menu className="h-6 w-6" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-8 h-8 rounded-lg text-white/60 hover:text-white hover:bg-white/6"
+                  data-testid="mobile-menu-button"
+                >
+                  <Menu className="h-[18px] w-[18px]" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-                <div className="flex flex-col space-y-4 mt-8">
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow flex items-center justify-center overflow-hidden">
-                        <img src="/logo-white.png" alt="ConnectAGrapher" className="w-14 h-14 object-contain scale-[1.8]" />
-                      </div>
-                      <span className="text-lg font-bold gradient-text font-serif">{config.branding.appName}</span>
+              <SheetContent side="right" className="w-[270px] bg-[#0d0d0d] border-white/[0.06] p-0">
+                <div className="flex flex-col h-full">
+                  {/* Header */}
+                  <div className="flex items-center gap-2.5 px-4 py-4 border-b border-white/[0.06]">
+                    <div className="w-7 h-7 rounded-[9px] bg-amber-500 flex items-center justify-center overflow-hidden">
+                      <img src="/logo-white.png" alt={config.branding.appName} className="w-10 h-10 object-contain scale-[1.6]" />
                     </div>
+                    <span className="text-white font-semibold text-[14px]">{config.branding.appName}</span>
                   </div>
-                  
-                  {authNavItems.map((item) => (
-                    <NavLink key={item.href} {...item} mobile />
-                  ))}
-                  
-                  {user && (
-                    <div className="pt-4 border-t border-border space-y-2">
-                      <div className="mb-2 text-sm text-muted-foreground">
-                        Hi, {user.firstName || user.email}
-                      </div>
-                      {pushSupported && permission !== 'denied' && (
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                          disabled={pushLoading}
-                          onClick={subscribed ? unsubscribe : subscribe}
-                        >
-                          {subscribed ? <Bell className="w-4 h-4 mr-2 text-primary" /> : <BellOff className="w-4 h-4 mr-2" />}
-                          {subscribed ? 'Notifications on' : 'Enable notifications'}
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleLogout}
-                        disabled={logoutMutation.isPending}
-                        data-testid="mobile-logout-button"
-                      >
-                        <LogOut className="w-4 h-4 mr-2" />
-                        {logoutMutation.isPending ? "Logging out..." : "Logout"}
-                      </Button>
-                    </div>
-                  )}
 
-                  <div className="pt-6 border-t border-border">
+                  {/* Nav items */}
+                  <div className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+                    {authNavItems.map(item => <NavLink key={item.href} {...item} mobile />)}
                     <Link href="/gallery">
-                      <Button 
-                        className="w-full bg-gradient-to-r from-jamaica-green to-jamaica-yellow text-white font-semibold magnetic-btn"
+                      <span
+                        className="flex items-center px-4 py-3 text-[15px] font-medium rounded-xl text-white/65 hover:text-white hover:bg-white/5 transition-colors"
                         onClick={() => setIsOpen(false)}
                         data-testid="mobile-gallery-access-button"
                       >
                         Gallery Access
-                      </Button>
+                      </span>
                     </Link>
                   </div>
+
+                  {/* Currency (mobile) */}
+                  <div className="px-3 pb-2 border-t border-white/[0.06] pt-3">
+                    <p className="text-white/30 text-[11px] uppercase tracking-wider px-4 mb-2">Currency</p>
+                    <div className="flex flex-wrap gap-1.5 px-2">
+                      {SUPPORTED_CURRENCIES.map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setCurrency(c as Currency)}
+                          className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors ${
+                            selectedCurrency === c
+                              ? "bg-amber-500 text-black"
+                              : "bg-white/6 text-white/60 hover:bg-white/10"
+                          }`}
+                        >
+                          {CURRENCY_SYMBOLS[c as Currency]} {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* User actions */}
+                  {user ? (
+                    <div className="px-3 pb-4 border-t border-white/[0.06] pt-3 space-y-1">
+                      <p className="text-white/30 text-[11px] px-4 mb-2">
+                        Hi, {user.firstName || user.email}
+                      </p>
+                      {pushSupported && permission !== "denied" && (
+                        <button
+                          onClick={subscribed ? unsubscribe : subscribe}
+                          disabled={pushLoading}
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/65 hover:text-white hover:bg-white/5 text-[14px] transition-colors"
+                        >
+                          {subscribed
+                            ? <Bell className="w-4 h-4 text-amber-400" />
+                            : <BellOff className="w-4 h-4" />}
+                          {subscribed ? "Notifications on" : "Enable notifications"}
+                        </button>
+                      )}
+                      <button
+                        onClick={handleLogout}
+                        disabled={logoutMutation.isPending}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/65 hover:text-white hover:bg-white/5 text-[14px] transition-colors"
+                        data-testid="mobile-logout-button"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        {logoutMutation.isPending ? "Logging out…" : "Logout"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="px-3 pb-4 border-t border-white/[0.06] pt-3">
+                      <Link href="/auth">
+                        <Button
+                          className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Login / Register
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </SheetContent>
             </Sheet>
           </div>
+
         </div>
       </div>
     </nav>

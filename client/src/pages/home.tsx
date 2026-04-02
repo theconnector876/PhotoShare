@@ -2,8 +2,7 @@ import { Link } from "wouter";
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Camera, Heart, Users, ChevronDown, BookOpen, ArrowRight, Calendar } from "lucide-react";
+import { Camera, Heart, Users, ArrowRight, BookOpen, Calendar, Star } from "lucide-react";
 import PortfolioGrid from "@/components/portfolio-grid";
 import ReviewDisplay from "@/components/review-display";
 import { useSiteConfig } from "@/context/site-config";
@@ -11,17 +10,35 @@ import { AdminSectionEdit } from "@/components/admin-section-edit";
 import { AdminInlineEditor } from "@/components/admin-inline-editor";
 import { useQuery } from "@tanstack/react-query";
 
+const SERVICE_COLORS = [
+  "from-amber-950 to-amber-900/50 border-amber-800/30",
+  "from-blue-950 to-blue-900/50 border-blue-800/30",
+  "from-rose-950 to-rose-900/50 border-rose-800/30",
+  "from-emerald-950 to-emerald-900/50 border-emerald-800/30",
+  "from-violet-950 to-violet-900/50 border-violet-800/30",
+];
+const SERVICE_ICONS = [
+  <Users className="w-5 h-5" />,
+  <Heart className="w-5 h-5" />,
+  <Camera className="w-5 h-5" />,
+  <Camera className="w-5 h-5" />,
+  <Camera className="w-5 h-5" />,
+];
+const SERVICE_ACCENT = [
+  "text-amber-400",
+  "text-blue-400",
+  "text-rose-400",
+  "text-emerald-400",
+  "text-violet-400",
+];
+
 export default function Home() {
   const { config } = useSiteConfig();
   const { home, layout } = config;
   const [editorSection, setEditorSection] = useState<string | null>(null);
 
   const hiddenSections = new Set(layout.home.hiddenSections);
-  const orderedSections = layout.home.sectionOrder.filter((section) => !hiddenSections.has(section));
-
-  const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const orderedSections = layout.home.sectionOrder.filter((s) => !hiddenSections.has(s));
 
   const { data: blogPreviews = [] } = useQuery<any[]>({
     queryKey: ["/api/blog", { page: 1, limit: 3 }],
@@ -32,224 +49,250 @@ export default function Home() {
     },
   });
 
-  const sections: Record<string, JSX.Element> = {
-    hero: (
-      <section id="section-home-hero" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-        <div className="absolute bottom-6 right-6 z-30">
-          <AdminSectionEdit
-            sectionId="site-home-hero"
-            label="Edit Hero"
-            onEdit={(id) => setEditorSection(id)}
-          />
-        </div>
-        <div className="absolute inset-0 z-0">
-          <img 
-            src={home.hero.coverImage}
-            alt={home.hero.subtitle}
-            className="w-full h-full object-cover" 
-          />
-          <div className="absolute inset-0 hero-overlay"></div>
-        </div>
-        
-        <div className="relative z-10 text-center text-white max-w-4xl mx-auto px-4">
-          <h1 className="text-5xl md:text-7xl font-bold font-serif mb-6 slide-in-up" data-testid="hero-title">
+  // ── Section: Hero ──────────────────────────────────────────────────────────
+  const heroSection = (
+    <section id="section-home-hero" className="relative px-4 pt-4 pb-2 md:px-6">
+      <div className="absolute top-7 right-7 z-20">
+        <AdminSectionEdit sectionId="site-home-hero" label="Edit Hero" onEdit={setEditorSection} />
+      </div>
+
+      {/* Featured card */}
+      <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: 500 }}>
+        <img
+          src={home.hero.coverImage}
+          alt={home.hero.subtitle}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        {/* Layered gradients for depth */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+
+        {/* Text content */}
+        <div className="relative z-10 flex flex-col justify-end h-full p-6 md:p-10" style={{ minHeight: 500 }}>
+          <p className="text-amber-400 text-[11px] font-bold uppercase tracking-[0.2em] mb-2" data-testid="hero-eyebrow">
+            Featured
+          </p>
+          <h1
+            className="text-white text-4xl md:text-6xl font-black leading-[1.05] mb-3 tracking-tight"
+            data-testid="hero-title"
+          >
             {home.hero.title}
-            <span className="gradient-text typewriter block mt-2">{home.hero.highlight}</span>
+            {home.hero.highlight && (
+              <span className="block text-amber-400 mt-1">{home.hero.highlight}</span>
+            )}
           </h1>
-          <p className="text-xl md:text-2xl mb-8 slide-in-up stagger-1 text-white/90" data-testid="hero-subtitle">
+          <p className="text-white/55 text-sm md:text-base mb-6 max-w-md leading-relaxed" data-testid="hero-subtitle">
             {home.hero.subtitle}
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center slide-in-up stagger-2">
+          <div className="flex flex-wrap gap-3">
             <Link href={home.hero.primaryCtaHref} data-testid="link-book-session">
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-4 rounded-lg font-semibold text-lg magnetic-btn animate-glow" data-testid="button-book-session">
-                <i className="fas fa-calendar-plus mr-2"></i>
+              <Button
+                className="bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full px-7 py-2.5 text-[13px] shadow-xl shadow-amber-500/25 transition-all active:scale-95"
+                data-testid="button-book-session"
+              >
                 {home.hero.primaryCtaLabel}
               </Button>
             </Link>
             <Link href={home.hero.secondaryCtaHref} data-testid="link-view-portfolio-hero">
-              <Button variant="outline" className="border-2 border-primary bg-primary/10 text-primary hover:bg-primary hover:text-white px-8 py-4 rounded-lg font-semibold text-lg magnetic-btn" data-testid="button-view-portfolio">
-                <i className="fas fa-images mr-2"></i>
+              <Button
+                variant="outline"
+                className="border-white/20 bg-white/8 text-white hover:bg-white/15 rounded-full px-7 py-2.5 text-[13px] backdrop-blur-sm transition-all active:scale-95"
+                data-testid="button-view-portfolio"
+              >
                 {home.hero.secondaryCtaLabel}
               </Button>
             </Link>
           </div>
         </div>
+      </div>
+    </section>
+  );
 
-        <div 
-          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white animate-bounce cursor-pointer"
-          onClick={() => scrollToSection('services')}
-          data-testid="scroll-indicator"
-        >
-          <ChevronDown className="text-2xl" />
-        </div>
-      </section>
-    ),
-    services: (
-      <section id="services" className="py-20 bg-muted relative z-10">
+  // ── Section: Services ──────────────────────────────────────────────────────
+  const servicesSection = (
+    <section id="services" className="px-4 py-6 md:px-6 relative z-10">
+      <div className="max-w-7xl mx-auto">
         <div className="absolute top-6 right-6">
-          <AdminSectionEdit
-            sectionId="site-home-services"
-            label="Edit Services"
-            onEdit={(id) => setEditorSection(id)}
-          />
+          <AdminSectionEdit sectionId="site-home-services" label="Edit Services" onEdit={setEditorSection} />
         </div>
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold font-serif mb-4 gradient-text" data-testid="services-title">
-              {home.services.title}
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              {home.services.subtitle}
-            </p>
-          </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {home.services.items.map((item, index) => (
-              <Link key={`${item.title}-${index}`} href={item.href} data-testid={`link-service-${index}`}>
-                <Card className="package-card rounded-2xl p-8 hover-3d cursor-pointer group" data-testid={`service-${index}`}>
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-accent to-primary rounded-full flex items-center justify-center mx-auto mb-6 group-hover:rotate-12 transition-transform duration-300">
-                      {index === 0 && <Users className="text-white text-2xl" />}
-                      {index === 1 && <Heart className="text-white text-2xl" />}
-                      {index === 2 && <Camera className="text-white text-2xl" />}
-                      {index > 2 && <Camera className="text-white text-2xl" />}
-                    </div>
-                    <h3 className="text-2xl font-bold mb-4 font-serif">{item.title}</h3>
-                    <p className="text-muted-foreground mb-6">{item.description}</p>
-                    <div className="text-sm text-muted-foreground">
-                      <span className="text-2xl font-bold text-accent">{item.priceLabel}</span>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
+        <div className="flex items-baseline justify-between mb-1">
+          <h2 className="text-[22px] font-bold text-white tracking-tight" data-testid="services-title">
+            {home.services.title}
+          </h2>
+          <Link href="/booking">
+            <span className="text-[13px] text-white/35 hover:text-amber-400 transition-colors">See All →</span>
+          </Link>
         </div>
-      </section>
-    ),
-    portfolio: (
-      <section id="section-home-portfolio" className="py-20 bg-background relative z-10">
-        <div className="absolute top-6 right-6">
-          <AdminSectionEdit
-            sectionId="site-home-portfolio"
-            label="Edit Portfolio"
-            onEdit={(id) => setEditorSection(id)}
-          />
-        </div>
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold font-serif mb-4 gradient-text" data-testid="portfolio-title">
-              {home.portfolio.title}
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              {home.portfolio.subtitle}
-            </p>
-          </div>
+        {home.services.subtitle && (
+          <p className="text-white/35 text-[13px] mb-5">{home.services.subtitle}</p>
+        )}
 
-          <PortfolioGrid preview />
-
-          <div className="text-center mt-12">
-            <Link href="/portfolio" data-testid="link-view-portfolio">
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-view-full-portfolio">
-                <i className="fas fa-eye mr-2"></i>
-                View Full Portfolio
-              </Button>
+        <div className="grid grid-cols-2 gap-3">
+          {home.services.items.map((item, i) => (
+            <Link key={`${item.title}-${i}`} href={item.href} data-testid={`link-service-${i}`}>
+              <div
+                className={`relative rounded-2xl overflow-hidden bg-gradient-to-br border ${SERVICE_COLORS[i % SERVICE_COLORS.length]} p-5 cursor-pointer active:scale-[0.97] transition-transform`}
+                style={{ minHeight: 160 }}
+                data-testid={`service-${i}`}
+              >
+                {/* Icon top-right */}
+                <div className={`absolute top-3 right-3 ${SERVICE_ACCENT[i % SERVICE_ACCENT.length]} opacity-50`}>
+                  {SERVICE_ICONS[i % SERVICE_ICONS.length]}
+                </div>
+                <div className="flex flex-col justify-end h-full" style={{ minHeight: 120 }}>
+                  <h3 className="text-white font-bold text-[15px] leading-tight mb-1">{item.title}</h3>
+                  <p className="text-white/40 text-[11px] line-clamp-2 mb-2 leading-relaxed">{item.description}</p>
+                  <span className={`text-[12px] font-bold ${SERVICE_ACCENT[i % SERVICE_ACCENT.length]}`}>
+                    {item.priceLabel}
+                  </span>
+                </div>
+              </div>
             </Link>
-          </div>
+          ))}
         </div>
-      </section>
-    ),
-    reviews: (
-      <section id="section-home-reviews" className="py-20 bg-muted/50 relative z-10">
+      </div>
+    </section>
+  );
+
+  // ── Section: Portfolio ─────────────────────────────────────────────────────
+  const portfolioSection = (
+    <section id="section-home-portfolio" className="px-4 py-6 md:px-6 relative z-10">
+      <div className="max-w-7xl mx-auto">
         <div className="absolute top-6 right-6">
-          <AdminSectionEdit
-            sectionId="site-home-reviews"
-            label="Edit Reviews"
-            onEdit={(id) => setEditorSection(id)}
-          />
+          <AdminSectionEdit sectionId="site-home-portfolio" label="Edit Portfolio" onEdit={setEditorSection} />
         </div>
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold font-serif mb-4 gradient-text" data-testid="reviews-title">
+        <div className="flex items-baseline justify-between mb-5">
+          <h2 className="text-[22px] font-bold text-white tracking-tight" data-testid="portfolio-title">
+            {home.portfolio.title}
+          </h2>
+          <Link href="/portfolio">
+            <span className="text-[13px] text-white/35 hover:text-amber-400 transition-colors">See All →</span>
+          </Link>
+        </div>
+        {home.portfolio.subtitle && (
+          <p className="text-white/35 text-[13px] -mt-3 mb-5">{home.portfolio.subtitle}</p>
+        )}
+
+        <PortfolioGrid preview />
+
+        <div className="mt-6 flex justify-center">
+          <Link href="/portfolio" data-testid="link-view-portfolio">
+            <Button
+              className="bg-[#1c1c1e] hover:bg-[#2a2a2a] text-white rounded-full px-7 py-2.5 text-[13px] font-semibold border border-white/8 transition-all active:scale-95"
+              data-testid="button-view-full-portfolio"
+            >
+              View Full Portfolio
+              <ArrowRight className="w-3.5 h-3.5 ml-2" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+
+  // ── Section: Reviews ──────────────────────────────────────────────────────
+  const reviewsSection = (
+    <section id="section-home-reviews" className="px-4 py-6 md:px-6 relative z-10">
+      <div className="max-w-6xl mx-auto">
+        <div className="absolute top-6 right-6">
+          <AdminSectionEdit sectionId="site-home-reviews" label="Edit Reviews" onEdit={setEditorSection} />
+        </div>
+        <div className="flex items-baseline justify-between mb-5">
+          <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              ))}
+            </div>
+            <h2 className="text-[22px] font-bold text-white tracking-tight" data-testid="reviews-title">
               {home.reviews.title}
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              {home.reviews.subtitle}
-            </p>
+          </div>
+        </div>
+        {home.reviews.subtitle && (
+          <p className="text-white/35 text-[13px] -mt-3 mb-5">{home.reviews.subtitle}</p>
+        )}
+        <ReviewDisplay type="general" limit={3} showSubmitForm={true} />
+      </div>
+    </section>
+  );
+
+  // ── Section: Blog ──────────────────────────────────────────────────────────
+  const blogSection =
+    blogPreviews.length > 0 ? (
+      <section className="px-4 py-6 md:px-6 relative z-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-baseline justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-amber-400" />
+              <h2 className="text-[22px] font-bold text-white tracking-tight">From the Blog</h2>
+            </div>
+            <Link href="/blog">
+              <span className="text-[13px] text-white/35 hover:text-amber-400 transition-colors">See All →</span>
+            </Link>
           </div>
 
-          <ReviewDisplay
-            type="general"
-            limit={3}
-            showSubmitForm={true}
-          />
-        </div>
-      </section>
-    ),
-    blog: blogPreviews.length > 0 ? (
-      <section className="py-20 bg-muted/20 relative z-10">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <BookOpen className="h-6 w-6 text-primary" />
-            </div>
-            <h2 className="text-4xl md:text-5xl font-bold font-serif mb-4 gradient-text">
-              Latest from the Blog
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Photography tips, inspiration, and behind-the-scenes stories.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {blogPreviews.map((post: any) => (
+          <div className="space-y-3">
+            {blogPreviews.map((post: any, i: number) => (
               <Link key={post.id} href={`/blog/${post.slug}`}>
-                <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer h-full">
+                <div className="flex gap-4 p-4 rounded-2xl bg-[#111111] border border-white/[0.06] hover:border-white/10 active:scale-[0.98] transition-all cursor-pointer">
                   {post.coverImage ? (
-                    <div className="h-48 overflow-hidden">
-                      <img
-                        src={post.coverImage}
-                        alt={post.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        loading="lazy"
-                      />
-                    </div>
+                    <img
+                      src={post.coverImage}
+                      alt={post.title}
+                      className="w-20 h-20 rounded-xl object-cover shrink-0"
+                      loading="lazy"
+                    />
                   ) : (
-                    <div className="h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                      <BookOpen className="h-10 w-10 text-primary/30" />
+                    <div className="w-20 h-20 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                      <BookOpen className="w-7 h-7 text-amber-400/40" />
                     </div>
                   )}
-                  <CardContent className="p-4">
-                    <h3 className="font-bold text-base leading-snug mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                  <div className="flex flex-col justify-center min-w-0">
+                    <p className="text-[11px] text-white/30 mb-1 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {new Date(post.publishedAt || post.createdAt).toLocaleDateString("en-US", {
+                        month: "short", day: "numeric", year: "numeric",
+                      })}
+                    </p>
+                    <h3 className="text-white font-semibold text-[14px] leading-snug line-clamp-2 mb-1">
                       {post.title}
                     </h3>
                     {post.excerpt && (
-                      <p className="text-muted-foreground text-sm line-clamp-2 mb-3">{post.excerpt}</p>
+                      <p className="text-white/35 text-[12px] line-clamp-1">{post.excerpt}</p>
                     )}
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(post.publishedAt || post.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </span>
-                      <span className="flex items-center gap-1 text-primary font-medium">
-                        Read <ArrowRight className="h-3 w-3" />
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="shrink-0 flex items-center self-center">
+                    <ArrowRight className="w-4 h-4 text-white/20" />
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
-          <div className="text-center">
+
+          <div className="mt-5 flex justify-center">
             <Link href="/blog">
-              <Button variant="outline" className="gap-2 magnetic-btn">
+              <Button
+                variant="outline"
+                className="rounded-full px-7 py-2.5 text-[13px] font-semibold border-white/10 text-white/60 hover:text-white hover:border-white/20 bg-transparent transition-all active:scale-95"
+              >
                 View All Posts
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="w-3.5 h-3.5 ml-2" />
               </Button>
             </Link>
           </div>
         </div>
       </section>
-    ) : <></>,
+    ) : null;
+
+  // ── Section map ───────────────────────────────────────────────────────────
+  const sections: Record<string, JSX.Element | null> = {
+    hero: heroSection,
+    services: servicesSection,
+    portfolio: portfolioSection,
+    reviews: reviewsSection,
+    blog: blogSection,
   };
 
   const appName = config.branding?.appName || "ConnectAGrapher";
@@ -257,73 +300,59 @@ export default function Home() {
 
   return (
     <>
-    <Helmet>
-      <title>{appName} | Professional Photography & Videography</title>
-      <meta name="description" content={siteDesc} />
-      <link rel="canonical" href="https://www.connectagrapher.com/" />
-      <meta property="og:title" content={`${appName} | Professional Photography`} />
-      <meta property="og:description" content={siteDesc} />
-      <meta property="og:type" content="website" />
-      <meta property="og:url" content="https://www.connectagrapher.com/" />
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={`${appName} | Professional Photography`} />
-      <meta name="twitter:description" content={siteDesc} />
-      <script type="application/ld+json">{JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "LocalBusiness",
-        "@id": "https://www.connectagrapher.com/",
-        name: appName,
-        description: siteDesc,
-        url: "https://www.connectagrapher.com/",
-        telephone: "+1-876-000-0000",
-        address: {
-          "@type": "PostalAddress",
-          addressCountry: "JM",
-          addressRegion: "Kingston",
-        },
-        geo: {
-          "@type": "GeoCoordinates",
-          latitude: 17.9714,
-          longitude: -76.7936,
-        },
-        openingHoursSpecification: {
-          "@type": "OpeningHoursSpecification",
-          dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
-          opens: "08:00",
-          closes: "20:00",
-        },
-        priceRange: "$$",
-        image: "https://www.connectagrapher.com/logo.png",
-        sameAs: [],
-      })}</script>
-    </Helmet>
-    <div className="relative z-10">
+      <Helmet>
+        <title>{appName} | Professional Photography & Videography</title>
+        <meta name="description" content={siteDesc} />
+        <link rel="canonical" href="https://www.connectagrapher.com/" />
+        <meta property="og:title" content={`${appName} | Professional Photography`} />
+        <meta property="og:description" content={siteDesc} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.connectagrapher.com/" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "LocalBusiness",
+          "@id": "https://www.connectagrapher.com/",
+          name: appName,
+          description: siteDesc,
+          url: "https://www.connectagrapher.com/",
+          telephone: "+1-876-000-0000",
+          address: { "@type": "PostalAddress", addressCountry: "JM", addressRegion: "Kingston" },
+          geo: { "@type": "GeoCoordinates", latitude: 17.9714, longitude: -76.7936 },
+          priceRange: "$$",
+          image: "https://www.connectagrapher.com/logo.png",
+        })}</script>
+      </Helmet>
+
       <AdminInlineEditor
         open={!!editorSection}
         sectionId={editorSection}
         focusSection={editorSection}
-        onOpenChange={(open) => {
-          if (!open) setEditorSection(null);
-        }}
+        onOpenChange={(open) => { if (!open) setEditorSection(null); }}
       />
-      {orderedSections.map((sectionKey) => (
-        <div key={sectionKey}>{sections[sectionKey]}</div>
-      ))}
 
+      {/* Page wrapper — pt-14 to clear fixed nav */}
+      <div className="relative z-10 pt-14 pb-8">
+        {orderedSections.map((key) => {
+          const el = sections[key];
+          return el ? <div key={key}>{el}</div> : null;
+        })}
+      </div>
+
+      {/* Floating Book CTA */}
       {!hiddenSections.has("floatingCta") && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-6 right-5 z-50">
           <Link href="/booking" data-testid="link-floating-book">
-            <Button 
-              className="bg-gradient-to-r from-primary to-secondary text-white p-4 rounded-full shadow-2xl magnetic-btn animate-glow" 
-              size="icon"
+            <Button
+              className="bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full px-5 py-3 shadow-2xl shadow-amber-500/30 text-[13px] active:scale-95 transition-all"
               data-testid="floating-book-button"
             >
-              <i className="fas fa-calendar-plus text-xl"></i>
+              <Calendar className="w-4 h-4 mr-2" />
+              Book Now
             </Button>
           </Link>
         </div>
       )}
-    </div>
     </>
   );
 }

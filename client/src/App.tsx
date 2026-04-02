@@ -11,7 +11,6 @@ import { ProtectedRoute } from "@/lib/protected-route";
 import { HelmetProvider } from "react-helmet-async";
 import { Analytics } from "@vercel/analytics/react";
 import Navigation from "@/components/navigation";
-import ConstellationBackground from "@/components/constellation-background";
 import { useNativePush } from "@/hooks/use-native-push";
 
 // Lazy-loaded pages — each splits into its own chunk, only loaded when visited
@@ -90,19 +89,18 @@ function App() {
           <AuthProvider>
             <NativePushSetup />
             <TooltipProvider>
-              <div className="min-h-screen relative flex flex-col">
-                <ConstellationBackground />
+              <div className="min-h-screen relative flex flex-col bg-black">
                 <Navigation />
                 <div className="flex-1">
                   <Router />
                 </div>
-                <footer className="relative z-10 border-t bg-background/80 backdrop-blur-sm py-4 px-6">
-                  <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+                <footer className="relative z-10 border-t border-white/[0.06] bg-black py-5 px-6">
+                  <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[12px] text-white/30">
                     <span>© {new Date().getFullYear()} ConnectAGrapher. All rights reserved.</span>
-                    <div className="flex gap-4">
-                      <a href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</a>
-                      <a href="/terms" className="hover:text-foreground transition-colors">Terms & Conditions</a>
-                      <a href="/contact" className="hover:text-foreground transition-colors">Contact</a>
+                    <div className="flex gap-5">
+                      <a href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</a>
+                      <a href="/terms" className="hover:text-white/60 transition-colors">Terms & Conditions</a>
+                      <a href="/contact" className="hover:text-white/60 transition-colors">Contact</a>
                     </div>
                   </div>
                 </footer>
