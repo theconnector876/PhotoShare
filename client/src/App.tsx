@@ -1,5 +1,5 @@
 import { Switch, Route } from "wouter";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -80,6 +80,18 @@ function NativePushSetup() {
   return null;
 }
 
+/** Syncs the Tailwind `dark` class on <html> to the OS color scheme. */
+function ThemeSyncer() {
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => document.documentElement.classList.toggle('dark', mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+  return null;
+}
+
 function App() {
   return (
     <HelmetProvider>
@@ -87,20 +99,21 @@ function App() {
         <SiteConfigProvider>
           <CurrencyProvider>
           <AuthProvider>
+            <ThemeSyncer />
             <NativePushSetup />
             <TooltipProvider>
-              <div className="min-h-screen relative flex flex-col bg-black">
+              <div className="min-h-screen relative flex flex-col bg-background">
                 <Navigation />
                 <div className="flex-1">
                   <Router />
                 </div>
-                <footer className="relative z-10 border-t border-white/[0.06] bg-black py-5 px-6">
-                  <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[12px] text-white/30">
+                <footer className="relative z-10 border-t border-border bg-background py-5 px-6">
+                  <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[12px] text-muted-foreground/70">
                     <span>© {new Date().getFullYear()} ConnectAGrapher. All rights reserved.</span>
                     <div className="flex gap-5">
-                      <a href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</a>
-                      <a href="/terms" className="hover:text-white/60 transition-colors">Terms & Conditions</a>
-                      <a href="/contact" className="hover:text-white/60 transition-colors">Contact</a>
+                      <a href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</a>
+                      <a href="/terms" className="hover:text-foreground transition-colors">Terms & Conditions</a>
+                      <a href="/contact" className="hover:text-foreground transition-colors">Contact</a>
                     </div>
                   </div>
                 </footer>

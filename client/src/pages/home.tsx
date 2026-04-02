@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
-import { Camera, Heart, Users, ArrowRight, BookOpen, Calendar, Star } from "lucide-react";
+import { ArrowRight, BookOpen, Calendar, Star } from "lucide-react";
 import PortfolioGrid from "@/components/portfolio-grid";
 import ReviewDisplay from "@/components/review-display";
 import { useSiteConfig } from "@/context/site-config";
@@ -10,27 +10,17 @@ import { AdminSectionEdit } from "@/components/admin-section-edit";
 import { AdminInlineEditor } from "@/components/admin-inline-editor";
 import { useQuery } from "@tanstack/react-query";
 
-const SERVICE_COLORS = [
-  "from-amber-950 to-amber-900/50 border-amber-800/30",
-  "from-blue-950 to-blue-900/50 border-blue-800/30",
-  "from-rose-950 to-rose-900/50 border-rose-800/30",
-  "from-emerald-950 to-emerald-900/50 border-emerald-800/30",
-  "from-violet-950 to-violet-900/50 border-violet-800/30",
+/* ─── App Store–style category palette ──────────────────────── */
+const SERVICE_GRADIENTS = [
+  "from-amber-400 to-orange-500",
+  "from-blue-400 to-indigo-500",
+  "from-rose-400 to-pink-500",
+  "from-emerald-400 to-teal-500",
+  "from-violet-400 to-purple-500",
 ];
-const SERVICE_ICONS = [
-  <Users className="w-5 h-5" />,
-  <Heart className="w-5 h-5" />,
-  <Camera className="w-5 h-5" />,
-  <Camera className="w-5 h-5" />,
-  <Camera className="w-5 h-5" />,
-];
-const SERVICE_ACCENT = [
-  "text-amber-400",
-  "text-blue-400",
-  "text-rose-400",
-  "text-emerald-400",
-  "text-violet-400",
-];
+
+/* Large emoji icons — rendered by OS/browser with natural depth */
+const SERVICE_EMOJIS = ["📸", "💍", "🎉", "👨‍👩‍👧", "🎬"];
 
 export default function Home() {
   const { config } = useSiteConfig();
@@ -56,18 +46,16 @@ export default function Home() {
         <AdminSectionEdit sectionId="site-home-hero" label="Edit Hero" onEdit={setEditorSection} />
       </div>
 
-      {/* Featured card */}
+      {/* Featured card — always dark (image overlay) */}
       <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: 500 }}>
         <img
           src={home.hero.coverImage}
           alt={home.hero.subtitle}
           className="absolute inset-0 w-full h-full object-cover"
         />
-        {/* Layered gradients for depth */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
 
-        {/* Text content */}
         <div className="relative z-10 flex flex-col justify-end h-full p-6 md:p-10" style={{ minHeight: 500 }}>
           <p className="text-amber-400 text-[11px] font-bold uppercase tracking-[0.2em] mb-2" data-testid="hero-eyebrow">
             Featured
@@ -117,39 +105,52 @@ export default function Home() {
         </div>
 
         <div className="flex items-baseline justify-between mb-1">
-          <h2 className="text-[22px] font-bold text-white tracking-tight" data-testid="services-title">
+          <h2 className="text-[22px] font-bold text-foreground tracking-tight" data-testid="services-title">
             {home.services.title}
           </h2>
           <Link href="/booking">
-            <span className="text-[13px] text-white/35 hover:text-amber-400 transition-colors">See All →</span>
+            <span className="text-[13px] text-muted-foreground hover:text-amber-500 transition-colors">See All →</span>
           </Link>
         </div>
         {home.services.subtitle && (
-          <p className="text-white/35 text-[13px] mb-5">{home.services.subtitle}</p>
+          <p className="text-muted-foreground text-[13px] mb-5">{home.services.subtitle}</p>
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          {home.services.items.map((item, i) => (
-            <Link key={`${item.title}-${i}`} href={item.href} data-testid={`link-service-${i}`}>
-              <div
-                className={`relative rounded-2xl overflow-hidden bg-gradient-to-br border ${SERVICE_COLORS[i % SERVICE_COLORS.length]} p-5 cursor-pointer active:scale-[0.97] transition-transform`}
-                style={{ minHeight: 160 }}
-                data-testid={`service-${i}`}
-              >
-                {/* Icon top-right */}
-                <div className={`absolute top-3 right-3 ${SERVICE_ACCENT[i % SERVICE_ACCENT.length]} opacity-50`}>
-                  {SERVICE_ICONS[i % SERVICE_ICONS.length]}
+          {home.services.items.map((item, i) => {
+            const gradient = SERVICE_GRADIENTS[i % SERVICE_GRADIENTS.length];
+            const emoji = SERVICE_EMOJIS[i % SERVICE_EMOJIS.length];
+            return (
+              <Link key={`${item.title}-${i}`} href={item.href} data-testid={`link-service-${i}`}>
+                <div
+                  className={`category-card bg-gradient-to-br ${gradient} p-5`}
+                  data-testid={`service-${i}`}
+                >
+                  {/* 3D emoji icon top-right */}
+                  <div className="flex justify-end mb-2">
+                    <span
+                      className="text-5xl leading-none"
+                      style={{
+                        filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3)) drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+                        display: 'inline-block',
+                        transform: 'translateY(-4px) rotate(-6deg)',
+                      }}
+                      aria-hidden="true"
+                    >
+                      {emoji}
+                    </span>
+                  </div>
+                  <div className="mt-auto">
+                    <h3 className="text-white font-bold text-[15px] leading-tight mb-1 drop-shadow-sm">{item.title}</h3>
+                    <p className="text-white/70 text-[11px] line-clamp-2 mb-2 leading-relaxed">{item.description}</p>
+                    <span className="text-[12px] font-bold text-white/90 bg-black/20 rounded-full px-2 py-0.5">
+                      {item.priceLabel}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col justify-end h-full" style={{ minHeight: 120 }}>
-                  <h3 className="text-white font-bold text-[15px] leading-tight mb-1">{item.title}</h3>
-                  <p className="text-white/40 text-[11px] line-clamp-2 mb-2 leading-relaxed">{item.description}</p>
-                  <span className={`text-[12px] font-bold ${SERVICE_ACCENT[i % SERVICE_ACCENT.length]}`}>
-                    {item.priceLabel}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -163,15 +164,15 @@ export default function Home() {
           <AdminSectionEdit sectionId="site-home-portfolio" label="Edit Portfolio" onEdit={setEditorSection} />
         </div>
         <div className="flex items-baseline justify-between mb-5">
-          <h2 className="text-[22px] font-bold text-white tracking-tight" data-testid="portfolio-title">
+          <h2 className="text-[22px] font-bold text-foreground tracking-tight" data-testid="portfolio-title">
             {home.portfolio.title}
           </h2>
           <Link href="/portfolio">
-            <span className="text-[13px] text-white/35 hover:text-amber-400 transition-colors">See All →</span>
+            <span className="text-[13px] text-muted-foreground hover:text-amber-500 transition-colors">See All →</span>
           </Link>
         </div>
         {home.portfolio.subtitle && (
-          <p className="text-white/35 text-[13px] -mt-3 mb-5">{home.portfolio.subtitle}</p>
+          <p className="text-muted-foreground text-[13px] -mt-3 mb-5">{home.portfolio.subtitle}</p>
         )}
 
         <PortfolioGrid preview />
@@ -179,7 +180,7 @@ export default function Home() {
         <div className="mt-6 flex justify-center">
           <Link href="/portfolio" data-testid="link-view-portfolio">
             <Button
-              className="bg-[#1c1c1e] hover:bg-[#2a2a2a] text-white rounded-full px-7 py-2.5 text-[13px] font-semibold border border-white/8 transition-all active:scale-95"
+              className="bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-full px-7 py-2.5 text-[13px] font-semibold border border-border transition-all active:scale-95"
               data-testid="button-view-full-portfolio"
             >
               View Full Portfolio
@@ -205,13 +206,13 @@ export default function Home() {
                 <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
               ))}
             </div>
-            <h2 className="text-[22px] font-bold text-white tracking-tight" data-testid="reviews-title">
+            <h2 className="text-[22px] font-bold text-foreground tracking-tight" data-testid="reviews-title">
               {home.reviews.title}
             </h2>
           </div>
         </div>
         {home.reviews.subtitle && (
-          <p className="text-white/35 text-[13px] -mt-3 mb-5">{home.reviews.subtitle}</p>
+          <p className="text-muted-foreground text-[13px] -mt-3 mb-5">{home.reviews.subtitle}</p>
         )}
         <ReviewDisplay type="general" limit={3} showSubmitForm={true} />
       </div>
@@ -225,18 +226,18 @@ export default function Home() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-baseline justify-between mb-5">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-amber-400" />
-              <h2 className="text-[22px] font-bold text-white tracking-tight">From the Blog</h2>
+              <BookOpen className="w-4 h-4 text-amber-500" />
+              <h2 className="text-[22px] font-bold text-foreground tracking-tight">From the Blog</h2>
             </div>
             <Link href="/blog">
-              <span className="text-[13px] text-white/35 hover:text-amber-400 transition-colors">See All →</span>
+              <span className="text-[13px] text-muted-foreground hover:text-amber-500 transition-colors">See All →</span>
             </Link>
           </div>
 
           <div className="space-y-3">
-            {blogPreviews.map((post: any, i: number) => (
+            {blogPreviews.map((post: any) => (
               <Link key={post.id} href={`/blog/${post.slug}`}>
-                <div className="flex gap-4 p-4 rounded-2xl bg-[#111111] border border-white/[0.06] hover:border-white/10 active:scale-[0.98] transition-all cursor-pointer">
+                <div className="flex gap-4 p-4 rounded-2xl bg-card border border-border hover:border-amber-500/30 active:scale-[0.98] transition-all cursor-pointer shadow-sm">
                   {post.coverImage ? (
                     <img
                       src={post.coverImage}
@@ -246,25 +247,25 @@ export default function Home() {
                     />
                   ) : (
                     <div className="w-20 h-20 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-                      <BookOpen className="w-7 h-7 text-amber-400/40" />
+                      <BookOpen className="w-7 h-7 text-amber-400/60" />
                     </div>
                   )}
                   <div className="flex flex-col justify-center min-w-0">
-                    <p className="text-[11px] text-white/30 mb-1 flex items-center gap-1">
+                    <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {new Date(post.publishedAt || post.createdAt).toLocaleDateString("en-US", {
                         month: "short", day: "numeric", year: "numeric",
                       })}
                     </p>
-                    <h3 className="text-white font-semibold text-[14px] leading-snug line-clamp-2 mb-1">
+                    <h3 className="text-foreground font-semibold text-[14px] leading-snug line-clamp-2 mb-1">
                       {post.title}
                     </h3>
                     {post.excerpt && (
-                      <p className="text-white/35 text-[12px] line-clamp-1">{post.excerpt}</p>
+                      <p className="text-muted-foreground text-[12px] line-clamp-1">{post.excerpt}</p>
                     )}
                   </div>
                   <div className="shrink-0 flex items-center self-center">
-                    <ArrowRight className="w-4 h-4 text-white/20" />
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/40" />
                   </div>
                 </div>
               </Link>
@@ -275,7 +276,7 @@ export default function Home() {
             <Link href="/blog">
               <Button
                 variant="outline"
-                className="rounded-full px-7 py-2.5 text-[13px] font-semibold border-white/10 text-white/60 hover:text-white hover:border-white/20 bg-transparent transition-all active:scale-95"
+                className="rounded-full px-7 py-2.5 text-[13px] font-semibold border-border text-muted-foreground hover:text-foreground hover:border-border/80 bg-transparent transition-all active:scale-95"
               >
                 View All Posts
                 <ArrowRight className="w-3.5 h-3.5 ml-2" />

@@ -41,14 +41,14 @@ export function PaymentSuccess() {
 
   if (!bookingId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-zinc-950 dark:to-stone-950 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
             <div className="text-red-500 mb-4">
               <CheckCircle className="w-16 h-16 mx-auto" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Invalid Payment Link</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-muted-foreground mb-4">
               This payment confirmation link is invalid or missing booking information.
             </p>
             <Button onClick={() => setLocation("/")} data-testid="button-home">
@@ -63,22 +63,22 @@ export function PaymentSuccess() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-zinc-950 dark:to-stone-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
       </div>
     );
   }
 
   if (!booking) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-zinc-950 dark:to-stone-950 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
             <div className="text-red-500 mb-4">
               <CheckCircle className="w-16 h-16 mx-auto" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Booking Not Found</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-muted-foreground mb-4">
               The booking associated with this payment could not be found.
             </p>
             <Button onClick={() => setLocation("/")} data-testid="button-home">
@@ -102,7 +102,7 @@ export function PaymentSuccess() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 dark:from-zinc-950 dark:to-stone-950 p-4">
       <div className="max-w-2xl mx-auto">
         {/* Success Header */}
         <Card className="mb-6">
@@ -173,13 +173,13 @@ export function PaymentSuccess() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <label className="text-sm font-medium text-gray-500 block">Total Price</label>
                 <p className="text-xl font-bold" data-testid="text-total-price">
                   {formatPrice(booking.totalPrice)}
                 </p>
               </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-center p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
                 <label className="text-sm font-medium text-gray-500 block">Deposit</label>
                 <div className="flex items-center justify-center gap-2">
                   <p className="text-xl font-bold text-green-600" data-testid="text-deposit-amount">
@@ -237,28 +237,28 @@ export function PaymentSuccess() {
           <CardContent>
             <div className="space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                <div className="w-2 h-2 bg-amber-500 rounded-full mt-2"></div>
                 <div>
                   <p className="font-medium">Confirmation Email</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     You'll receive a confirmation email with all booking details shortly.
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                <div className="w-2 h-2 bg-amber-500 rounded-full mt-2"></div>
                 <div>
                   <p className="font-medium">Pre-Shoot Communication</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     We'll contact you 2-3 days before your shoot to confirm details and discuss any special requests.
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                <div className="w-2 h-2 bg-amber-500 rounded-full mt-2"></div>
                 <div>
                   <p className="font-medium">Gallery Access</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     After your photoshoot, you'll receive access to your private gallery with all photos.
                   </p>
                 </div>
@@ -289,7 +289,7 @@ export function PaymentSuccess() {
 
         {/* Contact Info */}
         <Card className="mt-6">
-          <CardContent className="p-4 text-center text-sm text-gray-600">
+          <CardContent className="p-4 text-center text-sm text-muted-foreground">
             <p>
               Questions about your booking? Contact us at{" "}
               <a href="mailto:support@connectagrapher.com" className="text-green-600 hover:underline">

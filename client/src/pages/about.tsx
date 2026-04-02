@@ -82,7 +82,7 @@ export default function About() {
         <h2 className="text-3xl md:text-4xl font-bold font-serif mb-8 gradient-text slide-in-up" data-testid="mission-title">
           {about.mission.title}
         </h2>
-        <Card className="p-8 bg-gradient-to-br from-primary/5 to-secondary/5 hover-3d slide-in-up stagger-1">
+        <Card className="p-8 bg-amber-500/5 border-amber-500/20 hover-3d slide-in-up stagger-1">
           <p className="text-lg text-muted-foreground leading-relaxed max-w-4xl mx-auto">
             {about.mission.body}
           </p>

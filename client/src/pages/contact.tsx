@@ -110,7 +110,7 @@ export default function Contact() {
       <div className="max-w-6xl mx-auto px-4">
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold font-serif mb-4 gradient-text slide-in-up" data-testid="contact-title">Get In Touch</h1>
-          <p className="text-xl text-muted-foreground slide-in-up stagger-1">
+          <p className="text-lg text-muted-foreground slide-in-up stagger-1">
             Ready to create something beautiful together?
           </p>
         </div>
@@ -263,7 +263,7 @@ export default function Contact() {
 
         {/* Additional Information */}
         <div className="mt-20 text-center">
-          <Card className="p-8 bg-gradient-to-br from-primary/5 to-secondary/5 hover-3d slide-in-up">
+          <Card className="p-8 bg-amber-500/5 border-amber-500/20 hover-3d slide-in-up">
             <h3 className="text-2xl font-bold mb-4 gradient-text" data-testid="response-time-title">Response Time</h3>
             <p className="text-lg text-muted-foreground mb-6">
               We typically respond to all inquiries within 24 hours. For urgent bookings or questions, feel free to call us directly at the number provided above.

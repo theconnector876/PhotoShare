@@ -267,7 +267,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex">
+    <div className="min-h-screen bg-background flex">
       {/* Left Column - Auth Forms */}
       <div className="flex-1 flex items-center justify-center p-8">
         <Card className="w-full max-w-md p-8">
@@ -789,7 +789,7 @@ export default function AuthPage() {
       </div>
 
       {/* Right Column - Hero Section */}
-      <div className="flex-1 hidden lg:flex items-center justify-center p-12 bg-[#0a0a0a] border-l border-white/[0.06]">
+      <div className="flex-1 hidden lg:flex items-center justify-center p-12 bg-muted/50 border-l border-border">
         <div className="max-w-lg text-center">
           <div className="mb-10">
             <div className="flex justify-center space-x-4 mb-8">
@@ -805,28 +805,28 @@ export default function AuthPage() {
             </div>
           </div>
 
-          <h2 className="text-4xl font-bold mb-4 text-white">Capture Your Moments</h2>
-          <p className="text-lg mb-8 text-white/50">
+          <h2 className="text-4xl font-bold mb-4 text-foreground">Capture Your Moments</h2>
+          <p className="text-lg mb-8 text-muted-foreground">
             Professional photography services for weddings, events, and portrait sessions in Jamaica
           </p>
 
-          <div className="space-y-3 text-white/40 text-sm">
+          <div className="space-y-3 text-muted-foreground text-sm">
             <div className="flex items-center justify-center gap-2">
-              <Camera className="w-4 h-4 text-amber-400/60" />
+              <Camera className="w-4 h-4 text-amber-500/70" />
               <span>Professional photography & videography</span>
             </div>
             <div className="flex items-center justify-center gap-2">
-              <Heart className="w-4 h-4 text-amber-400/60" />
+              <Heart className="w-4 h-4 text-amber-500/70" />
               <span>Wedding and event coverage</span>
             </div>
             <div className="flex items-center justify-center gap-2">
-              <Users className="w-4 h-4 text-amber-400/60" />
+              <Users className="w-4 h-4 text-amber-500/70" />
               <span>Portrait and group sessions</span>
             </div>
           </div>
 
-          <div className="mt-10 p-5 bg-white/[0.04] border border-white/[0.06] rounded-2xl">
-            <p className="text-sm text-white/40">
+          <div className="mt-10 p-5 bg-card border border-border rounded-2xl shadow-sm">
+            <p className="text-sm text-muted-foreground">
               Create an account to book your session, access your photo galleries,
               and manage your bookings with ease.
             </p>

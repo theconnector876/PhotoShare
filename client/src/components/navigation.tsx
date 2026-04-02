@@ -49,7 +49,9 @@ export default function Navigation() {
         <Link href={href}>
           <span
             className={`flex items-center px-4 py-3 text-[15px] font-medium rounded-xl transition-colors ${
-              isActive ? "bg-amber-500/10 text-amber-400" : "text-white/65 hover:text-white hover:bg-white/5"
+              isActive
+                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                : "text-gray-600 dark:text-white/65 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5"
             }`}
             onClick={() => setIsOpen(false)}
           >
@@ -62,7 +64,9 @@ export default function Navigation() {
       <Link href={href}>
         <span
           className={`text-[13px] font-medium transition-colors whitespace-nowrap ${
-            isActive ? "text-amber-400" : "text-white/55 hover:text-white"
+            isActive
+              ? "text-amber-600 dark:text-amber-400"
+              : "text-gray-500 dark:text-white/55 hover:text-gray-900 dark:hover:text-white"
           }`}
         >
           {label}
@@ -72,7 +76,7 @@ export default function Navigation() {
   };
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-black/85 backdrop-blur-2xl border-b border-white/[0.06]">
+    <nav className="fixed top-0 w-full z-50 bg-white/90 dark:bg-black/85 backdrop-blur-2xl border-b border-gray-200/80 dark:border-white/[0.06]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
 
@@ -82,7 +86,7 @@ export default function Navigation() {
               <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-500/20">
                 <img src="/logo-white.png" alt={config.branding.appName} className="w-12 h-12 object-contain scale-[1.6]" />
               </div>
-              <span className="text-white font-bold text-[15px] tracking-tight">{config.branding.appName}</span>
+              <span className="text-gray-900 dark:text-white font-bold text-[15px] tracking-tight">{config.branding.appName}</span>
             </div>
           </Link>
 
@@ -99,7 +103,7 @@ export default function Navigation() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 text-[12px] text-white/45 hover:text-white hover:bg-white/6 gap-1 px-2.5 rounded-lg"
+                  className="h-8 text-[12px] text-gray-500 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 gap-1 px-2.5 rounded-lg"
                 >
                   {CURRENCY_SYMBOLS[selectedCurrency]} {selectedCurrency}
                   <ChevronDown className="w-3 h-3" />
@@ -107,14 +111,16 @@ export default function Navigation() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="min-w-[140px] bg-[#141414] border-white/8 rounded-xl p-1"
+                className="min-w-[140px] bg-white dark:bg-[#141414] border-gray-200 dark:border-white/8 rounded-xl p-1 shadow-lg"
               >
                 {SUPPORTED_CURRENCIES.map((c) => (
                   <DropdownMenuItem
                     key={c}
                     onClick={() => setCurrency(c as Currency)}
                     className={`rounded-lg text-sm cursor-pointer ${
-                      selectedCurrency === c ? "text-amber-400 bg-amber-500/8" : "text-white/70 hover:text-white hover:bg-white/5"
+                      selectedCurrency === c
+                        ? "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/8"
+                        : "text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5"
                     }`}
                   >
                     {CURRENCY_SYMBOLS[c as Currency]} {c}
@@ -130,17 +136,17 @@ export default function Navigation() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-8 h-8 rounded-lg text-white/45 hover:text-white hover:bg-white/6"
+                    className="w-8 h-8 rounded-lg text-gray-400 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6"
                     disabled={pushLoading}
                     onClick={subscribed ? unsubscribe : subscribe}
                     aria-label={subscribed ? "Disable notifications" : "Enable notifications"}
                   >
                     {subscribed
-                      ? <Bell className="w-[15px] h-[15px] text-amber-400" />
+                      ? <Bell className="w-[15px] h-[15px] text-amber-500" />
                       : <BellOff className="w-[15px] h-[15px]" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent className="bg-[#1a1a1a] text-white border-white/10 text-xs">
+                <TooltipContent className="bg-gray-900 dark:bg-[#1a1a1a] text-white border-gray-700 dark:border-white/10 text-xs">
                   {subscribed ? "Notifications on — click to disable" : "Enable push notifications"}
                 </TooltipContent>
               </Tooltip>
@@ -148,8 +154,8 @@ export default function Navigation() {
 
             {/* Logged-in user / login */}
             {user ? (
-              <div className="flex items-center gap-2 pl-2 border-l border-white/8">
-                <span className="text-[11px] text-white/35 hidden lg:inline">
+              <div className="flex items-center gap-2 pl-2 border-l border-gray-200 dark:border-white/8">
+                <span className="text-[11px] text-gray-400 dark:text-white/35 hidden lg:inline">
                   Hi, {user.firstName || user.email}
                 </span>
                 <Button
@@ -157,7 +163,7 @@ export default function Navigation() {
                   size="sm"
                   onClick={handleLogout}
                   disabled={logoutMutation.isPending}
-                  className="h-8 text-[12px] text-white/45 hover:text-white hover:bg-white/6 rounded-lg"
+                  className="h-8 text-[12px] text-gray-500 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 rounded-lg"
                   data-testid="button-logout"
                 >
                   <LogOut className="w-3.5 h-3.5 mr-1.5" />
@@ -168,7 +174,7 @@ export default function Navigation() {
               <Link href="/auth">
                 <Button
                   size="sm"
-                  className="h-8 text-[12px] bg-white/8 hover:bg-white/12 text-white border-0 rounded-full px-4"
+                  className="h-8 text-[12px] bg-gray-100 dark:bg-white/8 hover:bg-gray-200 dark:hover:bg-white/12 text-gray-700 dark:text-white border-0 rounded-full px-4"
                 >
                   Login
                 </Button>
@@ -201,20 +207,20 @@ export default function Navigation() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-8 h-8 rounded-lg text-white/60 hover:text-white hover:bg-white/6"
+                  className="w-8 h-8 rounded-lg text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6"
                   data-testid="mobile-menu-button"
                 >
                   <Menu className="h-[18px] w-[18px]" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[270px] bg-[#0d0d0d] border-white/[0.06] p-0">
+              <SheetContent side="right" className="w-[270px] bg-white dark:bg-[#0d0d0d] border-gray-200 dark:border-white/[0.06] p-0">
                 <div className="flex flex-col h-full">
                   {/* Header */}
-                  <div className="flex items-center gap-2.5 px-4 py-4 border-b border-white/[0.06]">
+                  <div className="flex items-center gap-2.5 px-4 py-4 border-b border-gray-100 dark:border-white/[0.06]">
                     <div className="w-7 h-7 rounded-[9px] bg-amber-500 flex items-center justify-center overflow-hidden">
                       <img src="/logo-white.png" alt={config.branding.appName} className="w-10 h-10 object-contain scale-[1.6]" />
                     </div>
-                    <span className="text-white font-semibold text-[14px]">{config.branding.appName}</span>
+                    <span className="text-gray-900 dark:text-white font-semibold text-[14px]">{config.branding.appName}</span>
                   </div>
 
                   {/* Nav items */}
@@ -222,7 +228,7 @@ export default function Navigation() {
                     {authNavItems.map(item => <NavLink key={item.href} {...item} mobile />)}
                     <Link href="/gallery">
                       <span
-                        className="flex items-center px-4 py-3 text-[15px] font-medium rounded-xl text-white/65 hover:text-white hover:bg-white/5 transition-colors"
+                        className="flex items-center px-4 py-3 text-[15px] font-medium rounded-xl text-gray-600 dark:text-white/65 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
                         onClick={() => setIsOpen(false)}
                         data-testid="mobile-gallery-access-button"
                       >
@@ -232,8 +238,8 @@ export default function Navigation() {
                   </div>
 
                   {/* Currency (mobile) */}
-                  <div className="px-3 pb-2 border-t border-white/[0.06] pt-3">
-                    <p className="text-white/30 text-[11px] uppercase tracking-wider px-4 mb-2">Currency</p>
+                  <div className="px-3 pb-2 border-t border-gray-100 dark:border-white/[0.06] pt-3">
+                    <p className="text-gray-400 dark:text-white/30 text-[11px] uppercase tracking-wider px-4 mb-2">Currency</p>
                     <div className="flex flex-wrap gap-1.5 px-2">
                       {SUPPORTED_CURRENCIES.map((c) => (
                         <button
@@ -242,7 +248,7 @@ export default function Navigation() {
                           className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors ${
                             selectedCurrency === c
                               ? "bg-amber-500 text-black"
-                              : "bg-white/6 text-white/60 hover:bg-white/10"
+                              : "bg-gray-100 dark:bg-white/6 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"
                           }`}
                         >
                           {CURRENCY_SYMBOLS[c as Currency]} {c}
@@ -253,18 +259,18 @@ export default function Navigation() {
 
                   {/* User actions */}
                   {user ? (
-                    <div className="px-3 pb-4 border-t border-white/[0.06] pt-3 space-y-1">
-                      <p className="text-white/30 text-[11px] px-4 mb-2">
+                    <div className="px-3 pb-4 border-t border-gray-100 dark:border-white/[0.06] pt-3 space-y-1">
+                      <p className="text-gray-400 dark:text-white/30 text-[11px] px-4 mb-2">
                         Hi, {user.firstName || user.email}
                       </p>
                       {pushSupported && permission !== "denied" && (
                         <button
                           onClick={subscribed ? unsubscribe : subscribe}
                           disabled={pushLoading}
-                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/65 hover:text-white hover:bg-white/5 text-[14px] transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 dark:text-white/65 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 text-[14px] transition-colors"
                         >
                           {subscribed
-                            ? <Bell className="w-4 h-4 text-amber-400" />
+                            ? <Bell className="w-4 h-4 text-amber-500" />
                             : <BellOff className="w-4 h-4" />}
                           {subscribed ? "Notifications on" : "Enable notifications"}
                         </button>
@@ -272,7 +278,7 @@ export default function Navigation() {
                       <button
                         onClick={handleLogout}
                         disabled={logoutMutation.isPending}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/65 hover:text-white hover:bg-white/5 text-[14px] transition-colors"
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 dark:text-white/65 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 text-[14px] transition-colors"
                         data-testid="mobile-logout-button"
                       >
                         <LogOut className="w-4 h-4" />
@@ -280,7 +286,7 @@ export default function Navigation() {
                       </button>
                     </div>
                   ) : (
-                    <div className="px-3 pb-4 border-t border-white/[0.06] pt-3">
+                    <div className="px-3 pb-4 border-t border-gray-100 dark:border-white/[0.06] pt-3">
                       <Link href="/auth">
                         <Button
                           className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl"
