@@ -13,7 +13,6 @@ import { z } from "zod";
 import { sendBookingReceived, sendBookingConfirmation, sendPaymentConfirmation, sendPasswordReset, sendPhotographerApproved, sendPhotographerRejected, sendAdminEmail, sendInboundEmailNotification } from "./email";
 import { getCloudinarySignedConfig, generateSignature, generateR2PresignedPut } from "./upload";
 import { v2 as cloudinary } from "cloudinary";
-import archiver from "archiver";
 
 const wipayEnabled = Boolean(
   process.env.WIPAY_ACCOUNT_NUMBER &&
@@ -732,34 +731,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return gallery.finalImages || [];
   }
 
-  // Returns JSON { url } with a presigned or public URL pointing to the archive.
-  // Client does window.location.href = url to trigger the download.
   async function buildZipUrl(res: any, gallery: any, type: string, email: string, overrideImages?: string[]) {
     const images = resolveImages(gallery, type, email, overrideImages);
     if (images.length === 0) return res.status(400).json({ error: 'No images to download' });
 
-    // Stream a ZIP directly to the client — no Cloudinary, no egress fees from R2
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${type}-photos.zip"`);
+    const JSZip = require('jszip');
+    const zip = new JSZip();
 
-    const zip = archiver('zip', { store: true }); // store=no compression (JPEGs don't compress)
-    zip.pipe(res);
-
-    // Fetch all images in parallel, buffer, append to archive
-    const results = await Promise.all(images.map(async (url, i) => {
+    // Fetch all images in parallel (R2 = no egress, Cloudinary = transitional)
+    await Promise.all(images.map(async (url, i) => {
       try {
-        const r = await fetch(url);
-        if (!r.ok) return null;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const r = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!r.ok) return;
         const buf = Buffer.from(await r.arrayBuffer());
         const ext = (url.split('?')[0].split('.').pop() || 'jpg').toLowerCase();
-        return { buf, name: `photo-${String(i + 1).padStart(3, '0')}.${ext}` };
-      } catch { return null; }
+        zip.file(`photo-${String(i + 1).padStart(3, '0')}.${ext}`, buf);
+      } catch { /* skip */ }
     }));
 
-    for (const item of results) {
-      if (item) zip.append(item.buf, { name: item.name });
-    }
-    await zip.finalize();
+    const zipBuf = await zip.generateAsync({ type: 'nodebuffer', compression: 'STORE' });
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${type}-photos.zip"`);
+    res.setHeader('Content-Length', zipBuf.length);
+    res.send(zipBuf);
   }
 
   app.get("/api/gallery/:id/download-zip", async (req, res) => {
