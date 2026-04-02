@@ -744,14 +744,14 @@ export default function Gallery() {
               )}
 
               {gallery.galleryDownloadEnabled && selectedImages.length > 0 && (
-                <Button variant="outline" onClick={() => { triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
-                  <Download className="mr-2 h-4 w-4" />Download Selected ({selectedImages.length})
+                <Button variant="outline" disabled={zipProgress !== null} onClick={() => downloadAllZip(selectedImages, 'selected-photos.zip', setZipProgress)} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
+                  <Download className="mr-2 h-4 w-4" />{zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedImages.length})`}
                 </Button>
               )}
 
               {gallery.galleryDownloadEnabled && currentImages.length > 0 && (
-                <Button variant="outline" onClick={() => { triggerZipDownload(gallery.id, 'gallery', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
-                  <Download className="mr-2 h-4 w-4" />Download All
+                <Button variant="outline" disabled={zipProgress !== null} onClick={() => downloadAllZip(gallery.galleryImages, 'all-photos.zip', setZipProgress)} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
+                  <Download className="mr-2 h-4 w-4" />{zipProgress !== null ? `${zipProgress}%` : 'Download All'}
                 </Button>
               )}
             </div>
@@ -760,8 +760,8 @@ export default function Gallery() {
 
         {viewMode === 'selected' && gallery.selectedDownloadEnabled && currentImages.length > 0 && (
           <div className="text-center">
-            <Button variant="outline" onClick={() => { triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-selected">
-              <Download className="mr-2 h-4 w-4" />Download All Selected
+            <Button variant="outline" disabled={zipProgress !== null} onClick={() => downloadAllZip(selectedImages, 'selected-photos.zip', setZipProgress)} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-selected">
+              <Download className="mr-2 h-4 w-4" />{zipProgress !== null ? `${zipProgress}%` : 'Download All Selected'}
             </Button>
           </div>
         )}
@@ -773,12 +773,12 @@ export default function Gallery() {
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
               {selectedFinalImages.length > 0 && (
-                <Button onClick={() => { triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode); }} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
-                  <Download className="mr-2 h-4 w-4" />Download Selected ({selectedFinalImages.length})
+                <Button disabled={zipProgress !== null} onClick={() => downloadAllZip(selectedFinalImages, 'selected-finals.zip', setZipProgress)} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
+                  <Download className="mr-2 h-4 w-4" />{zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedFinalImages.length})`}
                 </Button>
               )}
-              <Button variant="outline" onClick={() => { triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode); }} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-final">
-                <Download className="mr-2 h-4 w-4" />Download All ({currentImages.length})
+              <Button variant="outline" disabled={zipProgress !== null} onClick={() => downloadAllZip(gallery.finalImages, 'final-photos.zip', setZipProgress)} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-final">
+                <Download className="mr-2 h-4 w-4" />{zipProgress !== null ? `${zipProgress}%` : `Download All (${currentImages.length})`}
               </Button>
               <Button
                 variant="outline"
