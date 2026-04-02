@@ -512,6 +512,41 @@ export default function Gallery() {
           </div>
         </div>
 
+        {/* Download buttons — top */}
+        {viewMode === 'gallery' && (gallery.galleryDownloadEnabled) && currentImages.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-3 mb-6">
+            {gallery.galleryDownloadEnabled && selectedImages.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode)}>
+                <Download className="mr-2 h-4 w-4" />Download Selected ({selectedImages.length})
+              </Button>
+            )}
+            {gallery.galleryDownloadEnabled && (
+              <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'gallery', visitorEmail, gallery.accessCode)}>
+                <Download className="mr-2 h-4 w-4" />Download All
+              </Button>
+            )}
+          </div>
+        )}
+        {viewMode === 'selected' && gallery.selectedDownloadEnabled && currentImages.length > 0 && (
+          <div className="flex justify-center mb-6">
+            <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode)}>
+              <Download className="mr-2 h-4 w-4" />Download All Selected
+            </Button>
+          </div>
+        )}
+        {viewMode === 'final' && gallery.finalDownloadEnabled && currentImages.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-3 mb-6">
+            {selectedFinalImages.length > 0 && (
+              <Button size="sm" onClick={() => triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode, selectedFinalImages)} className="bg-gradient-to-r from-primary to-secondary text-white">
+                <Download className="mr-2 h-4 w-4" />Download Selected ({selectedFinalImages.length})
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode)}>
+              <Download className="mr-2 h-4 w-4" />Download All ({currentImages.length})
+            </Button>
+          </div>
+        )}
+
         {/* Gallery Status */}
         <div className="text-center mb-8">
           <Badge variant={gallery.status === 'completed' ? 'default' : 'secondary'} className="text-sm" data-testid="gallery-status">
