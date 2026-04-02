@@ -663,7 +663,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
         </Card>
 
         {/* Price Summary */}
-        <Card className="bg-gradient-to-r from-primary to-secondary rounded-xl p-8 text-white text-center mb-4 animate-glow">
+        <Card className="bg-amber-500 rounded-xl p-8 text-black text-center mb-4 animate-glow">
           <div className="text-lg mb-2">Total Investment</div>
           {couponData && (
             <div className="text-2xl line-through opacity-60 mb-1">{format(calculation.totalPrice, pricingCurrency)}</div>
@@ -686,15 +686,15 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
             <span className="font-semibold text-sm">Have a coupon code?</span>
           </div>
           {couponData ? (
-            <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+            <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3">
               <div>
-                <span className="font-mono font-bold text-green-700">{couponData.code}</span>
-                {couponData.description && <span className="text-xs text-green-600 ml-2">— {couponData.description}</span>}
-                <p className="text-xs text-green-600 mt-0.5">
+                <span className="font-mono font-bold text-amber-400">{couponData.code}</span>
+                {couponData.description && <span className="text-xs text-amber-300/70 ml-2">— {couponData.description}</span>}
+                <p className="text-xs text-amber-300/70 mt-0.5">
                   Saves you {format(couponData.discount, pricingCurrency)} ({couponData.discountType === 'percentage' ? `${couponData.discountValue}%` : `${format(couponData.discountValue, pricingCurrency)} flat`})
                 </p>
               </div>
-              <button onClick={removeCoupon} className="text-green-700 hover:text-red-600 transition-colors ml-3">
+              <button onClick={removeCoupon} className="text-amber-400 hover:text-red-400 transition-colors ml-3">
                 <X className="w-4 h-4" />
               </button>
             </div>

@@ -22,8 +22,10 @@ export interface WatermarkSettings {
   imageUrl: string;
   imagePublicId: string;
   opacity: number;       // 0–100
-  scale: number;         // 5–200 (% of image width / cqmin font units; can exceed image size, clipped at edge)
-  position: WatermarkPosition;
+  scale: number;         // 5–500 (% of image width; >100 extends beyond image, clipped at edge)
+  position: WatermarkPosition; // kept for legacy / quick-select grid
+  x: number;             // 0–100: horizontal anchor (0=left edge, 100=right edge)
+  y: number;             // 0–100: vertical anchor (0=top edge, 100=bottom edge)
 }
 
 export const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
@@ -35,7 +37,25 @@ export const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
   opacity: 50,
   scale: 30,
   position: 'bottom-right',
+  x: 100,
+  y: 100,
 };
+
+/** Convert a legacy WatermarkPosition to x/y percentages. */
+export function positionToXY(pos: WatermarkPosition): { x: number; y: number } {
+  const map: Record<WatermarkPosition, { x: number; y: number }> = {
+    'top-left':      { x: 0,   y: 0   },
+    'top-center':    { x: 50,  y: 0   },
+    'top-right':     { x: 100, y: 0   },
+    'middle-left':   { x: 0,   y: 50  },
+    'center':        { x: 50,  y: 50  },
+    'middle-right':  { x: 100, y: 50  },
+    'bottom-left':   { x: 0,   y: 100 },
+    'bottom-center': { x: 50,  y: 100 },
+    'bottom-right':  { x: 100, y: 100 },
+  };
+  return map[pos] ?? { x: 100, y: 100 };
+}
 
 /** Map a WatermarkPosition to CSS style for absolute positioning inside a relative container. */
 export function getPositionStyle(position: WatermarkPosition): CSSProperties {

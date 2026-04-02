@@ -267,7 +267,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5 flex">
+    <div className="min-h-screen bg-black flex">
       {/* Left Column - Auth Forms */}
       <div className="flex-1 flex items-center justify-center p-8">
         <Card className="w-full max-w-md p-8">
@@ -699,7 +699,7 @@ export default function AuthPage() {
             <div className="space-y-4">
               {forgotPasswordMessage ? (
                 <div className="text-center space-y-4">
-                  <p className="text-green-600">{forgotPasswordMessage}</p>
+                  <p className="text-amber-400">{forgotPasswordMessage}</p>
                   <Button
                     type="button"
                     variant="outline"
@@ -789,45 +789,45 @@ export default function AuthPage() {
       </div>
 
       {/* Right Column - Hero Section */}
-      <div className="flex-1 hidden lg:flex items-center justify-center p-8 bg-gradient-to-br from-primary to-secondary text-white">
+      <div className="flex-1 hidden lg:flex items-center justify-center p-12 bg-[#0a0a0a] border-l border-white/[0.06]">
         <div className="max-w-lg text-center">
-          <div className="mb-8">
-            <div className="flex justify-center space-x-4 mb-6">
-              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
-                <Camera className="w-8 h-8" />
+          <div className="mb-10">
+            <div className="flex justify-center space-x-4 mb-8">
+              <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
+                <Camera className="w-7 h-7 text-amber-400" />
               </div>
-              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
-                <Heart className="w-8 h-8" />
+              <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
+                <Heart className="w-7 h-7 text-amber-400" />
               </div>
-              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
-                <Users className="w-8 h-8" />
+              <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
+                <Users className="w-7 h-7 text-amber-400" />
               </div>
             </div>
           </div>
-          
-          <h2 className="text-4xl font-bold mb-4">Capture Your Moments</h2>
-          <p className="text-xl mb-6 text-white/90">
+
+          <h2 className="text-4xl font-bold mb-4 text-white">Capture Your Moments</h2>
+          <p className="text-lg mb-8 text-white/50">
             Professional photography services for weddings, events, and portrait sessions in Jamaica
           </p>
-          
-          <div className="space-y-3 text-white/80">
-            <div className="flex items-center justify-center">
-              <Camera className="w-5 h-5 mr-2" />
+
+          <div className="space-y-3 text-white/40 text-sm">
+            <div className="flex items-center justify-center gap-2">
+              <Camera className="w-4 h-4 text-amber-400/60" />
               <span>Professional photography & videography</span>
             </div>
-            <div className="flex items-center justify-center">
-              <Heart className="w-5 h-5 mr-2" />
+            <div className="flex items-center justify-center gap-2">
+              <Heart className="w-4 h-4 text-amber-400/60" />
               <span>Wedding and event coverage</span>
             </div>
-            <div className="flex items-center justify-center">
-              <Users className="w-5 h-5 mr-2" />
+            <div className="flex items-center justify-center gap-2">
+              <Users className="w-4 h-4 text-amber-400/60" />
               <span>Portrait and group sessions</span>
             </div>
           </div>
-          
-          <div className="mt-8 p-4 bg-white/10 rounded-lg">
-            <p className="text-sm">
-              Create an account to book your session, access your photo galleries, 
+
+          <div className="mt-10 p-5 bg-white/[0.04] border border-white/[0.06] rounded-2xl">
+            <p className="text-sm text-white/40">
+              Create an account to book your session, access your photo galleries,
               and manage your bookings with ease.
             </p>
           </div>

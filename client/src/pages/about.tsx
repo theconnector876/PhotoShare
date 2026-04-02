@@ -45,13 +45,13 @@ export default function About() {
 
           <div className="mt-8 slide-in-up stagger-4">
             <Link href="/booking">
-              <Button className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-4 rounded-lg font-semibold text-lg magnetic-btn animate-glow mr-4" data-testid="button-book-from-about">
+              <Button className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-8 py-4 rounded-full text-[15px] shadow-lg shadow-amber-500/20 transition-all active:scale-95 mr-4" data-testid="button-book-from-about">
                 <i className="fas fa-calendar-plus mr-2"></i>
                 Book Your Session
               </Button>
             </Link>
             <Link href="/portfolio">
-              <Button variant="outline" className="px-8 py-4 rounded-lg font-semibold text-lg magnetic-btn" data-testid="button-portfolio-from-about">
+              <Button variant="outline" className="border-white/20 text-white hover:bg-white/8 px-8 py-4 rounded-full font-semibold text-[15px] transition-all active:scale-95" data-testid="button-portfolio-from-about">
                 <i className="fas fa-images mr-2"></i>
                 View Our Work
               </Button>
@@ -104,8 +104,8 @@ export default function About() {
         <div className="grid md:grid-cols-3 gap-8">
           {about.highlights.items.map((item, index) => (
             <Card key={`${item.title}-${index}`} className="p-6 hover-3d slide-in-up stagger-1" data-testid={`highlight-${index}`}>
-              <div className="w-12 h-12 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center mb-4">
-                <i className={`${item.icon} text-white`}></i>
+              <div className="w-12 h-12 bg-amber-500/15 border border-amber-500/25 rounded-2xl flex items-center justify-center mb-4">
+                <i className={`${item.icon} text-amber-400`}></i>
               </div>
               <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
               <p className="text-muted-foreground">

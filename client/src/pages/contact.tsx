@@ -119,8 +119,8 @@ export default function Contact() {
           <div className="space-y-8 slide-in-up stagger-2">
             <Card className="p-6 hover-3d" data-testid="contact-phone">
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center">
-                  <Phone className="text-white" />
+                <div className="w-12 h-12 bg-amber-500/15 border border-amber-500/25 rounded-2xl flex items-center justify-center">
+                  <Phone className="text-amber-400 w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="font-semibold">Phone</h4>
@@ -131,8 +131,8 @@ export default function Contact() {
 
             <Card className="p-6 hover-3d" data-testid="contact-email">
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-secondary to-accent rounded-full flex items-center justify-center">
-                  <Mail className="text-white" />
+                <div className="w-12 h-12 bg-blue-500/15 border border-blue-500/25 rounded-2xl flex items-center justify-center">
+                  <Mail className="text-blue-400 w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="font-semibold">Email</h4>
@@ -143,8 +143,8 @@ export default function Contact() {
 
             <Card className="p-6 hover-3d" data-testid="contact-location">
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-accent to-primary rounded-full flex items-center justify-center">
-                  <MapPin className="text-white" />
+                <div className="w-12 h-12 bg-rose-500/15 border border-rose-500/25 rounded-2xl flex items-center justify-center">
+                  <MapPin className="text-rose-400 w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="font-semibold">Location</h4>
@@ -173,13 +173,13 @@ export default function Contact() {
                 </div>
               ) : (
                 <div className="flex space-x-4">
-                  <a href="#" className="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center text-white magnetic-btn" data-testid="social-instagram">
+                  <a href="#" className="w-10 h-10 bg-pink-500/15 border border-pink-500/25 rounded-full flex items-center justify-center text-pink-400 magnetic-btn hover:bg-pink-500/25 transition-colors" data-testid="social-instagram">
                     <Instagram className="w-5 h-5" />
                   </a>
-                  <a href="#" className="w-10 h-10 bg-gradient-to-r from-secondary to-accent rounded-full flex items-center justify-center text-white magnetic-btn" data-testid="social-facebook">
+                  <a href="#" className="w-10 h-10 bg-blue-500/15 border border-blue-500/25 rounded-full flex items-center justify-center text-blue-400 magnetic-btn hover:bg-blue-500/25 transition-colors" data-testid="social-facebook">
                     <Facebook className="w-5 h-5" />
                   </a>
-                  <a href="#" className="w-10 h-10 bg-gradient-to-r from-accent to-primary rounded-full flex items-center justify-center text-white magnetic-btn" data-testid="social-twitter">
+                  <a href="#" className="w-10 h-10 bg-sky-500/15 border border-sky-500/25 rounded-full flex items-center justify-center text-sky-400 magnetic-btn hover:bg-sky-500/25 transition-colors" data-testid="social-twitter">
                     <Twitter className="w-5 h-5" />
                   </a>
                 </div>

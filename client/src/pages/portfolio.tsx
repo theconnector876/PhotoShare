@@ -44,8 +44,8 @@ export default function Portfolio() {
           />
         </div>
         <Link href={portfolio.ctaHref}>
-          <Button 
-            className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-4 rounded-lg font-semibold text-lg magnetic-btn animate-glow"
+          <Button
+            className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-8 py-4 rounded-full text-[15px] shadow-lg shadow-amber-500/20 transition-all active:scale-95"
             data-testid="button-book-from-portfolio"
           >
             <i className="fas fa-calendar-plus mr-2"></i>

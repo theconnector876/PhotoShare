@@ -48,7 +48,7 @@ export default function ReviewDisplay({
           <Star
             key={star}
             className={`w-4 h-4 ${
-              star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+              star <= rating ? "fill-amber-400 text-amber-400" : "text-white/20"
             }`}
           />
         ))}
@@ -70,9 +70,9 @@ export default function ReviewDisplay({
         {[1, 2, 3].map((i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-6">
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-              <div className="h-16 bg-gray-200 rounded"></div>
+              <div className="h-4 bg-white/10 rounded w-1/4 mb-2"></div>
+              <div className="h-4 bg-white/10 rounded w-3/4 mb-4"></div>
+              <div className="h-16 bg-white/10 rounded"></div>
             </CardContent>
           </Card>
         ))}
@@ -104,7 +104,7 @@ export default function ReviewDisplay({
             <Button
               onClick={() => setShowForm(true)}
               variant="outline"
-              className="border-green-600 text-green-600 hover:bg-green-50"
+              className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500"
               data-testid="button-write-review"
             >
               <MessageCircle className="w-4 h-4 mr-2" />
@@ -149,7 +149,7 @@ export default function ReviewDisplay({
                   </div>
                 </div>
                 <p 
-                  className="text-gray-700 leading-relaxed" 
+                  className="text-white/70 leading-relaxed" 
                   data-testid={`review-text-${review.id}`}
                 >
                   {review.reviewText}
@@ -175,7 +175,7 @@ export default function ReviewDisplay({
         <div className="text-center">
           <Button
             variant="ghost"
-            className="text-green-600 hover:text-green-700"
+            className="text-amber-400 hover:text-amber-300"
             data-testid="button-view-all-reviews"
           >
             View all {reviews.length} reviews
