@@ -721,14 +721,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Resolve which images to zip based on type/email
+  // Handles both camelCase (Drizzle) and snake_case (raw pg) field names
   function resolveImages(gallery: any, type: string, email: string, overrideImages?: string[]): string[] {
     if (overrideImages && overrideImages.length > 0) return overrideImages;
-    if (type === 'gallery') return gallery.galleryImages || [];
+    if (type === 'gallery') return gallery.galleryImages || gallery.gallery_images || [];
     if (type === 'selected') {
-      const emailSels = (gallery.emailSelections as Record<string, string[]>) || {};
-      return email && emailSels[email] ? emailSels[email] : gallery.selectedImages || [];
+      const emailSels = (gallery.emailSelections || gallery.email_selections || {}) as Record<string, string[]>;
+      const selected = gallery.selectedImages || gallery.selected_images || [];
+      return email && emailSels[email] ? emailSels[email] : selected;
     }
-    return gallery.finalImages || [];
+    return gallery.finalImages || gallery.final_images || [];
   }
 
   async function buildZipUrl(res: any, gallery: any, type: string, email: string, overrideImages?: string[]) {
@@ -736,6 +738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (images.length === 0) return res.status(400).json({ error: 'No images to download' });
 
     const allCloudinary = images.every((u: string) => u.includes('res.cloudinary.com'));
+    const galleryId = gallery.id;
 
     if (allCloudinary) {
       // Cloudinary images: generate a signed archive URL (no server-side fetching)
@@ -747,7 +750,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (type === 'gallery') {
         // Folder prefix — short URL regardless of image count
         archiveUrl = (cloudinary.utils as any).download_zip_url({
-          prefixes: [`galleries/${gallery.id}`],
+          prefixes: [`galleries/${galleryId}`],
           resource_type: 'image',
         });
       } else {
@@ -783,12 +786,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send(zipBuf);
   }
 
+  // Use pg.Client (TCP) for gallery lookup to avoid NeonPool WebSocket cold-start hang
+  async function getGalleryDirect(id: string) {
+    const client = new PgClient({ connectionString: process.env.DATABASE_URL!.trim() });
+    await client.connect();
+    const { rows } = await client.query('SELECT * FROM galleries WHERE id = $1 LIMIT 1', [id]);
+    await client.end();
+    return rows[0] || null;
+  }
+
   app.get("/api/gallery/:id/download-zip", async (req, res) => {
     try {
       const { type = 'final', email = '', code } = req.query as Record<string, string>;
-      const gallery = await storage.getGalleryById(req.params.id);
+      const gallery = await getGalleryDirect(req.params.id);
       if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
-      if (gallery.requireAccessCode && gallery.accessCode !== code) {
+      if (gallery.require_access_code && gallery.access_code !== code) {
         return res.status(401).json({ error: 'Invalid access code' });
       }
       await buildZipUrl(res, gallery, type, email);
@@ -800,9 +812,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/gallery/:id/download-zip", async (req, res) => {
     try {
       const { type = 'final', email = '', code, images: imagesRaw } = req.body as { type?: string; email?: string; code?: string; images?: string | string[] };
-      const gallery = await storage.getGalleryById(req.params.id);
+      const gallery = await getGalleryDirect(req.params.id);
       if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
-      if (gallery.requireAccessCode && gallery.accessCode !== code) {
+      if (gallery.require_access_code && gallery.access_code !== code) {
         return res.status(401).json({ error: 'Invalid access code' });
       }
       let overrideImages: string[] | undefined;

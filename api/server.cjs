@@ -138756,17 +138756,19 @@ async function registerRoutes(app2) {
   });
   function resolveImages(gallery, type, email, overrideImages) {
     if (overrideImages && overrideImages.length > 0) return overrideImages;
-    if (type === "gallery") return gallery.galleryImages || [];
+    if (type === "gallery") return gallery.galleryImages || gallery.gallery_images || [];
     if (type === "selected") {
-      const emailSels = gallery.emailSelections || {};
-      return email && emailSels[email] ? emailSels[email] : gallery.selectedImages || [];
+      const emailSels = gallery.emailSelections || gallery.email_selections || {};
+      const selected = gallery.selectedImages || gallery.selected_images || [];
+      return email && emailSels[email] ? emailSels[email] : selected;
     }
-    return gallery.finalImages || [];
+    return gallery.finalImages || gallery.final_images || [];
   }
   async function buildZipUrl(res, gallery, type, email, overrideImages) {
     const images = resolveImages(gallery, type, email, overrideImages);
     if (images.length === 0) return res.status(400).json({ error: "No images to download" });
     const allCloudinary = images.every((u5) => u5.includes("res.cloudinary.com"));
+    const galleryId = gallery.id;
     if (allCloudinary) {
       const cfg = getCloudinarySignedConfig();
       if (!cfg) return res.status(500).json({ error: "Not configured" });
@@ -138774,7 +138776,7 @@ async function registerRoutes(app2) {
       let archiveUrl;
       if (type === "gallery") {
         archiveUrl = import_cloudinary.v2.utils.download_zip_url({
-          prefixes: [`galleries/${gallery.id}`],
+          prefixes: [`galleries/${galleryId}`],
           resource_type: "image"
         });
       } else {
@@ -138807,12 +138809,19 @@ async function registerRoutes(app2) {
     res.setHeader("Content-Length", zipBuf.length);
     res.send(zipBuf);
   }
+  async function getGalleryDirect(id) {
+    const client = new Client({ connectionString: process.env.DATABASE_URL.trim() });
+    await client.connect();
+    const { rows } = await client.query("SELECT * FROM galleries WHERE id = $1 LIMIT 1", [id]);
+    await client.end();
+    return rows[0] || null;
+  }
   app2.get("/api/gallery/:id/download-zip", async (req, res) => {
     try {
       const { type = "final", email = "", code } = req.query;
-      const gallery = await storage.getGalleryById(req.params.id);
+      const gallery = await getGalleryDirect(req.params.id);
       if (!gallery) return res.status(404).json({ error: "Gallery not found" });
-      if (gallery.requireAccessCode && gallery.accessCode !== code) {
+      if (gallery.require_access_code && gallery.access_code !== code) {
         return res.status(401).json({ error: "Invalid access code" });
       }
       await buildZipUrl(res, gallery, type, email);
@@ -138823,9 +138832,9 @@ async function registerRoutes(app2) {
   app2.post("/api/gallery/:id/download-zip", async (req, res) => {
     try {
       const { type = "final", email = "", code, images: imagesRaw } = req.body;
-      const gallery = await storage.getGalleryById(req.params.id);
+      const gallery = await getGalleryDirect(req.params.id);
       if (!gallery) return res.status(404).json({ error: "Gallery not found" });
-      if (gallery.requireAccessCode && gallery.accessCode !== code) {
+      if (gallery.require_access_code && gallery.access_code !== code) {
         return res.status(401).json({ error: "Invalid access code" });
       }
       let overrideImages;

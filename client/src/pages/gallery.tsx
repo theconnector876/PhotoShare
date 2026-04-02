@@ -390,7 +390,15 @@ export default function Gallery() {
     <div className="pt-20 pb-20 relative z-10">
       {/* ── Lightbox ── */}
       {lightboxIndex !== null && lightboxImage && (
-        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center" onClick={closeLightbox}>
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center" onClick={closeLightbox}
+          onTouchStart={(e) => { (e.currentTarget as any)._touchX = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            const startX = (e.currentTarget as any)._touchX;
+            if (startX == null) return;
+            const diff = startX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 50) { e.stopPropagation(); diff > 0 ? nextImage() : prevImage(); }
+          }}
+        >
           {/* Close */}
           <button className="absolute top-4 right-4 text-white/80 hover:text-white p-2 rounded-full bg-black/40 hover:bg-black/60 transition-colors z-10" onClick={closeLightbox}>
             <X className="w-6 h-6" />
