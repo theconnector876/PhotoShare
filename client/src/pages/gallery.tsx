@@ -168,10 +168,12 @@ export default function Gallery() {
     onSuccess: (data: Gallery) => {
       setGallery(data);
       if (data.downloadUrls) setDownloadUrls(data.downloadUrls);
-      // Load this visitor's own selections (not the merged global set)
+      // Load this visitor's own selections only — never show other visitors' picks
       const email = form.getValues('email') || '';
       const emailSels = (data.emailSelections as Record<string, string[]>) || {};
-      setSelectedImages(email && emailSels[email] ? emailSels[email] : data.selectedImages || []);
+      // If email is known: use only their saved selection (empty if first visit)
+      // If no email (anonymous share link): fall back to global selectedImages
+      setSelectedImages(email ? (emailSels[email] || []) : (data.selectedImages || []));
       setComment(data.clientComment || "");
       setImageComments(data.imageComments || {});
       setVisitorEmail(email);
