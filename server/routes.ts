@@ -667,37 +667,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Pre-generate Cloudinary archive URLs synchronously — no extra DB or network call needed.
       // These are stored client-side so button clicks open the URL immediately (no server round-trip).
+      // Uses explicit public_ids (not prefixes) so the zip is never empty regardless of Cloudinary folder mode.
       const downloadUrls: Record<string, string> = {};
       try {
         const cfg = getCloudinarySignedConfig();
         if (cfg) {
           cloudinary.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
 
+          const makeArchiveUrl = (images: string[]) => (cloudinary.utils as any).download_zip_url({
+            public_ids: images.map(extractPublicId),
+            resource_type: 'image',
+            type: 'upload',
+          });
+
           const galleryImages: string[] = gallery.galleryImages || [];
           if (gallery.galleryDownloadEnabled && galleryImages.length > 0 && galleryImages.every((u: string) => u.includes('res.cloudinary.com'))) {
-            downloadUrls.gallery = (cloudinary.utils as any).download_zip_url({
-              prefixes: [`galleries/${gallery.id}`],
-              resource_type: 'image',
-            });
+            downloadUrls.gallery = makeArchiveUrl(galleryImages);
           }
 
           const emailSels: Record<string, string[]> = gallery.emailSelections || {};
           const resolvedSelected: string[] = (email && emailSels[email]) ? emailSels[email] : (gallery.selectedImages || []);
           if (gallery.selectedDownloadEnabled && resolvedSelected.length > 0 && resolvedSelected.every((u: string) => u.includes('res.cloudinary.com'))) {
-            const publicIds = resolvedSelected.map((url: string) => {
-              const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-              return m ? m[1] : url;
-            });
-            downloadUrls.selected = (cloudinary.utils as any).download_zip_url({ public_ids: publicIds, resource_type: 'image' });
+            downloadUrls.selected = makeArchiveUrl(resolvedSelected);
           }
 
           const finalImages: string[] = gallery.finalImages || [];
           if (gallery.finalDownloadEnabled && finalImages.length > 0 && finalImages.every((u: string) => u.includes('res.cloudinary.com'))) {
-            const publicIds = finalImages.map((url: string) => {
-              const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-              return m ? m[1] : url;
-            });
-            downloadUrls.final = (cloudinary.utils as any).download_zip_url({ public_ids: publicIds, resource_type: 'image' });
+            downloadUrls.final = makeArchiveUrl(finalImages);
           }
         }
       } catch (e) {
@@ -760,6 +756,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Extract Cloudinary public_id from a URL, stripping version and extension
+  function extractPublicId(url: string): string {
+    const clean = url.split('?')[0];
+    const idx = clean.indexOf('/upload/');
+    if (idx < 0) return clean;
+    let path = clean.slice(idx + 8); // after '/upload/'
+    path = path.replace(/^v\d+\//, '');   // strip version segment
+    path = path.replace(/\.[^.\/]+$/, ''); // strip file extension
+    return path;
+  }
+
   // Resolve which images to zip based on type/email
   // Handles both camelCase (Drizzle) and snake_case (raw pg) field names
   function resolveImages(gallery: any, type: string, email: string, overrideImages?: string[]): string[] {
@@ -781,29 +788,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const galleryId = gallery.id;
 
     if (allCloudinary) {
-      // Cloudinary images: generate a signed archive URL (no server-side fetching)
+      // Cloudinary images: generate a signed archive URL using explicit public_ids
+      // (prefixes-based approach returns empty zip if Cloudinary account doesn't embed folders in public_ids)
       const cfg = getCloudinarySignedConfig();
       if (!cfg) return res.status(500).json({ error: 'Not configured' });
       cloudinary.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
 
-      let archiveUrl: string;
-      if (type === 'gallery') {
-        // Folder prefix — short URL regardless of image count
-        archiveUrl = (cloudinary.utils as any).download_zip_url({
-          prefixes: [`galleries/${galleryId}`],
-          resource_type: 'image',
-        });
-      } else {
-        // Selected/final — public_ids (smaller sets, URL stays under limit)
-        const publicIds = images.map((url: string) => {
-          const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-          return m ? m[1] : url;
-        });
-        archiveUrl = (cloudinary.utils as any).download_zip_url({
-          public_ids: publicIds,
-          resource_type: 'image',
-        });
-      }
+      const publicIds = images.map((url: string) => extractPublicId(url));
+      const archiveUrl = (cloudinary.utils as any).download_zip_url({
+        public_ids: publicIds,
+        resource_type: 'image',
+        type: 'upload',
+      });
       return res.redirect(archiveUrl);
     }
 

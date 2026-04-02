@@ -138704,29 +138704,23 @@ async function registerRoutes(app2) {
         const cfg = getCloudinarySignedConfig();
         if (cfg) {
           import_cloudinary.v2.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
+          const makeArchiveUrl = (images) => import_cloudinary.v2.utils.download_zip_url({
+            public_ids: images.map(extractPublicId),
+            resource_type: "image",
+            type: "upload"
+          });
           const galleryImages = gallery.galleryImages || [];
           if (gallery.galleryDownloadEnabled && galleryImages.length > 0 && galleryImages.every((u5) => u5.includes("res.cloudinary.com"))) {
-            downloadUrls.gallery = import_cloudinary.v2.utils.download_zip_url({
-              prefixes: [`galleries/${gallery.id}`],
-              resource_type: "image"
-            });
+            downloadUrls.gallery = makeArchiveUrl(galleryImages);
           }
           const emailSels = gallery.emailSelections || {};
           const resolvedSelected = email && emailSels[email] ? emailSels[email] : gallery.selectedImages || [];
           if (gallery.selectedDownloadEnabled && resolvedSelected.length > 0 && resolvedSelected.every((u5) => u5.includes("res.cloudinary.com"))) {
-            const publicIds = resolvedSelected.map((url) => {
-              const m6 = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-              return m6 ? m6[1] : url;
-            });
-            downloadUrls.selected = import_cloudinary.v2.utils.download_zip_url({ public_ids: publicIds, resource_type: "image" });
+            downloadUrls.selected = makeArchiveUrl(resolvedSelected);
           }
           const finalImages = gallery.finalImages || [];
           if (gallery.finalDownloadEnabled && finalImages.length > 0 && finalImages.every((u5) => u5.includes("res.cloudinary.com"))) {
-            const publicIds = finalImages.map((url) => {
-              const m6 = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-              return m6 ? m6[1] : url;
-            });
-            downloadUrls.final = import_cloudinary.v2.utils.download_zip_url({ public_ids: publicIds, resource_type: "image" });
+            downloadUrls.final = makeArchiveUrl(finalImages);
           }
         }
       } catch (e5) {
@@ -138787,6 +138781,15 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to update gallery" });
     }
   });
+  function extractPublicId(url) {
+    const clean = url.split("?")[0];
+    const idx = clean.indexOf("/upload/");
+    if (idx < 0) return clean;
+    let path = clean.slice(idx + 8);
+    path = path.replace(/^v\d+\//, "");
+    path = path.replace(/\.[^.\/]+$/, "");
+    return path;
+  }
   function resolveImages(gallery, type, email, overrideImages) {
     if (overrideImages && overrideImages.length > 0) return overrideImages;
     if (type === "gallery") return gallery.galleryImages || gallery.gallery_images || [];
@@ -138806,22 +138809,12 @@ async function registerRoutes(app2) {
       const cfg = getCloudinarySignedConfig();
       if (!cfg) return res.status(500).json({ error: "Not configured" });
       import_cloudinary.v2.config({ cloud_name: cfg.cloudName, api_key: cfg.apiKey, api_secret: cfg.apiSecret });
-      let archiveUrl;
-      if (type === "gallery") {
-        archiveUrl = import_cloudinary.v2.utils.download_zip_url({
-          prefixes: [`galleries/${galleryId}`],
-          resource_type: "image"
-        });
-      } else {
-        const publicIds = images.map((url) => {
-          const m6 = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-          return m6 ? m6[1] : url;
-        });
-        archiveUrl = import_cloudinary.v2.utils.download_zip_url({
-          public_ids: publicIds,
-          resource_type: "image"
-        });
-      }
+      const publicIds = images.map((url) => extractPublicId(url));
+      const archiveUrl = import_cloudinary.v2.utils.download_zip_url({
+        public_ids: publicIds,
+        resource_type: "image",
+        type: "upload"
+      });
       return res.redirect(archiveUrl);
     }
     const JSZip = require_lib10();
