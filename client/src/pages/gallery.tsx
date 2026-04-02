@@ -75,28 +75,38 @@ async function downloadBlob(url: string, filename: string) {
 
 // Trigger a server-side zip download — browser starts saving immediately
 function triggerZipDownload(galleryId: string, type: string, email: string, code: string, selectedUrls?: string[]) {
+  const params = new URLSearchParams({ type, code });
+  if (email) params.set('email', email);
+  const url = `/api/gallery/${galleryId}/download-zip?${params}`;
+
   if (selectedUrls && selectedUrls.length > 0) {
-    // POST with JSON body for custom image list
+    // For custom image lists use a form POST so we can pass the URL array
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = `/api/gallery/${galleryId}/download-zip`;
-    const fields: Record<string, string> = { type, code, email: email || '' };
-    Object.entries(fields).forEach(([k, v]) => {
+    [['type', type], ['code', code], ['email', email || '']].forEach(([k, v]) => {
       const inp = document.createElement('input');
       inp.type = 'hidden'; inp.name = k; inp.value = v;
       form.appendChild(inp);
     });
-    // Pass images as JSON string field
-    const imagesInp = document.createElement('input');
-    imagesInp.type = 'hidden'; imagesInp.name = 'images'; imagesInp.value = JSON.stringify(selectedUrls);
-    form.appendChild(imagesInp);
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'images'; inp.value = JSON.stringify(selectedUrls);
+    form.appendChild(inp);
+    const iframe = document.createElement('iframe');
+    iframe.name = `dl-${Date.now()}`;
+    iframe.style.display = 'none';
+    form.target = iframe.name;
+    document.body.appendChild(iframe);
     document.body.appendChild(form);
     form.submit();
-    document.body.removeChild(form);
+    setTimeout(() => { document.body.removeChild(form); document.body.removeChild(iframe); }, 60000);
   } else {
-    const params = new URLSearchParams({ type, code });
-    if (email) params.set('email', email);
-    window.location.href = `/api/gallery/${galleryId}/download-zip?${params}`;
+    // Hidden iframe — download starts without navigating away from the gallery
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    setTimeout(() => document.body.removeChild(iframe), 60000);
   }
 }
 
