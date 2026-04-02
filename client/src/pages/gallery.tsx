@@ -56,10 +56,10 @@ function cloudinaryThumb(url: string, width = 400): string {
   return url.replace('/image/upload/', `/image/upload/c_fill,w_${width},q_auto,f_auto/`);
 }
 
-// Download a single URL as a blob
+// Download a single image as a blob
 async function downloadBlob(url: string, filename: string) {
   try {
-    const res = await fetch(url, { mode: 'cors' });
+    const res = await fetch(url.split('?')[0], { mode: 'cors' });
     const blob = await res.blob();
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -74,15 +74,45 @@ async function downloadBlob(url: string, filename: string) {
   }
 }
 
-// Trigger a zip download — uses pre-generated URL when available (instant), falls back to server endpoint
-function triggerZipDownload(galleryId: string, type: string, email: string, code: string, preGenUrl?: string) {
-  if (preGenUrl) {
-    window.open(preGenUrl, '_blank');
-    return;
-  }
-  const params = new URLSearchParams({ type, code });
-  if (email) params.set('email', email);
-  window.open(`/api/gallery/${galleryId}/download-zip?${params}`, '_blank');
+// Client-side zip: fetch images in the browser and zip them with JSZip.
+// No server call → no timeout. Works for Cloudinary and R2 images.
+async function downloadAllZip(
+  images: string[],
+  zipName: string,
+  onProgress: (pct: number | null) => void
+) {
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+
+  onProgress(0);
+  let completed = 0;
+
+  await Promise.allSettled(images.map(async (url, i) => {
+    try {
+      const cleanUrl = url.split('?')[0];
+      const res = await fetch(cleanUrl, { mode: 'cors' });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const ext = (cleanUrl.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'jpg';
+      zip.file(`photo-${String(i + 1).padStart(3, '0')}.${ext}`, blob);
+    } catch { /* skip */ } finally {
+      completed++;
+      onProgress(Math.round((completed / images.length) * 90));
+    }
+  }));
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+  onProgress(100);
+
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = zipName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  setTimeout(() => onProgress(null), 1500);
 }
 
 export default function Gallery() {
@@ -108,6 +138,7 @@ export default function Gallery() {
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [copied, setCopied] = useState(false);
   const [downloadUrls, setDownloadUrls] = useState<Record<string, string>>({});
+  const [zipProgress, setZipProgress] = useState<number | null>(null);
   const { toast } = useToast();
 
   const form = useForm<GalleryAccessData>({
@@ -508,36 +539,55 @@ export default function Gallery() {
         </div>
 
         {/* Download buttons — top */}
-        {viewMode === 'gallery' && (gallery.galleryDownloadEnabled) && currentImages.length > 0 && (
+        {zipProgress !== null && (
+          <div className="flex flex-col items-center mb-4 gap-1">
+            <div className="w-64 bg-muted rounded-full h-2 overflow-hidden">
+              <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${zipProgress}%` }} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {zipProgress < 100 ? `Preparing download… ${zipProgress}%` : 'Download starting…'}
+            </p>
+          </div>
+        )}
+        {viewMode === 'gallery' && gallery.galleryDownloadEnabled && currentImages.length > 0 && (
           <div className="flex flex-wrap justify-center gap-3 mb-6">
-            {gallery.galleryDownloadEnabled && selectedImages.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode, downloadUrls['selected'])}>
-                <Download className="mr-2 h-4 w-4" />Download Selected ({selectedImages.length})
+            {selectedImages.length > 0 && (
+              <Button variant="outline" size="sm" disabled={zipProgress !== null}
+                onClick={() => downloadAllZip(selectedImages, 'selected-photos.zip', setZipProgress)}>
+                <Download className="mr-2 h-4 w-4" />
+                {zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedImages.length})`}
               </Button>
             )}
-            {gallery.galleryDownloadEnabled && (
-              <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'gallery', visitorEmail, gallery.accessCode, downloadUrls['gallery'])}>
-                <Download className="mr-2 h-4 w-4" />Download All
-              </Button>
-            )}
+            <Button variant="outline" size="sm" disabled={zipProgress !== null}
+              onClick={() => downloadAllZip(gallery.galleryImages, 'all-photos.zip', setZipProgress)}>
+              <Download className="mr-2 h-4 w-4" />
+              {zipProgress !== null ? `${zipProgress}%` : 'Download All'}
+            </Button>
           </div>
         )}
         {viewMode === 'selected' && gallery.selectedDownloadEnabled && currentImages.length > 0 && (
           <div className="flex justify-center mb-6">
-            <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'selected', visitorEmail, gallery.accessCode, downloadUrls['selected'])}>
-              <Download className="mr-2 h-4 w-4" />Download All Selected
+            <Button variant="outline" size="sm" disabled={zipProgress !== null}
+              onClick={() => downloadAllZip(selectedImages, 'selected-photos.zip', setZipProgress)}>
+              <Download className="mr-2 h-4 w-4" />
+              {zipProgress !== null ? `${zipProgress}%` : 'Download All Selected'}
             </Button>
           </div>
         )}
         {viewMode === 'final' && gallery.finalDownloadEnabled && currentImages.length > 0 && (
           <div className="flex flex-wrap justify-center gap-3 mb-6">
             {selectedFinalImages.length > 0 && (
-              <Button size="sm" onClick={() => triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode, downloadUrls['final'])} className="bg-gradient-to-r from-primary to-secondary text-white">
-                <Download className="mr-2 h-4 w-4" />Download Selected ({selectedFinalImages.length})
+              <Button size="sm" disabled={zipProgress !== null}
+                onClick={() => downloadAllZip(selectedFinalImages, 'selected-finals.zip', setZipProgress)}
+                className="bg-gradient-to-r from-primary to-secondary text-white">
+                <Download className="mr-2 h-4 w-4" />
+                {zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedFinalImages.length})`}
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => triggerZipDownload(gallery.id, 'final', visitorEmail, gallery.accessCode, downloadUrls['final'])}>
-              <Download className="mr-2 h-4 w-4" />Download All ({currentImages.length})
+            <Button variant="outline" size="sm" disabled={zipProgress !== null}
+              onClick={() => downloadAllZip(gallery.finalImages, 'final-photos.zip', setZipProgress)}>
+              <Download className="mr-2 h-4 w-4" />
+              {zipProgress !== null ? `${zipProgress}%` : `Download All (${currentImages.length})`}
             </Button>
           </div>
         )}
