@@ -89,7 +89,7 @@ export default function Payment() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" aria-label="Loading"/>
       </div>
     );
@@ -97,7 +97,7 @@ export default function Payment() {
 
   if (!booking) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center">
             <p>Unable to load payment information</p>
@@ -118,7 +118,7 @@ export default function Payment() {
   const totalCharge = baseAmount + (paymentType === 'balance' ? tipAmount : 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted py-8">
       <div className="container max-w-2xl mx-auto px-4">
         <Button
           variant="ghost"
@@ -180,14 +180,14 @@ export default function Payment() {
 
             {/* Tip input — balance payments only */}
             {paymentType === 'balance' && (
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg space-y-3">
+              <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-4 rounded-lg space-y-3">
                 <div className="flex items-center gap-2">
-                  <Heart className="w-4 h-4 text-yellow-600" />
-                  <h4 className="font-semibold text-yellow-800">Leave a Tip (optional)</h4>
+                  <Heart className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <h4 className="font-semibold text-amber-800 dark:text-amber-300">Leave a Tip (optional)</h4>
                 </div>
-                <p className="text-sm text-yellow-700">Show your appreciation for your photographer.</p>
+                <p className="text-sm text-amber-700 dark:text-amber-400">Show your appreciation for your photographer.</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-yellow-800">{currency}</span>
+                  <span className="text-sm font-medium text-amber-800 dark:text-amber-300">{currency}</span>
                   <Input
                     type="number"
                     min={0}
@@ -203,7 +203,7 @@ export default function Payment() {
                   />
                 </div>
                 {tipAmount > 0 && (
-                  <p className="text-sm font-medium text-yellow-800">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
                     Total charge: {fmt(totalCharge)}
                   </p>
                 )}
@@ -211,14 +211,14 @@ export default function Payment() {
             )}
 
             {/* Payment Info */}
-            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="bg-amber-50 dark:bg-amber-950/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <CreditCard className="w-4 h-4 text-green-600" />
+                <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                  <CreditCard className="w-4 h-4 text-amber-500" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-green-800 mb-1">Secure Payment</h4>
-                  <p className="text-sm text-green-700">
+                  <h4 className="font-semibold mb-1">Secure Payment</h4>
+                  <p className="text-sm text-muted-foreground">
                     {totalCharge === 0
                       ? 'Your balance is fully covered — click below to confirm.'
                       : 'You will be redirected to complete your payment securely through WiPay.'}

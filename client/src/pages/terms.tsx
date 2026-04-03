@@ -29,7 +29,7 @@ export default function Terms() {
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <Card className="p-6 hover-3d">
             <div className="flex items-center mb-4">
-              <CheckCircle className="text-green-500 mr-3" size={20} />
+              <CheckCircle className="text-amber-500 mr-3" size={20} />
               <h3 className="text-lg font-semibold">Service Provision</h3>
             </div>
             <p className="text-muted-foreground text-sm">

@@ -92,7 +92,7 @@ export function ConversationList({
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="font-medium text-sm truncate">{title}</span>
                       {conv.type === "support" && (
-                        <Badge className="bg-green-500 text-white text-[9px] px-1.5 py-0 h-4 shrink-0">Support</Badge>
+                        <Badge className="bg-amber-500 text-black text-[9px] px-1.5 py-0 h-4 shrink-0">Support</Badge>
                       )}
                       {conv.type === "booking" && (
                         <Badge className="bg-blue-500 text-white text-[9px] px-1.5 py-0 h-4 shrink-0">Booking</Badge>

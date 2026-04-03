@@ -161,7 +161,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
         {/* ── REQUEST PAYOUT ─────────────────────────────────────── */}
         <TabsContent value="request" className="space-y-4 mt-4">
           {!hasDetails && (
-            <Card className="border-yellow-200 bg-yellow-50">
+            <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
               <CardContent className="flex gap-3 p-4">
                 <AlertCircle className="text-yellow-600 mt-0.5 shrink-0" size={18} />
                 <p className="text-sm text-yellow-800">
@@ -205,7 +205,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-semibold text-green-700">${(earnings / 100).toFixed(0)}</p>
+                        <p className="font-semibold text-amber-500">${(earnings / 100).toFixed(0)}</p>
                         <p className="text-xs text-muted-foreground">{payoutPct}% of ${Math.round((b.depositPaid ? Math.round(b.totalPrice * 0.5) : 0) + (b.balancePaid ? b.totalPrice - Math.round(b.totalPrice * 0.5) : 0))}</p>
                       </div>
                     </div>
@@ -272,7 +272,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                         )}
                       </div>
                       <div className="text-right shrink-0 flex flex-col items-end gap-2">
-                        <p className="text-xl font-bold text-green-700">
+                        <p className="text-xl font-bold text-amber-500">
                           {formatAmount(p.amount, p.currency)}
                         </p>
                         <Button
@@ -311,7 +311,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                                   <div className="text-right space-y-0.5 shrink-0 pl-3">
                                     <p className="text-muted-foreground">Collected: {fmt(b.grossPaid, p.currency)}</p>
                                     <p className="text-orange-700">Fee ({100 - pct}%): −{fmt(b.platformFee, p.currency)}</p>
-                                    <p className="font-semibold text-green-700">Your cut ({pct}%): {fmt(b.photographerCut, p.currency)}</p>
+                                    <p className="font-semibold text-amber-500">Your cut ({pct}%): {fmt(b.photographerCut, p.currency)}</p>
                                   </div>
                                 </div>
                               ))}
@@ -321,7 +321,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                                 <div className="text-right space-y-0.5">
                                   <p className="text-muted-foreground text-xs">Collected: {fmt(totalGross, p.currency)}</p>
                                   <p className="text-orange-700 text-xs">Platform fee: −{fmt(totalFee, p.currency)}</p>
-                                  <p className="text-green-700">Your payout: {fmt(p.amount, p.currency)}</p>
+                                  <p className="text-amber-500">Your payout: {fmt(p.amount, p.currency)}</p>
                                 </div>
                               </div>
                             </div>
@@ -334,8 +334,8 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
 
                         {/* Bank receipt from admin */}
                         {p.receiptUrl && (
-                          <div className="p-3 bg-green-50 border border-green-100 rounded-lg">
-                            <p className="text-xs font-semibold text-green-800 uppercase tracking-wide mb-2">Bank Transfer Receipt</p>
+                          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-800 rounded-lg">
+                            <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide mb-2">Bank Transfer Receipt</p>
                             {p.receiptUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                               <img
                                 src={p.receiptUrl}

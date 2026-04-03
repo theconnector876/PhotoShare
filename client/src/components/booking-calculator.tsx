@@ -252,21 +252,21 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
       name: 'Photoshoot',
       description: 'Personal & Portrait Sessions',
       icon: Users,
-      gradient: 'from-accent to-primary',
+      gradient: 'from-amber-400 to-orange-500',
     },
     {
       id: 'wedding' as const,
       name: 'Wedding',
       description: 'Complete Wedding Packages',
       icon: Heart,
-      gradient: 'from-primary to-secondary',
+      gradient: 'from-rose-400 to-pink-500',
     },
     {
       id: 'event' as const,
       name: 'Event',
       description: 'Corporate & Social Events',
       icon: Camera,
-      gradient: 'from-secondary to-accent',
+      gradient: 'from-blue-400 to-indigo-500',
     },
   ];
 
@@ -285,7 +285,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
   ];
 
   return (
-    <div className="py-20 bg-gradient-to-br from-primary/5 to-secondary/5 relative z-10">
+    <div className="py-20 bg-background relative z-10">
       <div className="max-w-6xl mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold font-serif mb-4 gradient-text">Book Your Session</h2>
@@ -1075,7 +1075,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
 
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-to-r from-primary to-secondary text-white py-4 text-lg font-semibold magnetic-btn animate-glow"
+                className="w-full bg-amber-500 hover:bg-amber-400 text-black py-4 text-lg font-semibold magnetic-btn animate-glow"
                 disabled={createBookingMutation.isPending}
                 data-testid="button-submit-booking"
               >

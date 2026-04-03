@@ -44,7 +44,7 @@ interface ProfileCardData {
 }
 
 function statusBadgeClass(status: string): string {
-  if (status === "completed") return "bg-green-100 text-green-800";
+  if (status === "completed") return "bg-emerald-500/15 text-emerald-400";
   if (status === "confirmed") return "bg-blue-100 text-blue-800";
   return "bg-yellow-100 text-yellow-800";
 }

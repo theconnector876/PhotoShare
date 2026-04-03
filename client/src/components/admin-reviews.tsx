@@ -110,7 +110,7 @@ export function AdminReviews() {
           <Star
             key={star}
             className={`w-4 h-4 ${
-              star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+              star <= rating ? "fill-amber-400 text-amber-400" : "text-gray-300"
             }`}
           />
         ))}
@@ -122,7 +122,7 @@ export function AdminReviews() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
       </div>
     );
   }
@@ -221,7 +221,7 @@ export function AdminReviews() {
                         )}
                       </div>
                     </div>
-                    <p className="text-gray-700 leading-relaxed">{review.reviewText}</p>
+                    <p className="text-muted-foreground leading-relaxed">{review.reviewText}</p>
                   </CardContent>
                 </Card>
               ))
@@ -233,7 +233,7 @@ export function AdminReviews() {
       {/* Review Detail Modal */}
       {selectedReview && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+          <div className="bg-card rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-xl font-bold">Review Details</h3>
@@ -285,7 +285,7 @@ export function AdminReviews() {
                 
                 <div>
                   <label className="text-sm font-medium text-gray-500">Review Text</label>
-                  <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="bg-muted/50 p-4 rounded-lg">
                     <p className="leading-relaxed">{selectedReview.reviewText}</p>
                   </div>
                 </div>

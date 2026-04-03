@@ -112,12 +112,12 @@ export default function Dashboard() {
 
   const getStatusColor = (status: string) => {
     const colors = {
-      pending: "bg-yellow-100 text-yellow-800",
+      pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
       confirmed: "bg-blue-100 text-blue-800", 
-      completed: "bg-green-100 text-green-800",
+      completed: "bg-emerald-500/15 text-emerald-400",
       cancelled: "bg-red-100 text-red-800",
     };
-    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800";
+    return colors[status as keyof typeof colors] || "bg-muted text-muted-foreground";
   };
 
   const getServiceIcon = (serviceType: string) => {
@@ -248,7 +248,7 @@ export default function Dashboard() {
                   </p>
                   <Button 
                     onClick={() => setLocation("/booking")}
-                    className="bg-gradient-to-r from-primary to-secondary text-white"
+                    className="bg-gradient-to-r bg-amber-500 hover:bg-amber-400 text-black"
                     data-testid="button-book-session"
                   >
                     Book a Session
@@ -304,12 +304,12 @@ export default function Dashboard() {
                             Total: ${booking.totalPrice}
                           </div>
                           <div className="text-sm mt-1">
-                            <span className={booking.depositPaid ? "text-green-600" : "text-orange-500"}>
+                            <span className={booking.depositPaid ? "text-amber-500" : "text-orange-500 dark:text-orange-400"}>
                               Deposit ${booking.depositAmount}: {booking.depositPaid ? "✓ Paid" : "Pending"}
                             </span>
                           </div>
                           <div className="text-sm">
-                            <span className={booking.balancePaid ? "text-green-600" : "text-muted-foreground"}>
+                            <span className={booking.balancePaid ? "text-amber-500" : "text-muted-foreground"}>
                               Balance ${booking.balanceDue}: {booking.balancePaid ? "✓ Paid" : booking.depositPaid ? "Pending" : "—"}
                             </span>
                           </div>
@@ -357,13 +357,13 @@ export default function Dashboard() {
                           <div className="text-muted-foreground">Gallery Images</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-jamaica-gold">
+                          <div className="text-2xl font-bold text-amber-500">
                             {gallery.selectedImages?.length || 0}
                           </div>
                           <div className="text-muted-foreground">Selected Images</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">
+                          <div className="text-2xl font-bold text-amber-500">
                             {gallery.finalImages?.length || 0}
                           </div>
                           <div className="text-muted-foreground">Final Images</div>
@@ -385,7 +385,7 @@ export default function Dashboard() {
                         {gallery.finalImages?.length > 0 && (
                           <Button
                             size="sm"
-                            className="bg-gradient-to-r from-primary to-secondary text-white"
+                            className="bg-gradient-to-r bg-amber-500 hover:bg-amber-400 text-black"
                             onClick={() => setLocation(`/gallery/${encodeURIComponent(gallery.clientEmail)}/${gallery.accessCode}`)}
                             data-testid={`button-download-final-${gallery.id}`}
                           >

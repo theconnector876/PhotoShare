@@ -236,7 +236,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
       </div>
     );
   }
@@ -249,7 +249,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
   return (
     <div>
       {isError && (
-        <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+        <div className="mb-6 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
           Showing fallback portfolio while the server data is unavailable.
           <Button
             onClick={handleRetry}
@@ -437,7 +437,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 flex items-end justify-center gap-1 pb-2 opacity-0 group-hover:opacity-100 transition-all">
                       {index !== 0 && (
                         <button
-                          className="text-[9px] bg-white/90 text-gray-800 px-1.5 py-0.5 rounded font-medium shadow"
+                          className="text-[9px] bg-white/90 text-gray-900 px-1.5 py-0.5 rounded font-medium shadow"
                           onClick={() => {
                             const next = [...editImages];
                             const [moved] = next.splice(index, 1);
@@ -597,7 +597,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                                       key={i}
                                       className={`w-4 h-4 ${
                                         i < Math.round(rating.average)
-                                          ? 'text-yellow-400 fill-current'
+                                          ? 'text-amber-400 fill-current'
                                           : 'text-gray-400'
                                       }`}
                                     />
@@ -630,7 +630,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                                       <span className="font-medium text-sm">{review.clientName}</span>
                                       <div className="flex items-center">
                                         {[...Array(review.rating)].map((_, i) => (
-                                          <StarIcon key={i} className="w-3 h-3 text-yellow-400 fill-current" />
+                                          <StarIcon key={i} className="w-3 h-3 text-amber-400 fill-current" />
                                         ))}
                                       </div>
                                     </div>

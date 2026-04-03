@@ -79,7 +79,7 @@ export function UserProfileForm() {
     ? "bg-purple-100 text-purple-700"
     : user?.role === "photographer"
     ? "bg-blue-100 text-blue-700"
-    : "bg-green-100 text-green-700";
+    : "bg-emerald-500/15 text-emerald-400";
 
   return (
     <Card className="max-w-lg overflow-hidden">

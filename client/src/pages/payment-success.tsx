@@ -107,13 +107,13 @@ export function PaymentSuccess() {
         {/* Success Header */}
         <Card className="mb-6">
           <CardContent className="p-6 text-center">
-            <div className="text-green-500 mb-4">
+            <div className="text-amber-500 mb-4">
               <CheckCircle className="w-16 h-16 mx-auto" />
             </div>
-            <h1 className="text-2xl font-bold text-green-800 mb-2" data-testid="text-success-title">
+            <h1 className="text-2xl font-bold mb-2" data-testid="text-success-title">
               Payment Successful!
             </h1>
-            <p className="text-green-600">
+            <p className="text-muted-foreground">
               Thank you for your payment. Your booking has been updated.
             </p>
           </CardContent>
@@ -133,25 +133,25 @@ export function PaymentSuccess() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-500">Service Type</label>
+                <label className="text-sm font-medium text-muted-foreground">Service Type</label>
                 <p className="text-lg capitalize" data-testid="text-service-type">
                   {booking.serviceType}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Package</label>
+                <label className="text-sm font-medium text-muted-foreground">Package</label>
                 <p className="text-lg capitalize" data-testid="text-package-type">
                   {booking.packageType}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Shoot Date</label>
+                <label className="text-sm font-medium text-muted-foreground">Shoot Date</label>
                 <p className="text-lg" data-testid="text-shoot-date">
                   {formatDate(booking.shootDate)}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Status</label>
+                <label className="text-sm font-medium text-muted-foreground">Status</label>
                 <Badge 
                   variant={booking.status === 'confirmed' ? 'default' : 'secondary'}
                   data-testid="badge-status"
@@ -174,19 +174,19 @@ export function PaymentSuccess() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <label className="text-sm font-medium text-gray-500 block">Total Price</label>
+                <label className="text-sm font-medium text-muted-foreground block">Total Price</label>
                 <p className="text-xl font-bold" data-testid="text-total-price">
                   {formatPrice(booking.totalPrice)}
                 </p>
               </div>
               <div className="text-center p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
-                <label className="text-sm font-medium text-gray-500 block">Deposit</label>
+                <label className="text-sm font-medium text-muted-foreground block">Deposit</label>
                 <div className="flex items-center justify-center gap-2">
-                  <p className="text-xl font-bold text-green-600" data-testid="text-deposit-amount">
+                  <p className="text-xl font-bold text-primary" data-testid="text-deposit-amount">
                     {formatPrice(booking.depositAmount)}
                   </p>
                   {booking.depositPaid && (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <CheckCircle className="w-5 h-5 text-amber-500" />
                   )}
                 </div>
                 <Badge 
@@ -197,14 +197,14 @@ export function PaymentSuccess() {
                   {booking.depositPaid ? "Paid" : "Pending"}
                 </Badge>
               </div>
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <label className="text-sm font-medium text-gray-500 block">Balance Due</label>
+              <div className="text-center p-4 bg-blue-500/10 dark:bg-blue-950/30 rounded-lg">
+                <label className="text-sm font-medium text-muted-foreground block">Balance Due</label>
                 <div className="flex items-center justify-center gap-2">
                   <p className="text-xl font-bold text-blue-600" data-testid="text-balance-due">
                     {formatPrice(booking.balanceDue)}
                   </p>
                   {booking.balancePaid && (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <CheckCircle className="w-5 h-5 text-amber-500" />
                   )}
                 </div>
                 <Badge 
@@ -292,11 +292,11 @@ export function PaymentSuccess() {
           <CardContent className="p-4 text-center text-sm text-muted-foreground">
             <p>
               Questions about your booking? Contact us at{" "}
-              <a href="mailto:support@connectagrapher.com" className="text-green-600 hover:underline">
+              <a href="mailto:support@connectagrapher.com" className="text-amber-600 dark:text-amber-400 hover:underline">
                 support@connectagrapher.com
               </a>{" "}
               or{" "}
-              <a href="tel:18763881801" className="text-green-600 hover:underline">
+              <a href="tel:18763881801" className="text-amber-600 dark:text-amber-400 hover:underline">
                 (876) 388-1801
               </a>
             </p>
