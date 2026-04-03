@@ -84,29 +84,23 @@ async function downloadBlob(url: string, filename: string) {
   }
 }
 
-// Client-side zip: fetch images in the browser and zip them with JSZip.
-// Uses Cloudinary compression (w_2400,q_88,f_jpg) to keep per-image size to
-// ~400-800KB instead of 10-20MB raw, preventing mobile tab crashes.
-// Fetches 5 at a time so progress moves fast and memory stays low.
-async function downloadAllZip(
+// Download one "part" (≤100 images) as a single ZIP.
+async function downloadZipPart(
   images: string[],
   zipName: string,
-  onProgress: (pct: number | null, label?: string) => void
+  onPartProgress: (pct: number, label: string) => void
 ) {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
-
-  onProgress(0, `0 / ${images.length}`);
   let completed = 0;
   let failed = 0;
-  const BATCH_SIZE = 5;
+  const BATCH_SIZE = 8; // fast once connections are warm
 
   for (let i = 0; i < images.length; i += BATCH_SIZE) {
     const batch = images.slice(i, i + BATCH_SIZE);
     await Promise.allSettled(batch.map(async (url, batchIdx) => {
       const globalIdx = i + batchIdx;
       try {
-        // Use compressed Cloudinary URL — dramatically reduces memory usage
         const fetchUrl = cloudinaryForDownload(url.split('?')[0]);
         const res = await fetch(fetchUrl, { mode: 'cors' });
         if (!res.ok) { failed++; return; }
@@ -115,17 +109,17 @@ async function downloadAllZip(
       } catch { failed++; } finally {
         completed++;
         const pct = Math.round((completed / images.length) * 88);
-        onProgress(pct, `${completed} / ${images.length} photos`);
+        onPartProgress(pct, `${completed} / ${images.length} photos`);
       }
     }));
   }
 
-  onProgress(92, 'Building zip…');
+  onPartProgress(92, 'Building zip…');
   const blob = await zip.generateAsync(
     { type: 'blob', compression: 'STORE' },
-    (meta) => onProgress(92 + Math.round(meta.percent * 0.08), 'Building zip…')
+    (meta) => onPartProgress(92 + Math.round(meta.percent * 0.08), 'Building zip…')
   );
-  onProgress(100, failed > 0 ? `Done — ${failed} photo${failed > 1 ? 's' : ''} skipped` : 'Done!');
+  onPartProgress(100, failed > 0 ? `Done (${failed} skipped)` : 'Done!');
 
   const blobUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -135,6 +129,46 @@ async function downloadAllZip(
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+}
+
+// Split large galleries into 100-image parts so each ZIP stays under ~80 MB
+// (mobile-safe). Parts download sequentially — each part's save dialog opens
+// as soon as it's ready while the next part fetches in the background.
+async function downloadAllZip(
+  images: string[],
+  zipName: string,
+  onProgress: (pct: number | null, label?: string) => void
+) {
+  const PART_SIZE = 100;
+  const totalParts = Math.ceil(images.length / PART_SIZE);
+  const baseName = zipName.replace('.zip', '');
+
+  for (let part = 0; part < totalParts; part++) {
+    const partImages = images.slice(part * PART_SIZE, (part + 1) * PART_SIZE);
+    const partName = totalParts > 1
+      ? `${baseName}-part-${String(part + 1).padStart(2, '0')}-of-${totalParts}.zip`
+      : zipName;
+
+    // Show progress immediately so the bar moves right away
+    onProgress(1, totalParts > 1
+      ? `Part ${part + 1} of ${totalParts} — starting…`
+      : 'Starting…'
+    );
+
+    await downloadZipPart(partImages, partName, (pct, label) => {
+      onProgress(pct, totalParts > 1
+        ? `Part ${part + 1} of ${totalParts} — ${label}`
+        : label
+      );
+    });
+
+    // Brief pause between parts so the browser download dialog can process
+    if (part < totalParts - 1) {
+      onProgress(0, `Part ${part + 2} of ${totalParts} — starting…`);
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+
   setTimeout(() => onProgress(null), 3000);
 }
 
@@ -171,6 +205,17 @@ export default function Gallery() {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // Prevent accidental navigation while zip download is in progress
+  useEffect(() => {
+    if (zipProgress === null) return;
+    const guard = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Download in progress — leaving will cancel it.';
+    };
+    window.addEventListener('beforeunload', guard);
+    return () => window.removeEventListener('beforeunload', guard);
+  }, [zipProgress]);
 
   const setZip = useCallback((pct: number | null, label = '') => {
     _setZipProgress(pct);
@@ -903,7 +948,7 @@ export default function Gallery() {
 
       {/* Floating scroll buttons — appear only after scrolling down */}
       {scrollY > 300 && (
-        <div className="fixed bottom-6 right-5 z-40 flex flex-col gap-2">
+        <div className="fixed bottom-8 right-4 z-40 flex flex-col gap-2" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="w-11 h-11 rounded-full bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/30 flex items-center justify-center transition-all hover:scale-110 active:scale-95"

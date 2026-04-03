@@ -126,11 +126,11 @@ export default function Dashboard() {
     SERVICE_ICONS[serviceType] ?? <Camera size={20} weight="duotone" className="text-muted-foreground" />;
 
   return (
-    <div className={isChat ? "h-screen overflow-hidden flex flex-col pt-16 bg-background relative z-10" : "pt-16 pb-20 bg-background relative z-10"}>
+    <div className={isChat ? "h-screen overflow-hidden flex flex-col pt-16 bg-background relative z-10" : "pt-24 pb-24 bg-background relative z-10"}>
       <div className={isChat ? "flex flex-col flex-1 min-h-0 max-w-6xl w-full mx-auto px-4" : "max-w-6xl mx-auto px-4"}>
 
         {/* ── Header ── */}
-        <div className={`flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 mt-8 ${isChat ? "mb-3 flex-shrink-0" : "mb-8"}`}>
+        <div className={`flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 ${isChat ? "mb-3 flex-shrink-0" : "mb-10"}`}>
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-amber-500 mb-1.5 flex items-center gap-1.5">
               <Sparkle size={11} weight="fill" /> {isAdmin ? "Admin Console" : "Client Portal"}

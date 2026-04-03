@@ -46,14 +46,14 @@ export default function About() {
           <AdminSectionEdit sectionId="site-about-main" label="Edit About" onEdit={(id) => setEditorSection(id)} />
         </div>
 
-        {/* Ghost heading */}
+        {/* Ghost heading — decorative, strictly clipped, never overlaps content */}
         <div
-          className="absolute -top-8 left-0 select-none pointer-events-none overflow-hidden w-full"
+          className="absolute top-0 left-0 w-full overflow-hidden h-36 select-none pointer-events-none"
           aria-hidden="true"
         >
           <span
-            className="font-extrabold text-foreground/[0.04] leading-none block"
-            style={{ fontSize: 'clamp(5rem, 18vw, 14rem)', fontFamily: 'var(--font-display, var(--font-serif))' }}
+            className="font-extrabold text-foreground/[0.03] leading-none block"
+            style={{ fontSize: 'clamp(3.5rem, 10vw, 7rem)', fontFamily: 'var(--font-display, var(--font-serif))' }}
           >
             ABOUT
           </span>
@@ -181,8 +181,8 @@ export default function About() {
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500" />
             <div className="bg-[#070709] p-8 md:p-12">
               <div
-                className="absolute top-6 left-8 text-amber-500/20 font-serif pointer-events-none select-none"
-                style={{ fontSize: '6rem', lineHeight: 1, fontFamily: 'Georgia, serif' }}
+                className="absolute top-3 left-5 text-amber-500/15 font-serif pointer-events-none select-none"
+                style={{ fontSize: '3.5rem', lineHeight: 1, fontFamily: 'Georgia, serif' }}
                 aria-hidden="true"
               >
                 "

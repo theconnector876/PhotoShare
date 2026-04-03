@@ -28,14 +28,14 @@ export default function Portfolio() {
 
         {/* Editorial header */}
         <div className="relative mb-14 overflow-hidden">
-          {/* Ghost text */}
+          {/* Ghost text — decorative, clipped to its own container */}
           <div
-            className="absolute -bottom-4 left-0 select-none pointer-events-none overflow-hidden w-full"
+            className="absolute bottom-0 left-0 w-full h-28 overflow-hidden select-none pointer-events-none"
             aria-hidden="true"
           >
             <span
-              className="font-extrabold text-foreground/[0.035] leading-none block"
-              style={{ fontSize: 'clamp(4rem, 15vw, 12rem)', fontFamily: 'var(--font-display, var(--font-serif))' }}
+              className="font-extrabold text-foreground/[0.03] leading-none block"
+              style={{ fontSize: 'clamp(3rem, 9vw, 6rem)', fontFamily: 'var(--font-display, var(--font-serif))' }}
             >
               PORTFOLIO
             </span>

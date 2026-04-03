@@ -62,7 +62,7 @@ export default function Navigation() {
         className={`fixed top-0 w-full z-50 transition-all duration-300 ${
           scrolled
             ? 'bg-white/95 dark:bg-[#070709]/95 backdrop-blur-xl shadow-sm border-b border-black/5 dark:border-white/[0.04]'
-            : 'bg-transparent'
+            : 'bg-gradient-to-b from-black/50 via-black/15 to-transparent'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -86,7 +86,7 @@ export default function Navigation() {
                   className={`font-bold text-[15px] tracking-tight transition-colors duration-300 ${
                     scrolled
                       ? 'text-gray-900 dark:text-white'
-                      : 'text-white dark:text-white'
+                      : 'text-white drop-shadow-md'
                   }`}
                   style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}
                 >
@@ -108,12 +108,12 @@ export default function Navigation() {
                   >
                     <Link href={item.href}>
                       <span
-                        className={`nav-link relative text-[13px] font-medium transition-colors pb-1 ${
+                        className={`nav-link relative text-[13px] font-medium transition-colors pb-1 drop-shadow-sm ${
                           isActive
                             ? 'active text-amber-500'
                             : scrolled
                               ? 'text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white'
-                              : 'text-white/75 hover:text-white'
+                              : 'text-white/95 hover:text-white'
                         }`}
                       >
                         {item.label}

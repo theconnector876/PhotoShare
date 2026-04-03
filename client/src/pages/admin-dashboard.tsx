@@ -123,17 +123,17 @@ export function AdminDashboard() {
       : "min-h-screen bg-background pb-16"
     }>
       <div className={isChat
-        ? "max-w-7xl w-full mx-auto flex flex-col flex-1 min-h-0 px-4 pt-20"
-        : "max-w-7xl mx-auto px-4 pt-20"
+        ? "max-w-7xl w-full mx-auto flex flex-col flex-1 min-h-0 px-4 pt-24"
+        : "max-w-7xl mx-auto px-4 pt-24"
       }>
         {/* ── Header ── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className={isChat ? "mb-3 flex-shrink-0" : "mb-8"}
+          className={isChat ? "mb-4 flex-shrink-0" : "mb-10"}
         >
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-amber-500 mb-1.5 flex items-center gap-1.5">
                 <Settings size={11} /> Admin Console
