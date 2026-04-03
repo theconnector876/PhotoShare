@@ -118,8 +118,8 @@ export function AdminDashboard() {
 
   return (
     <div className={isChat
-      ? "h-screen overflow-hidden flex flex-col bg-gradient-to-br from-green-50 to-yellow-50"
-      : "min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 p-4"
+      ? "h-screen overflow-hidden flex flex-col bg-gradient-to-br from-background to-muted/30"
+      : "min-h-screen bg-gradient-to-br from-background to-muted/30 p-4"
     }>
       <div className={isChat
         ? "max-w-7xl w-full mx-auto flex flex-col flex-1 min-h-0 px-4 pt-4"
@@ -129,8 +129,8 @@ export function AdminDashboard() {
         <div className={isChat ? "mb-3 flex-shrink-0" : "mb-8"}>
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-green-800">Admin Dashboard</h1>
-              <p className="text-green-600 mt-2">Welcome back, {user?.firstName || user?.email}</p>
+              <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+              <p className="text-amber-500 mt-2">Welcome back, {user?.firstName || user?.email}</p>
             </div>
             <div className="flex gap-4">
               <Link href="/">
@@ -176,7 +176,7 @@ export function AdminDashboard() {
               <CheckCircleIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600" data-testid="stat-confirmed-bookings">
+              <div className="text-2xl font-bold text-amber-500" data-testid="stat-confirmed-bookings">
                 {confirmedBookings}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -221,7 +221,7 @@ export function AdminDashboard() {
               <FolderIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600" data-testid="stat-published-catalogues">
+              <div className="text-2xl font-bold text-amber-500" data-testid="stat-published-catalogues">
                 {publishedCatalogues}
               </div>
               <p className="text-xs text-muted-foreground">

@@ -12,7 +12,7 @@ export default function CheckoutOverlay() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center">
       <div className="text-center space-y-4">
         <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full mx-auto" />
         <p className="text-muted-foreground">Loading checkout...</p>

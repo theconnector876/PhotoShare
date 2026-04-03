@@ -170,9 +170,9 @@ function BookingCardWidget({ msg, currentUserId, onPayBalance }: {
   if (!data) return <p className="text-sm">Booking Card</p>;
 
   const isMe = msg.senderId === currentUserId;
-  const statusColor = data.status === "completed" ? "bg-green-100 text-green-800"
+  const statusColor = data.status === "completed" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
     : data.status === "confirmed" ? "bg-blue-100 text-blue-800"
-    : "bg-yellow-100 text-yellow-800";
+    : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
 
   return (
     <div className="rounded-xl border w-[240px] bg-background shadow-sm overflow-hidden">
@@ -192,13 +192,13 @@ function BookingCardWidget({ msg, currentUserId, onPayBalance }: {
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Deposit</span>
-            <span className={data.depositPaid ? "text-green-600" : "text-orange-500"}>
+            <span className={data.depositPaid ? "text-emerald-600 dark:text-emerald-400" : "text-orange-500"}>
               {data.depositPaid ? "Paid" : "Pending"}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Balance</span>
-            <span className={data.balancePaid ? "text-green-600" : "text-orange-500"}>
+            <span className={data.balancePaid ? "text-emerald-600 dark:text-emerald-400" : "text-orange-500"}>
               {data.balancePaid ? "Paid" : `$${data.balanceDue?.toLocaleString() ?? 0}`}
             </span>
           </div>
@@ -335,7 +335,7 @@ function PaymentRequestWidget({ msg, currentUserId }: {
   if (data.balancePaid) {
     return (
       <div className="rounded-xl border w-[240px] bg-background shadow-sm p-4 text-center">
-        <p className="text-sm font-medium text-green-600">Payment complete ✓</p>
+        <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Payment complete ✓</p>
       </div>
     );
   }

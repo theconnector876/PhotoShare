@@ -731,7 +731,7 @@ export function AdminBookings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
       </div>
     );
   }
@@ -854,7 +854,7 @@ export function AdminBookings() {
               filteredBookings.map((booking: Booking) => (
                 <Card 
                   key={booking.id} 
-                  className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-green-300"
+                  className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-emerald-300"
                   onClick={() => openManagementModal(booking)}
                 >
                   <CardContent className="p-6">
@@ -878,7 +878,7 @@ export function AdminBookings() {
                         <p className="text-sm text-gray-600">{booking.contactNumber}</p>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-green-600">
+                        <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                           {formatCurrency(booking.totalPrice, booking.currency || "USD")}
                         </div>
                         <div className="text-sm text-gray-500">
@@ -957,7 +957,7 @@ export function AdminBookings() {
             </DialogHeader>
             
             {/* Tab Navigation */}
-            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-4">
+            <div className="flex space-x-1 bg-muted p-1 rounded-lg mb-4">
               {[
                 { key: 'details', label: 'Details', icon: Eye },
                 { key: 'broadcast', label: 'Broadcast', icon: Radio },
@@ -1032,7 +1032,7 @@ export function AdminBookings() {
                     </div>
                     <div>
                       <Label>Total Price</Label>
-                      <p className="text-lg font-bold text-green-600">{formatCurrency(selectedBooking.totalPrice, selectedBooking.currency || "USD")}</p>
+                      <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(selectedBooking.totalPrice, selectedBooking.currency || "USD")}</p>
                       {selectedBooking.couponCode && (
                         <p className="text-xs text-muted-foreground mt-0.5">
                           Coupon <span className="font-mono font-semibold">{selectedBooking.couponCode}</span> — saved {formatCurrency(selectedBooking.discountAmount || 0, selectedBooking.currency || "USD")}
@@ -1237,7 +1237,7 @@ export function AdminBookings() {
                     )}
 
                     {selectedBooking.photographerId && !activeBroadcast && (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
+                      <div className="bg-green-50 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 text-sm text-emerald-800 dark:text-emerald-300">
                         A photographer has already been assigned to this booking.
                       </div>
                     )}
@@ -1263,7 +1263,7 @@ export function AdminBookings() {
                             <p className="text-xs text-muted-foreground">Pending</p>
                           </div>
                           <div className="bg-green-50 rounded p-3">
-                            <p className="text-2xl font-bold text-green-600">{accepted.length}</p>
+                            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{accepted.length}</p>
                             <p className="text-xs text-muted-foreground">Accepted</p>
                           </div>
                           <div className="bg-red-50 rounded p-3">
@@ -1305,7 +1305,7 @@ export function AdminBookings() {
                             {responses.map((r: any) => (
                               <div key={r.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
                                 <span>{r.photographer?.firstName || r.photographer?.email || 'Unknown'}</span>
-                                <span className={`flex items-center gap-1 font-medium ${r.response === 'accepted' ? 'text-green-600' : r.response === 'declined' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                                <span className={`flex items-center gap-1 font-medium ${r.response === 'accepted' ? 'text-emerald-600 dark:text-emerald-400' : r.response === 'declined' ? 'text-red-500' : 'text-muted-foreground'}`}>
                                   {r.response === 'accepted' && <CheckCircle2 className="w-3 h-3" />}
                                   {r.response === 'declined' && <XCircle className="w-3 h-3" />}
                                   {r.response === 'pending' && <Clock className="w-3 h-3" />}
@@ -1326,7 +1326,7 @@ export function AdminBookings() {
                         <div className="bg-muted p-3 rounded text-sm space-y-1">
                           <div className="flex justify-between"><span>Booking total:</span><span className="font-medium">{formatCurrency(selectedBooking.totalPrice, currency)}</span></div>
                           <div className="flex justify-between"><span>Your offer:</span><span className="font-medium">{broadcastOffer ? formatCurrency(broadcastOffer, currency) : '—'}</span></div>
-                          <div className="flex justify-between text-green-700"><span>Platform profit:</span><span className="font-medium">{broadcastOffer ? formatCurrency(selectedBooking.totalPrice - broadcastOffer, currency) : '—'}</span></div>
+                          <div className="flex justify-between text-emerald-700 dark:text-emerald-400"><span>Platform profit:</span><span className="font-medium">{broadcastOffer ? formatCurrency(selectedBooking.totalPrice - broadcastOffer, currency) : '—'}</span></div>
                         </div>
 
                         <div>
@@ -1640,7 +1640,7 @@ export function AdminBookings() {
                           <div>Selected</div>
                         </div>
                         <div className="text-center p-3 bg-green-50 rounded">
-                          <div className="text-xl font-bold text-green-600">{selectedGallery.finalImages.length}</div>
+                          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{selectedGallery.finalImages.length}</div>
                           <div>Final</div>
                         </div>
                       </div>
@@ -1791,7 +1791,7 @@ export function AdminBookings() {
                   />
                   <label
                     htmlFor="booking-upload-input"
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border-2 border-dashed border-green-300 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border-2 border-dashed border-green-300 text-emerald-700 dark:text-emerald-400 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none"
                   >
                     <Upload className="w-4 h-4" />
                     {isEnsuring ? "Setting up gallery…" : "Select Photos to Upload"}
@@ -1812,7 +1812,7 @@ export function AdminBookings() {
                           {item.url ? (
                             <img src={item.url} className="w-10 h-10 object-cover rounded shrink-0" />
                           ) : (
-                            <div className="w-10 h-10 bg-gray-100 rounded shrink-0 flex items-center justify-center">
+                            <div className="w-10 h-10 bg-muted rounded shrink-0 flex items-center justify-center">
                               <Upload className="w-4 h-4 text-gray-400" />
                             </div>
                           )}
@@ -1821,9 +1821,9 @@ export function AdminBookings() {
                             {item.error ? (
                               <div className="text-xs text-red-500">{item.error}</div>
                             ) : item.url ? (
-                              <div className="text-xs text-green-600">Done</div>
+                              <div className="text-xs text-emerald-600 dark:text-emerald-400">Done</div>
                             ) : (
-                              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                              <div className="w-full bg-muted rounded-full h-1.5 mt-1">
                                 <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${item.pct}%` }} />
                               </div>
                             )}
@@ -1893,7 +1893,7 @@ export function AdminBookings() {
                           </button>
                         </div>
                       ) : (
-                        <label className="flex flex-col items-center justify-center w-full h-28 rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
+                        <label className="flex flex-col items-center justify-center w-full h-28 rounded-lg border-2 border-dashed border-border cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => catCoverRef.current?.click()}>
                           <Upload className="w-5 h-5 text-gray-400 mb-1" />
                           <span className="text-sm text-gray-500">{isUploadingCatCover ? "Uploading…" : "Upload cover image"}</span>
@@ -1930,7 +1930,7 @@ export function AdminBookings() {
                           ))}
                         </div>
                       )}
-                      <label className="flex items-center gap-2 text-sm text-green-700 cursor-pointer hover:text-green-800"
+                      <label className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400 cursor-pointer hover:text-emerald-800 dark:text-emerald-300"
                         onClick={() => catImagesRef.current?.click()}>
                         <Upload className="w-4 h-4" />
                         {isUploadingCatImages ? "Uploading…" : `Add images${catImageUrls.length > 0 ? ` (${catImageUrls.length} added)` : ""}`}

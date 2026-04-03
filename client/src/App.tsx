@@ -1,5 +1,5 @@
 import { Switch, Route } from "wouter";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,6 +13,7 @@ import { Analytics } from "@vercel/analytics/react";
 import Navigation from "@/components/navigation";
 import { useNativePush } from "@/hooks/use-native-push";
 import { FullPageLoader } from "@/components/aperture-loader";
+import { CustomCursor } from "@/components/custom-cursor";
 import { Link } from "wouter";
 import { Instagram, Facebook, Twitter, Camera } from "lucide-react";
 
@@ -85,6 +86,24 @@ function ThemeSyncer() {
     return () => mq.removeEventListener('change', apply);
   }, []);
   return null;
+}
+
+function ScrollProgress() {
+  const [scaleX, setScaleX] = useState(0);
+  useEffect(() => {
+    const onScroll = () => {
+      const total = document.documentElement.scrollHeight - window.innerHeight;
+      setScaleX(total > 0 ? window.scrollY / total : 0);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  return (
+    <div
+      className="scroll-progress-bar"
+      style={{ transform: `scaleX(${scaleX})` }}
+    />
+  );
 }
 
 function PremiumFooter() {
@@ -181,6 +200,8 @@ function App() {
           <AuthProvider>
             <ThemeSyncer />
             <NativePushSetup />
+            <ScrollProgress />
+            <CustomCursor />
             <TooltipProvider>
               <div className="min-h-screen relative flex flex-col bg-background">
                 <Navigation />

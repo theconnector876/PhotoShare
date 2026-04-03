@@ -1,4 +1,4 @@
-// Authentication page with login and signup - based on blueprint:javascript_auth_all_persistance
+// Authentication page with login and signup
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
@@ -13,6 +13,7 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
 import { Camera, Heart, Users, LogIn, UserPlus, ArrowLeft, Upload } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
@@ -268,16 +269,62 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Left Column - Auth Forms */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <Card className="w-full max-w-md p-8">
+      {/* Left — always-dark editorial panel */}
+      <div className="hidden lg:flex relative flex-col justify-between w-[42%] bg-[hsl(222,20%,5%)] p-12 overflow-hidden">
+        {/* Amber glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%)' }} />
+        {/* Logo */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-[12px] bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+            <Camera className="w-4.5 h-4.5 text-black" />
+          </div>
+          <span className="text-white font-bold text-[15px]" style={{ fontFamily: 'var(--font-display, sans-serif)' }}>ConnectAGrapher</span>
+        </div>
+        {/* Main content */}
+        <div className="relative z-10 space-y-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}>
+            <p className="eyebrow mb-4">Professional Photography</p>
+            <h2 className="text-white font-black leading-tight mb-4" style={{ fontFamily: 'var(--font-display, var(--font-serif))', fontSize: 'clamp(1.8rem, 3vw, 2.6rem)' }}>
+              Capture Every<br /><span className="text-gradient-gold">Precious Moment</span>
+            </h2>
+            <p className="text-white/40 text-[14px] leading-relaxed max-w-sm">
+              Premium photography &amp; videography for weddings, events, portraits, and more across Jamaica.
+            </p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.6 }} className="space-y-3">
+            {[{ icon: '📸', text: 'Professional photographers &amp; videographers' }, { icon: '💍', text: 'Wedding and event specialists' }, { icon: '🖼️', text: 'Access your private photo gallery' }].map((item, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="text-base">{item.icon}</span>
+                <span className="text-white/50 text-[13px]" dangerouslySetInnerHTML={{ __html: item.text }} />
+              </div>
+            ))}
+          </motion.div>
+        </div>
+        {/* Bottom quote */}
+        <p className="relative z-10 text-white/20 text-[12px] italic">
+          "Every photo tells a story worth telling."
+        </p>
+      </div>
+
+      {/* Right Column - Auth Forms */}
+      <div className="flex-1 flex items-center justify-center p-6 md:p-12 overflow-y-auto">
+        <Card className="w-full max-w-md p-8 border-border/60 shadow-xl">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold gradient-text">The Connector</h1>
-            <p className="text-muted-foreground mt-2">
-              {mode === 'login' && "Welcome back!"}
-              {mode === 'register' && "Create your account"}
-              {mode === 'forgot' && "Reset your password"}
-              {mode === 'reset' && "Enter your new password"}
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-4">
+              <Camera className="w-5 h-5 text-amber-500" />
+            </div>
+            <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'var(--font-display, var(--font-serif))' }}>
+              {mode === 'login' && 'Welcome Back'}
+              {mode === 'register' && 'Create Account'}
+              {mode === 'forgot' && 'Reset Password'}
+              {mode === 'reset' && 'New Password'}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {mode === 'login' && 'Sign in to your account'}
+              {mode === 'register' && 'Join ConnectAGrapher today'}
+              {mode === 'forgot' && 'Enter your email to receive a reset link'}
+              {mode === 'reset' && 'Choose a secure new password'}
             </p>
           </div>
 
@@ -788,51 +835,6 @@ export default function AuthPage() {
         </Card>
       </div>
 
-      {/* Right Column - Hero Section */}
-      <div className="flex-1 hidden lg:flex items-center justify-center p-12 bg-muted/50 border-l border-border">
-        <div className="max-w-lg text-center">
-          <div className="mb-10">
-            <div className="flex justify-center space-x-4 mb-8">
-              <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
-                <Camera className="w-7 h-7 text-amber-400" />
-              </div>
-              <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
-                <Heart className="w-7 h-7 text-amber-400" />
-              </div>
-              <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
-                <Users className="w-7 h-7 text-amber-400" />
-              </div>
-            </div>
-          </div>
-
-          <h2 className="text-4xl font-bold mb-4 text-foreground">Capture Your Moments</h2>
-          <p className="text-lg mb-8 text-muted-foreground">
-            Professional photography services for weddings, events, and portrait sessions in Jamaica
-          </p>
-
-          <div className="space-y-3 text-muted-foreground text-sm">
-            <div className="flex items-center justify-center gap-2">
-              <Camera className="w-4 h-4 text-amber-500/70" />
-              <span>Professional photography & videography</span>
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <Heart className="w-4 h-4 text-amber-500/70" />
-              <span>Wedding and event coverage</span>
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <Users className="w-4 h-4 text-amber-500/70" />
-              <span>Portrait and group sessions</span>
-            </div>
-          </div>
-
-          <div className="mt-10 p-5 bg-card border border-border rounded-2xl shadow-sm">
-            <p className="text-sm text-muted-foreground">
-              Create an account to book your session, access your photo galleries,
-              and manage your bookings with ease.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

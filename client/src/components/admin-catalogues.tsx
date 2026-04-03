@@ -554,7 +554,7 @@ export function AdminCatalogues() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
       </div>
     );
   }
@@ -1158,7 +1158,7 @@ export function AdminCatalogues() {
 
           {isParsingZip && (
             <div className="flex items-center justify-center h-32 gap-3">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600" />
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-500" />
               <span className="text-sm text-gray-600">Reading ZIP file…</span>
             </div>
           )}
@@ -1222,7 +1222,7 @@ export function AdminCatalogues() {
           {isImportingZip && importProgress && (
             <div className="space-y-4 py-4">
               <div className="flex items-center gap-3">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 flex-shrink-0" />
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-500 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium">{importProgress.status}</p>
                   <p className="text-xs text-gray-500">{importProgress.current} of {importProgress.total} catalogues</p>

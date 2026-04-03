@@ -85,7 +85,7 @@ export default function ReviewForm({ catalogueId, catalogueTitle, onSuccess }: R
           >
             <Star
               className={`w-6 h-6 ${
-                star <= value ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                star <= value ? "fill-amber-400 text-amber-400" : "text-gray-300"
               }`}
             />
           </button>
@@ -178,7 +178,7 @@ export default function ReviewForm({ catalogueId, catalogueTitle, onSuccess }: R
             <Button
               type="submit"
               disabled={reviewMutation.isPending}
-              className="w-full bg-gradient-to-r from-green-600 to-yellow-500 text-white"
+              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-white"
               data-testid="button-submit-review"
             >
               {reviewMutation.isPending ? "Submitting..." : "Submit Review"}

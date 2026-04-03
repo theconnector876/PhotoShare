@@ -266,14 +266,14 @@ function UploadPanel({ items, onClose, canClose, onCancel, onRetry, startTime }:
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="max-w-lg w-[95vw] p-0 overflow-hidden rounded-2xl gap-0">
-        <div className="bg-gradient-to-r from-green-800 to-green-700 px-5 py-4 text-white">
+        <div className="bg-gradient-to-r from-gray-800 to-gray-700 dark:from-zinc-800 dark:to-zinc-700 px-5 py-4 text-white">
           <DialogTitle className="text-base font-semibold mb-1">
             {canClose
               ? `Done — ${done} saved${duplicates > 0 ? `, ${duplicates} skipped` : ""}${errors > 0 ? `, ${errors} failed` : ""}`
               : `Uploading ${done} / ${total} photos…`}
           </DialogTitle>
           <div className="flex items-center gap-3">
-            <Progress value={overallPct} className="flex-1 h-1.5 bg-white/20 [&>div]:bg-yellow-400 [&>div]:transition-all" />
+            <Progress value={overallPct} className="flex-1 h-1.5 bg-white/20 [[&>div]:bg-yellow-400>div]:bg-amber-400 [&>div]:transition-all" />
             <span className="text-xs text-white/70 tabular-nums w-8 text-right">{overallPct}%</span>
           </div>
           {etaText && (
@@ -308,7 +308,7 @@ function UploadPanel({ items, onClose, canClose, onCancel, onRetry, startTime }:
               </Button>
             )}
             {canClose ? (
-              <Button size="sm" className="bg-green-700 hover:bg-green-800 text-white" onClick={onClose}>
+              <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={onClose}>
                 Done
               </Button>
             ) : (
@@ -543,12 +543,12 @@ function ImageSection({
               </SelectContent>
             </Select>
             <Button size="sm" variant="outline"
-              className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 px-2"
+              className="h-7 text-xs border-border text-muted-foreground hover:bg-muted px-2"
               onClick={() => onDedup(gallery, type)}>
               Remove Dupes
             </Button>
             <label htmlFor={fileInputId}
-              className="inline-flex items-center h-7 text-xs px-2 rounded-md border border-green-200 text-green-700 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none">
+              className="inline-flex items-center h-7 text-xs px-2 rounded-md border border-border text-muted-foreground hover:bg-muted cursor-pointer transition-colors font-medium select-none">
               <UploadIcon className="w-3 h-3 mr-1" /> Upload
             </label>
           </>
@@ -564,7 +564,7 @@ function ImageSection({
           <button
             onClick={() => onFolderView("")}
             className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
-              activeFolder === "" ? "bg-green-700 text-white" : "bg-green-100 text-green-700 hover:bg-green-200"
+              activeFolder === "" ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400"
             }`}
           >
             All ({allImages.length})
@@ -574,7 +574,7 @@ function ImageSection({
               key={folder}
               onClick={() => onFolderView(folder)}
               className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
-                activeFolder === folder ? "bg-green-700 text-white" : "bg-green-100 text-green-700 hover:bg-green-200"
+                activeFolder === folder ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400"
               }`}
             >
               <Folder className="w-3 h-3" />
@@ -616,7 +616,7 @@ function ImageSection({
               className="h-7 text-xs border-green-200 w-32"
               autoFocus
             />
-            <Button size="sm" className="h-7 text-xs bg-green-700 hover:bg-green-800 text-white px-2" onClick={handleCreateFolder}>
+            <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white px-2" onClick={handleCreateFolder}>
               Add
             </Button>
             <Button size="sm" variant="ghost" className="h-7 px-1" onClick={() => { setShowFolderInput(false); onNewFolderInputChange(""); }}>
@@ -625,7 +625,7 @@ function ImageSection({
           </div>
         ) : (
           <Button size="sm" variant="outline"
-            className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 px-2 shrink-0"
+            className="h-7 text-xs border-border text-muted-foreground hover:bg-muted px-2 shrink-0"
             onClick={() => setShowFolderInput(true)}>
             <FolderPlus className="w-3 h-3 mr-1" /> New Folder
           </Button>
@@ -1224,7 +1224,7 @@ export function AdminGalleries() {
     new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
   if (isLoading)
-    return <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" /></div>;
+    return <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" /></div>;
 
   if (isError)
     return (
@@ -1248,7 +1248,7 @@ export function AdminGalleries() {
                 Upload photos, organise into folders (e.g. Reception, Ceremony), drag to reorder.
               </CardDescription>
             </div>
-            <Button onClick={() => setShowCreateDialog(true)} className="bg-green-600 hover:bg-green-700 shrink-0">
+            <Button onClick={() => setShowCreateDialog(true)} className="bg-amber-500 hover:bg-amber-600 shrink-0">
               <Plus className="w-4 h-4 mr-1" /> New Gallery
             </Button>
           </div>
@@ -1279,7 +1279,7 @@ export function AdminGalleries() {
                 <SelectItem value="client">Client A–Z</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" className="border-green-200 text-green-700 hover:bg-green-50"
+            <Button variant="outline" className="border-border text-muted-foreground hover:bg-muted"
               onClick={() => { setSearchTerm(""); setStatusFilter("all"); setGallerySortBy("newest"); }}>Clear</Button>
             <span className="text-sm text-green-600 self-center">
               {filteredGalleries.length} / {galleries?.length || 0}
@@ -1320,14 +1320,14 @@ export function AdminGalleries() {
                         </div>
                         <div className="flex gap-2 shrink-0">
                           <Button size="sm" variant="outline"
-                            className="border-green-200 text-green-700 hover:bg-green-50"
+                            className="border-border text-muted-foreground hover:bg-muted"
                             onClick={() => window.open(`/gallery/${encodeURIComponent(gallery.clientEmail)}/${gallery.accessCode}`, "_blank")}>
                             <Eye className="w-4 h-4 sm:mr-1" />
                             <span className="hidden sm:inline">Client View</span>
                           </Button>
                           <Button size="sm"
                             variant={isExpanded ? "default" : "outline"}
-                            className={isExpanded ? "bg-green-700 hover:bg-green-800 text-white" : "border-green-200 text-green-700 hover:bg-green-50"}
+                            className={isExpanded ? "bg-amber-600 hover:bg-amber-700 text-white" : "border-border text-muted-foreground hover:bg-muted"}
                             onClick={() => setExpandedId(isExpanded ? null : gallery.id)}>
                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             <span className="ml-1">{isExpanded ? "Collapse" : "Manage"}</span>
@@ -1475,7 +1475,7 @@ export function AdminGalleries() {
                                           key={t}
                                           type="button"
                                           onClick={() => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], type: t } }))}
-                                          className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors capitalize ${wm.type === t ? "bg-green-700 text-white border-green-700" : "border-muted-foreground/30 hover:bg-muted"}`}
+                                          className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors capitalize ${wm.type === t ? "bg-amber-600 text-white border-green-700" : "border-muted-foreground/30 hover:bg-muted"}`}
                                         >
                                           {t === "text" ? "Text watermark" : "Image watermark"}
                                         </button>
@@ -1593,7 +1593,7 @@ export function AdminGalleries() {
                                       />
                                     </div>
 
-                                    <Button size="sm" onClick={() => saveWatermarkSettings(gallery.id)} className="w-full h-8 text-xs bg-green-700 hover:bg-green-800 text-white">
+                                    <Button size="sm" onClick={() => saveWatermarkSettings(gallery.id)} className="w-full h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white">
                                       <Save className="w-3 h-3 mr-1" /> Save Watermark Settings
                                     </Button>
                                   </div>
@@ -1682,7 +1682,7 @@ export function AdminGalleries() {
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
             <Button
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-amber-500 hover:bg-amber-600"
               disabled={!createEmail || createGalleryMutation.isPending}
               onClick={() => createGalleryMutation.mutate({ clientEmail: createEmail, accessCode: createCode || undefined })}
             >

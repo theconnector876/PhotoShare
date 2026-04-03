@@ -197,9 +197,9 @@ function uploadPhotoWithProgress(file: File, config: SignedConfig, onProgress: (
 
 function statusColor(s: string) {
   return s === "confirmed" ? "bg-blue-100 text-blue-800"
-    : s === "completed"   ? "bg-green-100 text-green-800"
+    : s === "completed"   ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
     : s === "cancelled" || s === "declined" ? "bg-red-100 text-red-800"
-    : "bg-yellow-100 text-yellow-800";
+    : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
 }
 
 function capitalize(s: string) {
@@ -904,15 +904,15 @@ export default function PhotographerDashboard() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const approvalBadgeClass =
-    status === "approved" ? "bg-green-100 text-green-700 border-green-200"
+    status === "approved" ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
     : status === "rejected" ? "bg-red-100 text-red-700 border-red-200"
-    : "bg-yellow-100 text-yellow-700 border-yellow-200";
+    : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800";
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-background">
 
       {/* ── Desktop Sidebar ── */}
-      <aside className="hidden md:flex flex-col w-56 bg-white border-r fixed top-0 left-0 h-screen z-20">
+      <aside className="hidden md:flex flex-col w-56 bg-card border-r fixed top-0 left-0 h-screen z-20">
         {/* Brand */}
         <div className="px-4 py-4 border-b">
           <div className="flex items-center gap-2">
@@ -946,7 +946,7 @@ export default function PhotographerDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                 activeTab === item.id
                   ? "bg-primary text-primary-foreground font-medium"
-                  : "text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
               <item.icon className="w-4 h-4 shrink-0" />
@@ -962,7 +962,7 @@ export default function PhotographerDashboard() {
         <div className="px-2 py-3 border-t space-y-0.5">
           <button
             onClick={copyBookingLink}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-gray-100 hover:text-foreground transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <LinkIcon className="w-4 h-4 shrink-0" />
             <span className="truncate">Copy booking link</span>
@@ -970,7 +970,7 @@ export default function PhotographerDashboard() {
           <button
             onClick={() => logoutMutation.mutate()}
             disabled={logoutMutation.isPending}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-gray-100 hover:text-foreground transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <LogOut className="w-4 h-4 shrink-0" />
             <span>Sign Out</span>
@@ -982,7 +982,7 @@ export default function PhotographerDashboard() {
       <div className={`flex-1 flex flex-col md:ml-56 ${activeTab === "chat" ? "h-[calc(100dvh-60px)] md:h-screen overflow-hidden" : "min-h-screen"}`}>
 
         {/* Mobile top bar */}
-        <header className="md:hidden sticky top-0 z-10 bg-white border-b px-4 h-14 flex items-center justify-between">
+        <header className="md:hidden sticky top-0 z-10 bg-card border-b px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Avatar className="w-8 h-8">
               <AvatarImage src={avatarUrl || undefined} />
@@ -1007,7 +1007,7 @@ export default function PhotographerDashboard() {
         )}
 
         {/* Page title bar */}
-        <div className="bg-white border-b px-4 md:px-6 py-4">
+        <div className="bg-card border-b px-4 md:px-6 py-4">
           <h1 className="font-semibold text-lg">
             {navItems.find(n => n.id === activeTab)?.label ?? "Dashboard"}
           </h1>
@@ -1045,7 +1045,7 @@ export default function PhotographerDashboard() {
                           <p className="text-sm text-muted-foreground mt-0.5">{b.shootDate} at {b.shootTime}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xl font-bold text-green-600">{fmt(offer.offerAmount)}</p>
+                          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{fmt(offer.offerAmount)}</p>
                           <p className="text-xs text-muted-foreground">your payout</p>
                         </div>
                       </div>
@@ -1100,7 +1100,7 @@ export default function PhotographerDashboard() {
                 {[
                   { label: "Total Bookings", value: String(userBookings?.length ?? 0), sub: `${confirmedCount} confirmed · ${completedCount} completed`, icon: Calendar, color: "text-primary" },
                   { label: "Total Revenue", value: `$${totalRevenue.toLocaleString()}`, sub: "All bookings value", icon: DollarSign, color: "text-primary" },
-                  { label: "Collected", value: `$${collectedRevenue.toLocaleString()}`, sub: "Payments received", icon: CheckCircle, color: "text-green-600" },
+                  { label: "Collected", value: `$${collectedRevenue.toLocaleString()}`, sub: "Payments received", icon: CheckCircle, color: "text-emerald-600 dark:text-emerald-400" },
                   { label: "Pending", value: `$${pendingRevenue.toLocaleString()}`, sub: "Awaiting payment", icon: Clock, color: "text-orange-500" },
                 ].map(stat => (
                   <Card key={stat.label}>
@@ -1443,7 +1443,7 @@ export default function PhotographerDashboard() {
                 filteredBookings.map(booking => (
                   <Card key={booking.id} className="overflow-hidden">
                     {/* Card header strip */}
-                    <div className="px-5 py-4 border-b bg-gray-50/60 flex items-start justify-between gap-3">
+                    <div className="px-5 py-4 border-b bg-muted/40 flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold capitalize">{booking.serviceType} — {capitalize(booking.packageType)}</p>
                         <p className="text-lg font-bold text-primary mt-0.5">${booking.totalPrice.toLocaleString()}</p>
@@ -1484,13 +1484,13 @@ export default function PhotographerDashboard() {
                       <div className="flex gap-3 text-sm">
                         <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
                           <span className="text-muted-foreground">Deposit ${booking.depositAmount}</span>
-                          <Badge className={booking.depositPaid ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"} variant="outline">
+                          <Badge className={booking.depositPaid ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-orange-100 text-orange-800"} variant="outline">
                             {booking.depositPaid ? "Paid" : "Pending"}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
                           <span className="text-muted-foreground">Balance ${booking.balanceDue}</span>
-                          <Badge className={booking.balancePaid ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"} variant="outline">
+                          <Badge className={booking.balancePaid ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-orange-100 text-orange-800"} variant="outline">
                             {booking.balancePaid ? "Paid" : "Pending"}
                           </Badge>
                         </div>
@@ -1577,7 +1577,7 @@ export default function PhotographerDashboard() {
                   return (
                     <Card key={gallery.id}>
                       {/* Gallery header */}
-                      <div className="px-5 py-3.5 border-b bg-gray-50/60 flex items-center justify-between gap-3">
+                      <div className="px-5 py-3.5 border-b bg-muted/40 flex items-center justify-between gap-3">
                         <div>
                           <p className="font-semibold text-sm">
                             {booking ? `${booking.clientName} — ${capitalize(booking.serviceType)}` : `Gallery #${gallery.id.slice(-8)}`}
@@ -2290,7 +2290,7 @@ export default function PhotographerDashboard() {
                               disabled={togglePkgMutation.isPending}
                             >
                               {pkg.isActive
-                                ? <span className="text-green-600 text-xs font-bold">ON</span>
+                                ? <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">ON</span>
                                 : <span className="text-muted-foreground text-xs font-bold">OFF</span>}
                             </Button>
                             <Button
@@ -2471,7 +2471,7 @@ export default function PhotographerDashboard() {
       </div>
 
       {/* ── Mobile bottom nav ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-20 flex">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-20 flex">
         {navItems.map(item => (
           <button
             key={item.id}

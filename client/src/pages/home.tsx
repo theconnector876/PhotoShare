@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ScrollReveal, StaggerReveal, RevealItem } from "@/components/scroll-reveal";
 import { CountUp } from "@/components/count-up";
+import { MarqueeTicker } from "@/components/marquee-ticker";
 
 /* ─── Service card palette ──────────────────────── */
 const SERVICE_GRADIENTS = [
@@ -514,7 +515,12 @@ export default function Home() {
           return el ? (
             <div key={key}>
               {el}
-              {key === 'hero' && statsBar}
+              {key === 'hero' && (
+                <>
+                  <MarqueeTicker />
+                  {statsBar}
+                </>
+              )}
             </div>
           ) : null;
         })}

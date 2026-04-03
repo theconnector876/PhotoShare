@@ -576,4 +576,56 @@ body::before {
     pointer-events: none;
     opacity: 0.12;
   }
+
+  /* ── Marquee ticker ── */
+  @keyframes marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-33.333%); }
+  }
+  @keyframes marquee-slow {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-33.333%); }
+  }
+  .animate-marquee      { animation: marquee 20s linear infinite; }
+  .animate-marquee-slow { animation: marquee-slow 35s linear infinite; }
+
+  /* ── Scroll progress bar ── */
+  .scroll-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    z-index: 99999;
+    transform-origin: left center;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24, #f97316);
+    pointer-events: none;
+  }
+
+  /* ── Hide native cursor when custom cursor is active (desktop only) ── */
+  @media (hover: hover) and (pointer: fine) {
+    * { cursor: none !important; }
+  }
+
+  /* ── Shimmer loading card ── */
+  @keyframes shimmerCard {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  .shimmer-card {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted) / 0.6) 40%,
+      hsl(var(--muted)) 80%
+    );
+    background-size: 800px 100%;
+    animation: shimmerCard 1.6s ease-in-out infinite;
+  }
+
+  /* ── Portfolio image hover transition ── */
+  .portfolio-img-hover {
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .portfolio-img-hover:hover { transform: scale(1.07); }
 }

@@ -170,7 +170,7 @@ function ThreadCard({ thread, onReply, onDelete, onStatusChange }: ThreadCardPro
           {thread.status === "read" && (
             <Button
               size="sm" variant="outline"
-              className="text-green-700 border-green-200 hover:bg-green-50"
+              className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800"
               onClick={() => onStatusChange(thread.threadId, "responded")}
             >
               <CheckCheck className="w-3.5 h-3.5 mr-1.5" /> Mark Responded
@@ -449,7 +449,7 @@ export function AdminContacts() {
                         {c.status === "read" && (
                           <Button
                             size="sm" variant="outline"
-                            className="text-green-700 border-green-200 hover:bg-green-50"
+                            className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800"
                             onClick={() => updateContactStatus.mutate({ id: c.id, status: "responded" })}
                           >
                             <CheckCheck className="w-3.5 h-3.5 mr-1.5" /> Mark Responded

@@ -232,7 +232,7 @@ export function AdminUsers() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
       </div>
     );
   }
@@ -479,7 +479,7 @@ export function AdminUsers() {
           </DialogHeader>
           {profileLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" />
             </div>
           ) : userProfile ? (
             <ScrollArea className="flex-1 pr-2">
@@ -560,10 +560,10 @@ export function AdminUsers() {
                           <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
                             <span>{b.shootDate}</span>
                             <span>{b.currency} {(b.totalPrice / 100).toLocaleString()}</span>
-                            <span className={b.depositPaid ? "text-green-600" : "text-orange-500"}>
+                            <span className={b.depositPaid ? "text-emerald-600 dark:text-emerald-400" : "text-orange-500"}>
                               Deposit: {b.depositPaid ? "paid" : "unpaid"}
                             </span>
-                            <span className={b.balancePaid ? "text-green-600" : "text-orange-500"}>
+                            <span className={b.balancePaid ? "text-emerald-600 dark:text-emerald-400" : "text-orange-500"}>
                               Balance: {b.balancePaid ? "paid" : "unpaid"}
                             </span>
                           </div>
