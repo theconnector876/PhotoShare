@@ -63,6 +63,14 @@ export default function Navigation() {
     setIsOpen(true);
   };
 
+  // Re-sample background while menu is open so text flips as user scrolls
+  useEffect(() => {
+    if (!isOpen) return;
+    const onScroll = () => setMenuOnLight(samplePageIsLight());
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isOpen]);
+
   const publicNavItems = [
     { href: "/", label: "Home" },
     { href: "/portfolio", label: "Portfolio" },
