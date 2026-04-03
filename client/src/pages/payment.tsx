@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { ArrowLeft, CreditCard, Heart } from "@phosphor-icons/react";
+import { ArrowLeft, CreditCard, Heart, Warning, ArrowClockwise } from "@phosphor-icons/react";
 
 export default function Payment() {
   const [, navigate] = useLocation();
@@ -63,11 +63,13 @@ export default function Payment() {
   }, [bookingId, paymentType]);
 
   const [payStatus, setPayStatus] = useState<'idle' | 'connecting' | 'retrying'>('idle');
+  const [payError, setPayError] = useState<string | null>(null);
 
   const handlePay = async () => {
     if (!bookingId) return;
     try {
       setIsPaying(true);
+      setPayError(null);
       setPayStatus('connecting');
       const checkoutResponse = await apiRequest('POST', '/api/create-payment-intent', {
         bookingId,
@@ -76,8 +78,7 @@ export default function Payment() {
       });
       const checkoutData = await checkoutResponse.json();
       if (checkoutData.error) {
-        // Surface retry attempts in the UI label
-        if (checkoutData.error.includes('attempt 1')) setPayStatus('retrying');
+        if (checkoutData.error.toLowerCase().includes('attempt')) setPayStatus('retrying');
         throw new Error(checkoutData.error);
       }
 
@@ -89,11 +90,8 @@ export default function Payment() {
       window.location.href = checkoutData.checkoutUrl;
     } catch (error: any) {
       const msg = error?.message || "Failed to initiate payment";
-      toast({
-        title: "Payment Gateway Error",
-        description: msg.startsWith('WiPay') ? msg : `Could not connect to payment gateway. Please try again in a moment.`,
-        variant: "destructive",
-      });
+      const clean = msg.startsWith('WiPay') ? msg : `Could not connect to the payment gateway. This is usually temporary — please try again.`;
+      setPayError(clean);
       setIsPaying(false);
       setPayStatus('idle');
     }
@@ -238,6 +236,28 @@ export default function Payment() {
                 </div>
               </div>
             </div>
+
+            {/* Gateway error banner with retry */}
+            {payError && (
+              <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/30 text-destructive rounded-lg p-4">
+                <Warning size={20} className="flex-shrink-0 mt-0.5" weight="fill" />
+                <div className="flex-1 text-sm">
+                  <p className="font-semibold mb-1">Payment Gateway Error</p>
+                  <p>{payError}</p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="flex-shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10"
+                  onClick={handlePay}
+                  disabled={isPaying}
+                >
+                  <ArrowClockwise size={14} className="mr-1" />
+                  Retry
+                </Button>
+              </div>
+            )}
 
             <Button
               className="w-full"
