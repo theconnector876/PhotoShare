@@ -11,9 +11,35 @@ import { SUPPORTED_CURRENCIES, CURRENCY_SYMBOLS, type Currency } from "@shared/c
 import { usePush } from "@/hooks/use-push";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Sample the page's background luminance at the current scroll position
+// Returns true if the background is light (text should be dark)
+function samplePageIsLight(): boolean {
+  try {
+    // Walk up the DOM from the element at the top-center of the viewport
+    const el = document.elementFromPoint(window.innerWidth / 2, window.scrollY + 80) ?? document.body;
+    let node: Element | null = el;
+    while (node && node !== document.documentElement) {
+      const bg = window.getComputedStyle(node).backgroundColor;
+      const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if (m) {
+        const [r, g, b] = [+m[1], +m[2], +m[3]];
+        // transparent / near-transparent — keep looking up
+        const a = bg.includes('rgba') ? parseFloat(bg.split(',')[3]) : 1;
+        if (a < 0.1) { node = node.parentElement; continue; }
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.55;
+      }
+      node = node.parentElement;
+    }
+  } catch { /* ignore */ }
+  // Fallback: check if .dark class is present
+  return !document.documentElement.classList.contains('dark');
+}
+
 export default function Navigation() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [menuOnLight, setMenuOnLight] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user, logoutMutation } = useAuth();
   const { config } = useSiteConfig();
@@ -31,6 +57,11 @@ export default function Navigation() {
   useEffect(() => {
     setIsOpen(false);
   }, [location]);
+
+  const openMenu = () => {
+    setMenuOnLight(samplePageIsLight());
+    setIsOpen(true);
+  };
 
   const publicNavItems = [
     { href: "/", label: "Home" },
@@ -254,7 +285,7 @@ export default function Navigation() {
                 </Button>
               </Link>
               <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => isOpen ? setIsOpen(false) : openMenu()}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
                   scrolled
                     ? 'text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/6'
@@ -279,9 +310,9 @@ export default function Navigation() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[60] flex flex-col
-              bg-white/92 dark:bg-[#070709]/97
-              backdrop-blur-2xl"
+            className={`fixed inset-0 z-[60] flex flex-col backdrop-blur-2xl transition-colors ${
+              menuOnLight ? 'bg-white/92' : 'bg-[#070709]/97'
+            }`}
           >
             {/* Close button + logo */}
             <div className="flex items-center justify-between px-5 py-5">
@@ -289,13 +320,20 @@ export default function Navigation() {
                 <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-500/25">
                   <CameraIcon size={16} className="text-black" weight="duotone" />
                 </div>
-                <span className="text-gray-900 dark:text-white font-bold text-[15px] tracking-tight" style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}>
+                <span
+                  className={`font-bold text-[15px] tracking-tight ${menuOnLight ? 'text-gray-900' : 'text-white'}`}
+                  style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}
+                >
                   {config.branding.appName}
                 </span>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="w-9 h-9 rounded-xl bg-black/6 dark:bg-white/6 hover:bg-black/10 dark:hover:bg-white/10 text-gray-700 dark:text-white/70 flex items-center justify-center transition-colors"
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                  menuOnLight
+                    ? 'bg-black/6 hover:bg-black/10 text-gray-700'
+                    : 'bg-white/6 hover:bg-white/10 text-white/70'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -318,8 +356,10 @@ export default function Navigation() {
                         <span
                           className={`flex items-center justify-between px-4 py-4 rounded-2xl text-[22px] font-bold tracking-tight transition-colors cursor-pointer ${
                             isActive
-                              ? 'text-amber-500 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/8'
-                              : 'text-gray-800 dark:text-white/80 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+                              ? 'text-amber-500 bg-amber-500/10'
+                              : menuOnLight
+                                ? 'text-gray-800 hover:text-gray-900 hover:bg-black/5'
+                                : 'text-white/85 hover:text-white hover:bg-white/6'
                           }`}
                           style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}
                           onClick={() => setIsOpen(false)}
@@ -341,7 +381,11 @@ export default function Navigation() {
                 >
                   <Link href="/gallery">
                     <span
-                      className="flex items-center px-4 py-4 rounded-2xl text-[22px] font-bold tracking-tight text-gray-800 dark:text-white/80 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                      className={`flex items-center px-4 py-4 rounded-2xl text-[22px] font-bold tracking-tight transition-colors cursor-pointer ${
+                        menuOnLight
+                          ? 'text-gray-800 hover:text-gray-900 hover:bg-black/5'
+                          : 'text-white/85 hover:text-white hover:bg-white/6'
+                      }`}
                       style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}
                       onClick={() => setIsOpen(false)}
                       data-testid="mobile-gallery-access-button"
@@ -362,8 +406,8 @@ export default function Navigation() {
               className="px-6 pb-10 space-y-4"
             >
               {/* Currency */}
-              <div className="border-t border-black/8 dark:border-white/[0.06] pt-5">
-                <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-gray-400 dark:text-white/25 mb-3">Currency</p>
+              <div className={`border-t pt-5 ${menuOnLight ? 'border-black/8' : 'border-white/[0.06]'}`}>
+                <p className={`text-[11px] font-semibold tracking-[0.2em] uppercase mb-3 ${menuOnLight ? 'text-gray-400' : 'text-white/25'}`}>Currency</p>
                 <div className="flex flex-wrap gap-2">
                   {SUPPORTED_CURRENCIES.map((c) => (
                     <button
@@ -372,7 +416,9 @@ export default function Navigation() {
                       className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
                         selectedCurrency === c
                           ? "bg-amber-500 text-black"
-                          : "bg-black/6 dark:bg-white/8 text-gray-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/15 hover:text-gray-900 dark:hover:text-white"
+                          : menuOnLight
+                            ? "bg-black/6 text-gray-600 hover:bg-black/10 hover:text-gray-900"
+                            : "bg-white/8 text-white/60 hover:bg-white/15 hover:text-white"
                       }`}
                     >
                       {CURRENCY_SYMBOLS[c as Currency]} {c}
@@ -383,12 +429,14 @@ export default function Navigation() {
 
               {/* User */}
               {user ? (
-                <div className="border-t border-black/8 dark:border-white/[0.06] pt-4 flex items-center justify-between">
-                  <span className="text-[13px] text-gray-400 dark:text-white/40">Hi, {user.firstName || user.email}</span>
+                <div className={`border-t pt-4 flex items-center justify-between ${menuOnLight ? 'border-black/8' : 'border-white/[0.06]'}`}>
+                  <span className={`text-[13px] ${menuOnLight ? 'text-gray-400' : 'text-white/40'}`}>Hi, {user.firstName || user.email}</span>
                   <button
                     onClick={handleLogout}
                     disabled={logoutMutation.isPending}
-                    className="flex items-center gap-2 text-[13px] text-gray-500 dark:text-white/50 hover:text-gray-900 dark:hover:text-white transition-colors"
+                    className={`flex items-center gap-2 text-[13px] transition-colors ${
+                      menuOnLight ? 'text-gray-500 hover:text-gray-900' : 'text-white/50 hover:text-white'
+                    }`}
                     data-testid="mobile-logout-button"
                   >
                     <SignOut size={16} />
@@ -396,7 +444,7 @@ export default function Navigation() {
                   </button>
                 </div>
               ) : (
-                <div className="border-t border-black/8 dark:border-white/[0.06] pt-4">
+                <div className={`border-t pt-4 ${menuOnLight ? 'border-black/8' : 'border-white/[0.06]'}`}>
                   <Link href="/auth">
                     <Button
                       className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-2xl h-12 text-[15px]"
@@ -413,7 +461,11 @@ export default function Navigation() {
                 <button
                   onClick={subscribed ? unsubscribe : subscribe}
                   disabled={pushLoading}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 text-[13px] transition-colors"
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] transition-colors ${
+                    menuOnLight
+                      ? 'text-gray-500 hover:text-gray-900 hover:bg-black/5'
+                      : 'text-white/50 hover:text-white hover:bg-white/5'
+                  }`}
                 >
                   {subscribed
                     ? <Bell size={16} weight="fill" className="text-amber-500" />

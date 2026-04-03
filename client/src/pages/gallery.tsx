@@ -92,101 +92,66 @@ function formatTimeRemaining(seconds: number): string {
   return s > 0 ? `${m}m ${s}s left` : `${m}m left`;
 }
 
-// Download one part (≤100 images) as a single ZIP.
-// onPartProgress receives: (partPct 0-100, doneInPart, totalInPart)
-async function downloadZipPart(
-  images: string[],
-  zipName: string,
-  onPartProgress: (pct: number, done: number, total: number) => void
-) {
-  const { default: JSZip } = await import('jszip');
-  const zip = new JSZip();
-  let completed = 0;
-  let failed = 0;
-  const BATCH_SIZE = 8;
-
-  for (let i = 0; i < images.length; i += BATCH_SIZE) {
-    const batch = images.slice(i, i + BATCH_SIZE);
-    await Promise.allSettled(batch.map(async (url, batchIdx) => {
-      const globalIdx = i + batchIdx;
-      try {
-        const fetchUrl = cloudinaryForDownload(url.split('?')[0]);
-        const res = await fetch(fetchUrl, { mode: 'cors' });
-        if (!res.ok) { failed++; return; }
-        const blob = await res.blob();
-        zip.file(`photo-${String(globalIdx + 1).padStart(3, '0')}.jpg`, blob);
-      } catch { failed++; } finally {
-        completed++;
-        const pct = Math.round((completed / images.length) * 88);
-        onPartProgress(pct, completed, images.length);
-      }
-    }));
-  }
-
-  onPartProgress(92, completed, images.length);
-  await zip.generateAsync(
-    { type: 'blob', compression: 'STORE' },
-    (meta) => onPartProgress(92 + Math.round(meta.percent * 0.08), completed, images.length)
-  ).then((blob) => {
-    onPartProgress(100, completed, images.length);
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = zipName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-  });
-}
-
-// Split large galleries into 100-image parts (mobile-safe, ~80MB each).
-// Shows overall % of the ENTIRE gallery, global photo count, and time remaining.
+// Single ZIP download — fetches in batches of 8 (keeps connections warm and
+// memory steady). Cloudinary compression (w_2400,q_88,f_jpg) keeps each
+// image to ~400-800 KB so the total stays manageable in-browser.
+// Shows overall %, photo count, and live time-remaining estimate.
 async function downloadAllZip(
   images: string[],
   zipName: string,
   onProgress: (pct: number | null, label?: string) => void
 ) {
-  const PART_SIZE = 100;
-  const totalParts = Math.ceil(images.length / PART_SIZE);
-  const totalImages = images.length;
-  const baseName = zipName.replace('.zip', '');
-  let globalDone = 0;
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  const total = images.length;
+  let done = 0;
+  let failed = 0;
+  const BATCH = 8;
   const startTime = Date.now();
 
-  onProgress(1, `0 / ${totalImages} photos`);
+  // Show the bar immediately so it doesn't look frozen
+  onProgress(1, `0 / ${total} photos`);
 
-  for (let part = 0; part < totalParts; part++) {
-    const partImages = images.slice(part * PART_SIZE, (part + 1) * PART_SIZE);
-    const partName = totalParts > 1
-      ? `${baseName}-part-${String(part + 1).padStart(2, '0')}-of-${totalParts}.zip`
-      : zipName;
-    const globalDoneAtPartStart = globalDone;
-
-    await downloadZipPart(partImages, partName, (partPct, doneInPart) => {
-      globalDone = globalDoneAtPartStart + doneInPart;
-
-      // Overall percentage across all parts (fetch = 90%, zip build = 10%)
-      const fetchPct = (globalDone / totalImages) * 90;
-      const zipBuildOffset = partPct > 88 ? ((partPct - 88) / 12) * 10 * (partImages.length / totalImages) : 0;
-      const overallPct = Math.min(99, Math.round(fetchPct + zipBuildOffset));
-
-      // Time remaining estimate
-      const elapsed = (Date.now() - startTime) / 1000;
-      const rate = globalDone / elapsed; // photos per second
-      const remaining = rate > 0 ? (totalImages - globalDone) / rate : 0;
-      const timeStr = globalDone > 4 && remaining > 0 ? ` · ${formatTimeRemaining(remaining)}` : '';
-
-      const partLabel = totalParts > 1 ? ` (part ${part + 1}/${totalParts})` : '';
-      onProgress(overallPct, `${globalDone} / ${totalImages} photos${partLabel}${timeStr}`);
-    });
-
-    if (part < totalParts - 1) {
-      await new Promise(r => setTimeout(r, 800));
-    }
+  for (let i = 0; i < images.length; i += BATCH) {
+    const batch = images.slice(i, i + BATCH);
+    await Promise.allSettled(batch.map(async (url, bi) => {
+      const idx = i + bi;
+      try {
+        const fetchUrl = cloudinaryForDownload(url.split('?')[0]);
+        const res = await fetch(fetchUrl, { mode: 'cors' });
+        if (!res.ok) { failed++; return; }
+        const blob = await res.blob();
+        zip.file(`photo-${String(idx + 1).padStart(3, '0')}.jpg`, blob);
+      } catch { failed++; } finally {
+        done++;
+        // Fetch phase = 0–88%
+        const fetchPct = Math.round((done / total) * 88);
+        const elapsed = (Date.now() - startTime) / 1000;
+        const rate = done / elapsed;
+        const secsLeft = rate > 0 ? (total - done) / rate : 0;
+        const timeStr = done > 5 && secsLeft > 2 ? ` · ${formatTimeRemaining(secsLeft)}` : '';
+        onProgress(fetchPct, `${done} / ${total} photos${timeStr}`);
+      }
+    }));
   }
 
-  onProgress(100, `All ${totalImages} photos ready!`);
+  // Zip-building phase = 88–100%
+  onProgress(88, `Building zip… (${failed > 0 ? `${failed} skipped` : `${done} photos`})`);
+  const blob = await zip.generateAsync(
+    { type: 'blob', compression: 'STORE' },
+    (meta) => onProgress(88 + Math.round(meta.percent * 0.12), 'Building zip…')
+  );
+
+  onProgress(100, failed > 0 ? `Done! (${failed} photo${failed > 1 ? 's' : ''} skipped)` : `All ${total} photos ready!`);
+
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = zipName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
   setTimeout(() => onProgress(null), 4000);
 }
 
