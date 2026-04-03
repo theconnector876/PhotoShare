@@ -76,6 +76,7 @@ async function downloadBlob(url: string, filename: string) {
 
 // Client-side zip: fetch images in the browser and zip them with JSZip.
 // No server call → no timeout. Works for Cloudinary and R2 images.
+// Fetches in small batches to prevent mobile memory pressure and silent failures.
 async function downloadAllZip(
   images: string[],
   zipName: string,
@@ -86,20 +87,25 @@ async function downloadAllZip(
 
   onProgress(0);
   let completed = 0;
+  const BATCH_SIZE = 3; // small batches to avoid mobile OOM at ~90%
 
-  await Promise.allSettled(images.map(async (url, i) => {
-    try {
-      const cleanUrl = url.split('?')[0];
-      const res = await fetch(cleanUrl, { mode: 'cors' });
-      if (!res.ok) return;
-      const blob = await res.blob();
-      const ext = (cleanUrl.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'jpg';
-      zip.file(`photo-${String(i + 1).padStart(3, '0')}.${ext}`, blob);
-    } catch { /* skip */ } finally {
-      completed++;
-      onProgress(Math.round((completed / images.length) * 90));
-    }
-  }));
+  for (let i = 0; i < images.length; i += BATCH_SIZE) {
+    const batch = images.slice(i, i + BATCH_SIZE);
+    await Promise.allSettled(batch.map(async (url, batchIdx) => {
+      const globalIdx = i + batchIdx;
+      try {
+        const cleanUrl = url.split('?')[0];
+        const res = await fetch(cleanUrl, { mode: 'cors' });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const ext = (cleanUrl.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'jpg';
+        zip.file(`photo-${String(globalIdx + 1).padStart(3, '0')}.${ext}`, blob);
+      } catch { /* skip */ } finally {
+        completed++;
+        onProgress(Math.round((completed / images.length) * 90));
+      }
+    }));
+  }
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
   onProgress(100);
@@ -139,6 +145,7 @@ export default function Gallery() {
   const [copied, setCopied] = useState(false);
   const [downloadUrls, setDownloadUrls] = useState<Record<string, string>>({});
   const [zipProgress, setZipProgress] = useState<number | null>(null);
+  const [hasSavedSelections, setHasSavedSelections] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<GalleryAccessData>({
@@ -173,7 +180,9 @@ export default function Gallery() {
       const emailSels = (data.emailSelections as Record<string, string[]>) || {};
       // If email is known: use only their saved selection (empty if first visit)
       // If no email (anonymous share link): fall back to global selectedImages
-      setSelectedImages(email ? (emailSels[email] || []) : (data.selectedImages || []));
+      const savedSels = email ? (emailSels[email] || []) : (data.selectedImages || []);
+      setSelectedImages(savedSels);
+      setHasSavedSelections(savedSels.length > 0);
       setComment(data.clientComment || "");
       setImageComments(data.imageComments || {});
       setVisitorEmail(email);
@@ -540,6 +549,21 @@ export default function Gallery() {
           </div>
         </div>
 
+        {/* Saved-selections notice — appears when returning with a previous session */}
+        {hasSavedSelections && viewMode === 'gallery' && (
+          <div className="flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-sm">
+            <span className="text-amber-700 dark:text-amber-400">
+              <strong>{selectedImages.length} photos</strong> from your previous visit are pre-selected.
+            </span>
+            <button
+              className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-400 underline underline-offset-2"
+              onClick={() => { setSelectedImages([]); setHasSavedSelections(false); }}
+            >
+              Start Fresh
+            </button>
+          </div>
+        )}
+
         {/* Download buttons — top */}
         {zipProgress !== null && (
           <div className="flex flex-col items-center mb-4 gap-1">
@@ -551,20 +575,32 @@ export default function Gallery() {
             </p>
           </div>
         )}
-        {viewMode === 'gallery' && gallery.galleryDownloadEnabled && currentImages.length > 0 && (
+        {viewMode === 'gallery' && currentImages.length > 0 && (
           <div className="flex flex-wrap justify-center gap-3 mb-6">
             {selectedImages.length > 0 && (
+              <>
+                <Button variant="outline" size="sm"
+                  onClick={() => setSelectedImages([])}
+                  className="border-red-500/30 text-red-500 hover:bg-red-500/10">
+                  <X size={14} className="mr-1.5" />
+                  Clear All ({selectedImages.length})
+                </Button>
+                {gallery.galleryDownloadEnabled && (
+                  <Button variant="outline" size="sm" disabled={zipProgress !== null}
+                    onClick={() => downloadAllZip(selectedImages, 'selected-photos.zip', setZipProgress)}>
+                    <DownloadSimple size={16} className="mr-2" />
+                    {zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedImages.length})`}
+                  </Button>
+                )}
+              </>
+            )}
+            {gallery.galleryDownloadEnabled && (
               <Button variant="outline" size="sm" disabled={zipProgress !== null}
-                onClick={() => downloadAllZip(selectedImages, 'selected-photos.zip', setZipProgress)}>
+                onClick={() => downloadAllZip(gallery.galleryImages, 'all-photos.zip', setZipProgress)}>
                 <DownloadSimple size={16} className="mr-2" />
-                {zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedImages.length})`}
+                {zipProgress !== null ? `${zipProgress}%` : 'Download All'}
               </Button>
             )}
-            <Button variant="outline" size="sm" disabled={zipProgress !== null}
-              onClick={() => downloadAllZip(gallery.galleryImages, 'all-photos.zip', setZipProgress)}>
-              <DownloadSimple size={16} className="mr-2" />
-              {zipProgress !== null ? `${zipProgress}%` : 'Download All'}
-            </Button>
           </div>
         )}
         {viewMode === 'selected' && gallery.selectedDownloadEnabled && currentImages.length > 0 && (
@@ -632,16 +668,16 @@ export default function Gallery() {
                 {/* Selection circle — gallery view */}
                 {viewMode === 'gallery' && (
                   <button
-                    className="absolute top-2 right-2 z-10"
+                    className="absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center -m-1"
                     onClick={(e) => { e.stopPropagation(); toggleImageSelection(imageUrl); }}
                     aria-label={selected ? "Deselect image" : "Select image"}
                   >
                     {selected ? (
-                      <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow-md">
+                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg ring-2 ring-white/50">
                         <Check className="w-4 h-4 text-white" />
                       </div>
                     ) : (
-                      <div className="w-7 h-7 border-2 border-white rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md" />
+                      <div className="w-8 h-8 border-2 border-white rounded-full bg-black/40 opacity-70 group-hover:opacity-100 transition-opacity duration-200 shadow-md" />
                     )}
                   </button>
                 )}
@@ -649,16 +685,16 @@ export default function Gallery() {
                 {/* Selection circle — final view */}
                 {viewMode === 'final' && gallery.finalDownloadEnabled && (
                   <button
-                    className="absolute top-2 right-2 z-10"
+                    className="absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center -m-1"
                     onClick={(e) => { e.stopPropagation(); toggleFinalSelection(imageUrl); }}
                     aria-label={isSelectedFinal ? "Deselect image" : "Select image"}
                   >
                     {isSelectedFinal ? (
-                      <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow-md">
+                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg ring-2 ring-white/50">
                         <Check className="w-4 h-4 text-white" />
                       </div>
                     ) : (
-                      <div className="w-7 h-7 border-2 border-white rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md" />
+                      <div className="w-8 h-8 border-2 border-white rounded-full bg-black/40 opacity-70 group-hover:opacity-100 transition-opacity duration-200 shadow-md" />
                     )}
                   </button>
                 )}
@@ -701,10 +737,12 @@ export default function Gallery() {
                   </button>
                 )}
 
-                {/* Image counter */}
-                <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
-                  #{index + 1}
-                </div>
+                {/* Image counter — only show when no like button */}
+                {!visitorEmail && (
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                    #{index + 1}
+                  </div>
+                )}
               </div>
             );
           })}
