@@ -214,6 +214,21 @@ export default function Gallery() {
     },
   });
 
+  // Auto-restore from sessionStorage if user accidentally navigated away
+  useEffect(() => {
+    if (gallery || autoSubmitted) return;
+    try {
+      const saved = sessionStorage.getItem(SESSION_KEY);
+      if (!saved) return;
+      const { email, accessCode, galleryId } = JSON.parse(saved);
+      setAutoSubmitted(true);
+      const body: any = { email, accessCode };
+      if (galleryId) body.galleryId = galleryId;
+      accessGalleryMutation.mutate({ email, accessCode });
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fetch gallery info for share links
   useEffect(() => {
     if (!urlGalleryId || gallery) return;
@@ -221,6 +236,9 @@ export default function Gallery() {
       if (info) setGalleryInfo(info);
     }).catch(() => {});
   }, [urlGalleryId]);
+
+  // Persist gallery credentials so accidental navigation doesn't wipe access
+  const SESSION_KEY = `gallery_session_${urlGalleryId || params.email || 'local'}`;
 
   const accessGalleryMutation = useMutation({
     mutationFn: async (data: GalleryAccessData) => {
@@ -232,6 +250,14 @@ export default function Gallery() {
     },
     onSuccess: (data: Gallery) => {
       setGallery(data);
+      // Save credentials so the gallery auto-restores after accidental navigation
+      try {
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+          email: form.getValues('email') || '',
+          accessCode: form.getValues('accessCode') || '',
+          galleryId: urlGalleryId || '',
+        }));
+      } catch { /* ignore */ }
       if (data.downloadUrls) setDownloadUrls(data.downloadUrls);
       // Load this visitor's own selections only — never show other visitors' picks
       const email = form.getValues('email') || '';
@@ -937,18 +963,20 @@ export default function Gallery() {
       {scrollY > 300 && (
         <div className="fixed bottom-8 right-4 z-40 flex flex-col gap-2" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <button
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className="w-11 h-11 rounded-full bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/30 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
             aria-label="Scroll to top"
             title="Back to top"
+            type="button"
           >
             <ArrowUp size={18} weight="bold" />
           </button>
           <button
-            onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }}
             className="w-11 h-11 rounded-full bg-card border border-border hover:border-amber-500/40 text-foreground shadow-md flex items-center justify-center transition-all hover:scale-110 active:scale-95"
             aria-label="Scroll to bottom"
             title="Jump to bottom"
+            type="button"
           >
             <ArrowDown size={18} weight="bold" />
           </button>

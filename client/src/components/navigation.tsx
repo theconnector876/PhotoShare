@@ -11,28 +11,34 @@ import { SUPPORTED_CURRENCIES, CURRENCY_SYMBOLS, type Currency } from "@shared/c
 import { usePush } from "@/hooks/use-push";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Sample the page's background luminance at the current scroll position
-// Returns true if the background is light (text should be dark)
+// Sample the background luminance of the PAGE behind any overlay.
+// Uses elementsFromPoint (plural) so it looks through fixed/absolute overlays.
+// Returns true if background is light → text should be dark.
 function samplePageIsLight(): boolean {
   try {
-    // Walk up the DOM from the element at the top-center of the viewport
-    const el = document.elementFromPoint(window.innerWidth / 2, window.scrollY + 80) ?? document.body;
-    let node: Element | null = el;
-    while (node && node !== document.documentElement) {
-      const bg = window.getComputedStyle(node).backgroundColor;
-      const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-      if (m) {
-        const [r, g, b] = [+m[1], +m[2], +m[3]];
-        // transparent / near-transparent — keep looking up
-        const a = bg.includes('rgba') ? parseFloat(bg.split(',')[3]) : 1;
-        if (a < 0.1) { node = node.parentElement; continue; }
-        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-        return luminance > 0.55;
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    // elementsFromPoint returns all elements at this point, top-most first
+    const els = document.elementsFromPoint(cx, cy);
+    for (const el of els) {
+      // Skip the menu overlay and its children (identified by data attribute)
+      if ((el as HTMLElement).dataset?.menuOverlay || el.closest('[data-menu-overlay]')) continue;
+      // Walk up from each candidate to find a non-transparent background
+      let node: Element | null = el;
+      while (node && node !== document.documentElement) {
+        const bg = window.getComputedStyle(node).backgroundColor;
+        const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
+        if (m) {
+          const alpha = m[4] !== undefined ? parseFloat(m[4]) : 1;
+          if (alpha < 0.15) { node = node.parentElement; continue; }
+          const [r, g, b] = [+m[1], +m[2], +m[3]];
+          const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          return luminance > 0.55;
+        }
+        node = node.parentElement;
       }
-      node = node.parentElement;
     }
   } catch { /* ignore */ }
-  // Fallback: check if .dark class is present
   return !document.documentElement.classList.contains('dark');
 }
 
@@ -63,12 +69,24 @@ export default function Navigation() {
     setIsOpen(true);
   };
 
-  // Re-sample background while menu is open so text flips as user scrolls
+  // Continuously re-sample background while menu is open via rAF loop.
+  // rAF works even when the fixed overlay absorbs scroll/touch events —
+  // it polls every frame so the color flips the moment content shifts behind it.
   useEffect(() => {
     if (!isOpen) return;
-    const onScroll = () => setMenuOnLight(samplePageIsLight());
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    let rafId: number;
+    let last = -1;
+    const tick = () => {
+      // Only call setState when the result actually changes (avoid excessive renders)
+      const isLight = samplePageIsLight() ? 1 : 0;
+      if (isLight !== last) {
+        last = isLight;
+        setMenuOnLight(isLight === 1);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, [isOpen]);
 
   const publicNavItems = [
@@ -318,7 +336,8 @@ export default function Navigation() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className={`fixed inset-0 z-[60] flex flex-col backdrop-blur-2xl transition-colors ${
+            data-menu-overlay="true"
+            className={`fixed inset-0 z-[60] flex flex-col backdrop-blur-2xl transition-colors duration-300 ${
               menuOnLight ? 'bg-white/92' : 'bg-[#070709]/97'
             }`}
           >
