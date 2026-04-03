@@ -84,17 +84,26 @@ async function downloadBlob(url: string, filename: string) {
   }
 }
 
-// Download one "part" (≤100 images) as a single ZIP.
+function formatTimeRemaining(seconds: number): string {
+  if (seconds < 5) return 'almost done';
+  if (seconds < 60) return `${Math.ceil(seconds)}s left`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.ceil(seconds % 60);
+  return s > 0 ? `${m}m ${s}s left` : `${m}m left`;
+}
+
+// Download one part (≤100 images) as a single ZIP.
+// onPartProgress receives: (partPct 0-100, doneInPart, totalInPart)
 async function downloadZipPart(
   images: string[],
   zipName: string,
-  onPartProgress: (pct: number, label: string) => void
+  onPartProgress: (pct: number, done: number, total: number) => void
 ) {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
   let completed = 0;
   let failed = 0;
-  const BATCH_SIZE = 8; // fast once connections are warm
+  const BATCH_SIZE = 8;
 
   for (let i = 0; i < images.length; i += BATCH_SIZE) {
     const batch = images.slice(i, i + BATCH_SIZE);
@@ -109,31 +118,30 @@ async function downloadZipPart(
       } catch { failed++; } finally {
         completed++;
         const pct = Math.round((completed / images.length) * 88);
-        onPartProgress(pct, `${completed} / ${images.length} photos`);
+        onPartProgress(pct, completed, images.length);
       }
     }));
   }
 
-  onPartProgress(92, 'Building zip…');
-  const blob = await zip.generateAsync(
+  onPartProgress(92, completed, images.length);
+  await zip.generateAsync(
     { type: 'blob', compression: 'STORE' },
-    (meta) => onPartProgress(92 + Math.round(meta.percent * 0.08), 'Building zip…')
-  );
-  onPartProgress(100, failed > 0 ? `Done (${failed} skipped)` : 'Done!');
-
-  const blobUrl = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = blobUrl;
-  a.download = zipName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+    (meta) => onPartProgress(92 + Math.round(meta.percent * 0.08), completed, images.length)
+  ).then((blob) => {
+    onPartProgress(100, completed, images.length);
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = zipName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  });
 }
 
-// Split large galleries into 100-image parts so each ZIP stays under ~80 MB
-// (mobile-safe). Parts download sequentially — each part's save dialog opens
-// as soon as it's ready while the next part fetches in the background.
+// Split large galleries into 100-image parts (mobile-safe, ~80MB each).
+// Shows overall % of the ENTIRE gallery, global photo count, and time remaining.
 async function downloadAllZip(
   images: string[],
   zipName: string,
@@ -141,35 +149,45 @@ async function downloadAllZip(
 ) {
   const PART_SIZE = 100;
   const totalParts = Math.ceil(images.length / PART_SIZE);
+  const totalImages = images.length;
   const baseName = zipName.replace('.zip', '');
+  let globalDone = 0;
+  const startTime = Date.now();
+
+  onProgress(1, `0 / ${totalImages} photos`);
 
   for (let part = 0; part < totalParts; part++) {
     const partImages = images.slice(part * PART_SIZE, (part + 1) * PART_SIZE);
     const partName = totalParts > 1
       ? `${baseName}-part-${String(part + 1).padStart(2, '0')}-of-${totalParts}.zip`
       : zipName;
+    const globalDoneAtPartStart = globalDone;
 
-    // Show progress immediately so the bar moves right away
-    onProgress(1, totalParts > 1
-      ? `Part ${part + 1} of ${totalParts} — starting…`
-      : 'Starting…'
-    );
+    await downloadZipPart(partImages, partName, (partPct, doneInPart) => {
+      globalDone = globalDoneAtPartStart + doneInPart;
 
-    await downloadZipPart(partImages, partName, (pct, label) => {
-      onProgress(pct, totalParts > 1
-        ? `Part ${part + 1} of ${totalParts} — ${label}`
-        : label
-      );
+      // Overall percentage across all parts (fetch = 90%, zip build = 10%)
+      const fetchPct = (globalDone / totalImages) * 90;
+      const zipBuildOffset = partPct > 88 ? ((partPct - 88) / 12) * 10 * (partImages.length / totalImages) : 0;
+      const overallPct = Math.min(99, Math.round(fetchPct + zipBuildOffset));
+
+      // Time remaining estimate
+      const elapsed = (Date.now() - startTime) / 1000;
+      const rate = globalDone / elapsed; // photos per second
+      const remaining = rate > 0 ? (totalImages - globalDone) / rate : 0;
+      const timeStr = globalDone > 4 && remaining > 0 ? ` · ${formatTimeRemaining(remaining)}` : '';
+
+      const partLabel = totalParts > 1 ? ` (part ${part + 1}/${totalParts})` : '';
+      onProgress(overallPct, `${globalDone} / ${totalImages} photos${partLabel}${timeStr}`);
     });
 
-    // Brief pause between parts so the browser download dialog can process
     if (part < totalParts - 1) {
-      onProgress(0, `Part ${part + 2} of ${totalParts} — starting…`);
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 800));
     }
   }
 
-  setTimeout(() => onProgress(null), 3000);
+  onProgress(100, `All ${totalImages} photos ready!`);
+  setTimeout(() => onProgress(null), 4000);
 }
 
 export default function Gallery() {
@@ -641,13 +659,17 @@ export default function Gallery() {
 
         {/* Download progress bar */}
         {zipProgress !== null && (
-          <div className="flex flex-col items-center mb-4 gap-1.5">
-            <div className="w-72 bg-muted rounded-full h-2.5 overflow-hidden">
-              <div className="bg-amber-500 h-2.5 rounded-full transition-all duration-200" style={{ width: `${zipProgress}%` }} />
+          <div className="flex flex-col items-center mb-6 gap-2">
+            <div className="w-full max-w-sm bg-muted rounded-full h-3 overflow-hidden shadow-inner">
+              <div
+                className="bg-gradient-to-r from-amber-500 to-amber-400 h-3 rounded-full transition-all duration-300 shadow-sm"
+                style={{ width: `${zipProgress}%` }}
+              />
             </div>
-            <p className="text-xs text-muted-foreground font-medium">
-              {zipProgress < 100 ? `${zipProgress}% — ${zipLabel}` : zipLabel}
-            </p>
+            <div className="flex items-center gap-3 text-[13px] font-semibold text-foreground">
+              <span className="tabular-nums text-amber-500">{zipProgress}%</span>
+              <span className="text-muted-foreground font-normal">{zipLabel}</span>
+            </div>
           </div>
         )}
         {viewMode === 'gallery' && currentImages.length > 0 && (
