@@ -12,6 +12,9 @@ import { HelmetProvider } from "react-helmet-async";
 import { Analytics } from "@vercel/analytics/react";
 import Navigation from "@/components/navigation";
 import { useNativePush } from "@/hooks/use-native-push";
+import { FullPageLoader } from "@/components/aperture-loader";
+import { Link } from "wouter";
+import { Instagram, Facebook, Twitter, Camera } from "lucide-react";
 
 // Lazy-loaded pages — each splits into its own chunk, only loaded when visited
 const Home                  = lazy(() => import("@/pages/home"));
@@ -35,17 +38,9 @@ const Terms                 = lazy(() => import("@/pages/terms"));
 const Privacy               = lazy(() => import("@/pages/privacy"));
 const NotFound              = lazy(() => import("@/pages/not-found"));
 
-function PageLoader() {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-    </div>
-  );
-}
-
 function Router() {
   return (
-    <Suspense fallback={<PageLoader />}>
+    <Suspense fallback={<FullPageLoader />}>
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/portfolio" component={Portfolio} />
@@ -92,6 +87,91 @@ function ThemeSyncer() {
   return null;
 }
 
+function PremiumFooter() {
+  const year = new Date().getFullYear();
+  return (
+    <footer className="relative z-10 bg-[#070709] border-t border-white/[0.06] text-white/60 overflow-hidden">
+      {/* Ambient blob */}
+      <div
+        className="absolute -top-24 left-1/2 -translate-x-1/2 w-[600px] h-[200px] rounded-full"
+        style={{ background: 'radial-gradient(ellipse, rgba(245,158,11,0.07) 0%, transparent 70%)', pointerEvents: 'none' }}
+      />
+
+      <div className="max-w-6xl mx-auto px-6 pt-14 pb-10">
+        {/* Top row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+          {/* Brand */}
+          <div className="lg:col-span-1">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                <Camera className="w-4 h-4 text-black" />
+              </div>
+              <span className="text-white font-bold text-[15px] tracking-tight" style={{ fontFamily: 'var(--font-display, sans-serif)' }}>
+                ConnectAGrapher
+              </span>
+            </div>
+            <p className="text-[13px] leading-relaxed text-white/40 mb-5 max-w-[220px]">
+              Premium photography &amp; videography studio based in Jamaica.
+            </p>
+            <div className="flex gap-3">
+              <a href="#" className="w-8 h-8 rounded-full bg-white/6 hover:bg-amber-500/20 hover:text-amber-400 flex items-center justify-center transition-colors" aria-label="Instagram">
+                <Instagram className="w-3.5 h-3.5" />
+              </a>
+              <a href="#" className="w-8 h-8 rounded-full bg-white/6 hover:bg-amber-500/20 hover:text-amber-400 flex items-center justify-center transition-colors" aria-label="Facebook">
+                <Facebook className="w-3.5 h-3.5" />
+              </a>
+              <a href="#" className="w-8 h-8 rounded-full bg-white/6 hover:bg-amber-500/20 hover:text-amber-400 flex items-center justify-center transition-colors" aria-label="Twitter">
+                <Twitter className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+
+          {/* Services */}
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/25 mb-4">Services</p>
+            <ul className="space-y-2.5 text-[13px]">
+              <li><Link href="/booking"><span className="hover:text-amber-400 transition-colors cursor-pointer">Wedding Photography</span></Link></li>
+              <li><Link href="/booking"><span className="hover:text-amber-400 transition-colors cursor-pointer">Portrait Sessions</span></Link></li>
+              <li><Link href="/booking"><span className="hover:text-amber-400 transition-colors cursor-pointer">Event Coverage</span></Link></li>
+              <li><Link href="/booking"><span className="hover:text-amber-400 transition-colors cursor-pointer">Videography</span></Link></li>
+            </ul>
+          </div>
+
+          {/* Company */}
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/25 mb-4">Company</p>
+            <ul className="space-y-2.5 text-[13px]">
+              <li><Link href="/about"><span className="hover:text-amber-400 transition-colors cursor-pointer">About Us</span></Link></li>
+              <li><Link href="/portfolio"><span className="hover:text-amber-400 transition-colors cursor-pointer">Portfolio</span></Link></li>
+              <li><Link href="/blog"><span className="hover:text-amber-400 transition-colors cursor-pointer">Blog</span></Link></li>
+              <li><Link href="/contact"><span className="hover:text-amber-400 transition-colors cursor-pointer">Contact</span></Link></li>
+            </ul>
+          </div>
+
+          {/* Legal */}
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/25 mb-4">Legal</p>
+            <ul className="space-y-2.5 text-[13px]">
+              <li><Link href="/privacy"><span className="hover:text-amber-400 transition-colors cursor-pointer">Privacy Policy</span></Link></li>
+              <li><Link href="/terms"><span className="hover:text-amber-400 transition-colors cursor-pointer">Terms &amp; Conditions</span></Link></li>
+              <li><Link href="/gallery"><span className="hover:text-amber-400 transition-colors cursor-pointer">Gallery Access</span></Link></li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-white/[0.06] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[12px] text-white/30">
+          <span>© {year} ConnectAGrapher. All rights reserved.</span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+            Crafted with passion in Jamaica
+          </span>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 function App() {
   return (
     <HelmetProvider>
@@ -107,16 +187,7 @@ function App() {
                 <div className="flex-1">
                   <Router />
                 </div>
-                <footer className="relative z-10 border-t border-border bg-background py-5 px-6">
-                  <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[12px] text-muted-foreground/70">
-                    <span>© {new Date().getFullYear()} ConnectAGrapher. All rights reserved.</span>
-                    <div className="flex gap-5">
-                      <a href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</a>
-                      <a href="/terms" className="hover:text-foreground transition-colors">Terms & Conditions</a>
-                      <a href="/contact" className="hover:text-foreground transition-colors">Contact</a>
-                    </div>
-                  </div>
-                </footer>
+                <PremiumFooter />
                 <Toaster />
                 <Analytics />
               </div>

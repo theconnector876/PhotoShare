@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, LogOut, ChevronDown, Bell, BellOff } from "lucide-react";
+import { LogOut, ChevronDown, Bell, BellOff, X, Menu, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
@@ -10,14 +9,28 @@ import { useSiteConfig } from "@/context/site-config";
 import { useCurrency } from "@/context/currency";
 import { SUPPORTED_CURRENCIES, CURRENCY_SYMBOLS, type Currency } from "@shared/currency";
 import { usePush } from "@/hooks/use-push";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navigation() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { user, logoutMutation } = useAuth();
   const { config } = useSiteConfig();
   const { selectedCurrency, setCurrency } = useCurrency();
   const { permission, subscribed, loading: pushLoading, supported: pushSupported, subscribe, unsubscribe } = usePush();
+
+  // Scroll detection
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location]);
 
   const publicNavItems = [
     { href: "/", label: "Home" },
@@ -28,7 +41,7 @@ export default function Navigation() {
   ];
 
   const dashboardLink = user?.role === "photographer"
-    ? { href: "/photographer", label: "Photographer" }
+    ? { href: "/photographer", label: "Dashboard" }
     : { href: "/dashboard", label: "Dashboard" };
 
   const authNavItems = user ? [
@@ -42,268 +55,374 @@ export default function Navigation() {
     setIsOpen(false);
   };
 
-  const NavLink = ({ href, label, mobile = false }: { href: string; label: string; mobile?: boolean }) => {
-    const isActive = location === href;
-    if (mobile) {
-      return (
-        <Link href={href}>
-          <span
-            className={`flex items-center px-4 py-3 text-[15px] font-medium rounded-xl transition-colors ${
-              isActive
-                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                : "text-gray-600 dark:text-white/65 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5"
-            }`}
-            onClick={() => setIsOpen(false)}
-          >
-            {label}
-          </span>
-        </Link>
-      );
-    }
-    return (
-      <Link href={href}>
-        <span
-          className={`text-[13px] font-medium transition-colors whitespace-nowrap ${
-            isActive
-              ? "text-amber-600 dark:text-amber-400"
-              : "text-gray-500 dark:text-white/55 hover:text-gray-900 dark:hover:text-white"
-          }`}
-        >
-          {label}
-        </span>
-      </Link>
-    );
-  };
-
   return (
-    <nav className="fixed top-0 w-full z-50 bg-white/90 dark:bg-black/85 backdrop-blur-2xl border-b border-gray-200/80 dark:border-white/[0.06]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-14">
+    <>
+      {/* ── Desktop / top nav ── */}
+      <nav
+        className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+          scrolled
+            ? 'bg-white/95 dark:bg-[#070709]/95 backdrop-blur-xl shadow-sm border-b border-black/5 dark:border-white/[0.04]'
+            : 'bg-transparent'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16">
 
-          {/* ── Logo ── */}
-          <Link href="/">
-            <div className="flex items-center gap-2.5 cursor-pointer shrink-0" data-testid="logo-link">
-              <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-500/20">
-                <img src="/logo-white.png" alt={config.branding.appName} className="w-12 h-12 object-contain scale-[1.6]" />
-              </div>
-              <span className="text-gray-900 dark:text-white font-bold text-[15px] tracking-tight">{config.branding.appName}</span>
-            </div>
-          </Link>
-
-          {/* ── Desktop nav links ── */}
-          <div className="hidden md:flex items-center gap-5">
-            {authNavItems.map(item => <NavLink key={item.href} {...item} />)}
-          </div>
-
-          {/* ── Desktop right actions ── */}
-          <div className="hidden md:flex items-center gap-2">
-            {/* Currency switcher */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-[12px] text-gray-500 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 gap-1 px-2.5 rounded-lg"
+            {/* ── Logo ── */}
+            <Link href="/">
+              <div className="flex items-center gap-2.5 cursor-pointer shrink-0" data-testid="logo-link">
+                <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-500/25">
+                  <img
+                    src="/logo-white.png"
+                    alt={config.branding.appName}
+                    className="w-12 h-12 object-contain scale-[1.6]"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <Camera className="w-4 h-4 text-black absolute opacity-0" />
+                </div>
+                <span
+                  className={`font-bold text-[15px] tracking-tight transition-colors duration-300 ${
+                    scrolled
+                      ? 'text-gray-900 dark:text-white'
+                      : 'text-white dark:text-white'
+                  }`}
+                  style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}
                 >
-                  {CURRENCY_SYMBOLS[selectedCurrency]} {selectedCurrency}
-                  <ChevronDown className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="min-w-[140px] bg-white dark:bg-[#141414] border-gray-200 dark:border-white/8 rounded-xl p-1 shadow-lg"
-              >
-                {SUPPORTED_CURRENCIES.map((c) => (
-                  <DropdownMenuItem
-                    key={c}
-                    onClick={() => setCurrency(c as Currency)}
-                    className={`rounded-lg text-sm cursor-pointer ${
-                      selectedCurrency === c
-                        ? "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/8"
-                        : "text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5"
-                    }`}
-                  >
-                    {CURRENCY_SYMBOLS[c as Currency]} {c}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Push notifications */}
-            {user && pushSupported && permission !== "denied" && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8 rounded-lg text-gray-400 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6"
-                    disabled={pushLoading}
-                    onClick={subscribed ? unsubscribe : subscribe}
-                    aria-label={subscribed ? "Disable notifications" : "Enable notifications"}
-                  >
-                    {subscribed
-                      ? <Bell className="w-[15px] h-[15px] text-amber-500" />
-                      : <BellOff className="w-[15px] h-[15px]" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-gray-900 dark:bg-[#1a1a1a] text-white border-gray-700 dark:border-white/10 text-xs">
-                  {subscribed ? "Notifications on — click to disable" : "Enable push notifications"}
-                </TooltipContent>
-              </Tooltip>
-            )}
-
-            {/* Logged-in user / login */}
-            {user ? (
-              <div className="flex items-center gap-2 pl-2 border-l border-gray-200 dark:border-white/8">
-                <span className="text-[11px] text-gray-400 dark:text-white/35 hidden lg:inline">
-                  Hi, {user.firstName || user.email}
+                  {config.branding.appName}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  disabled={logoutMutation.isPending}
-                  className="h-8 text-[12px] text-gray-500 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 rounded-lg"
-                  data-testid="button-logout"
-                >
-                  <LogOut className="w-3.5 h-3.5 mr-1.5" />
-                  {logoutMutation.isPending ? "Logging out…" : "Logout"}
-                </Button>
               </div>
-            ) : (
-              <Link href="/auth">
-                <Button
-                  size="sm"
-                  className="h-8 text-[12px] bg-gray-100 dark:bg-white/8 hover:bg-gray-200 dark:hover:bg-white/12 text-gray-700 dark:text-white border-0 rounded-full px-4"
-                >
-                  Login
-                </Button>
-              </Link>
-            )}
-
-            {/* Book Now CTA */}
-            <Link href="/booking" data-testid="nav-book-now">
-              <Button
-                size="sm"
-                className="h-8 text-[12px] bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full px-5 shadow-md shadow-amber-500/20 transition-all"
-              >
-                Book Now
-              </Button>
             </Link>
-          </div>
 
-          {/* ── Mobile ── */}
-          <div className="md:hidden flex items-center gap-2">
-            <Link href="/booking">
-              <Button
-                size="sm"
-                className="h-7 text-[12px] bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full px-3.5"
-              >
-                Book
-              </Button>
-            </Link>
-            <Sheet open={isOpen} onOpenChange={setIsOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-8 h-8 rounded-lg text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6"
-                  data-testid="mobile-menu-button"
-                >
-                  <Menu className="h-[18px] w-[18px]" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[270px] bg-white dark:bg-[#0d0d0d] border-gray-200 dark:border-white/[0.06] p-0">
-                <div className="flex flex-col h-full">
-                  {/* Header */}
-                  <div className="flex items-center gap-2.5 px-4 py-4 border-b border-gray-100 dark:border-white/[0.06]">
-                    <div className="w-7 h-7 rounded-[9px] bg-amber-500 flex items-center justify-center overflow-hidden">
-                      <img src="/logo-white.png" alt={config.branding.appName} className="w-10 h-10 object-contain scale-[1.6]" />
-                    </div>
-                    <span className="text-gray-900 dark:text-white font-semibold text-[14px]">{config.branding.appName}</span>
-                  </div>
-
-                  {/* Nav items */}
-                  <div className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-                    {authNavItems.map(item => <NavLink key={item.href} {...item} mobile />)}
-                    <Link href="/gallery">
+            {/* ── Desktop nav links ── */}
+            <div className="hidden md:flex items-center gap-6">
+              {authNavItems.map((item, idx) => {
+                const isActive = location === item.href;
+                return (
+                  <motion.div
+                    key={item.href}
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 + 0.1, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <Link href={item.href}>
                       <span
-                        className="flex items-center px-4 py-3 text-[15px] font-medium rounded-xl text-gray-600 dark:text-white/65 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-                        onClick={() => setIsOpen(false)}
-                        data-testid="mobile-gallery-access-button"
+                        className={`nav-link relative text-[13px] font-medium transition-colors pb-1 ${
+                          isActive
+                            ? 'active text-amber-500'
+                            : scrolled
+                              ? 'text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white'
+                              : 'text-white/75 hover:text-white'
+                        }`}
                       >
-                        Gallery Access
+                        {item.label}
+                        {isActive && (
+                          <motion.span
+                            layoutId="nav-underline"
+                            className="absolute -bottom-0.5 left-0 right-0 h-[1.5px] bg-amber-500 rounded-full"
+                          />
+                        )}
                       </span>
                     </Link>
-                  </div>
+                  </motion.div>
+                );
+              })}
+            </div>
 
-                  {/* Currency (mobile) */}
-                  <div className="px-3 pb-2 border-t border-gray-100 dark:border-white/[0.06] pt-3">
-                    <p className="text-gray-400 dark:text-white/30 text-[11px] uppercase tracking-wider px-4 mb-2">Currency</p>
-                    <div className="flex flex-wrap gap-1.5 px-2">
-                      {SUPPORTED_CURRENCIES.map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => setCurrency(c as Currency)}
-                          className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors ${
-                            selectedCurrency === c
-                              ? "bg-amber-500 text-black"
-                              : "bg-gray-100 dark:bg-white/6 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"
+            {/* ── Desktop right actions ── */}
+            <div className="hidden md:flex items-center gap-2">
+              {/* Currency switcher */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`h-8 text-[12px] gap-1 px-2.5 rounded-lg transition-colors ${
+                      scrolled
+                        ? 'text-gray-500 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6'
+                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {CURRENCY_SYMBOLS[selectedCurrency]} {selectedCurrency}
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="min-w-[140px] bg-white dark:bg-[#141414] border-gray-200 dark:border-white/8 rounded-xl p-1 shadow-lg"
+                >
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <DropdownMenuItem
+                      key={c}
+                      onClick={() => setCurrency(c as Currency)}
+                      className={`rounded-lg text-sm cursor-pointer ${
+                        selectedCurrency === c
+                          ? "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/8"
+                          : "text-gray-700 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5"
+                      }`}
+                    >
+                      {CURRENCY_SYMBOLS[c as Currency]} {c}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Push notifications */}
+              {user && pushSupported && permission !== "denied" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`w-8 h-8 rounded-lg transition-colors ${
+                        scrolled
+                          ? 'text-gray-400 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6'
+                          : 'text-white/50 hover:text-white hover:bg-white/10'
+                      }`}
+                      disabled={pushLoading}
+                      onClick={subscribed ? unsubscribe : subscribe}
+                      aria-label={subscribed ? "Disable notifications" : "Enable notifications"}
+                    >
+                      {subscribed
+                        ? <Bell className="w-[15px] h-[15px] text-amber-500" />
+                        : <BellOff className="w-[15px] h-[15px]" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-gray-900 dark:bg-[#1a1a1a] text-white border-gray-700 dark:border-white/10 text-xs">
+                    {subscribed ? "Notifications on — click to disable" : "Enable push notifications"}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Logged-in user / login */}
+              {user ? (
+                <div className={`flex items-center gap-2 pl-2 border-l ${scrolled ? 'border-gray-200 dark:border-white/8' : 'border-white/15'}`}>
+                  <span className={`text-[11px] hidden lg:inline ${scrolled ? 'text-gray-400 dark:text-white/35' : 'text-white/40'}`}>
+                    Hi, {user.firstName || user.email}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLogout}
+                    disabled={logoutMutation.isPending}
+                    className={`h-8 text-[12px] rounded-lg transition-colors ${
+                      scrolled
+                        ? 'text-gray-500 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6'
+                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="w-3.5 h-3.5 mr-1.5" />
+                    {logoutMutation.isPending ? "Logging out…" : "Logout"}
+                  </Button>
+                </div>
+              ) : (
+                <Link href="/auth">
+                  <Button
+                    size="sm"
+                    className={`h-8 text-[12px] border-0 rounded-full px-4 transition-colors ${
+                      scrolled
+                        ? 'bg-gray-100 dark:bg-white/8 hover:bg-gray-200 dark:hover:bg-white/12 text-gray-700 dark:text-white'
+                        : 'bg-white/12 hover:bg-white/20 text-white'
+                    }`}
+                  >
+                    Login
+                  </Button>
+                </Link>
+              )}
+
+              {/* Book Now CTA */}
+              <Link href="/booking" data-testid="nav-book-now">
+                <Button
+                  size="sm"
+                  className="h-8 text-[12px] bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full px-5 shadow-md shadow-amber-500/25 transition-all hover:shadow-amber-500/40 hover:shadow-lg"
+                >
+                  Book Now
+                </Button>
+              </Link>
+            </div>
+
+            {/* ── Mobile ── */}
+            <div className="md:hidden flex items-center gap-2">
+              <Link href="/booking">
+                <Button
+                  size="sm"
+                  className="h-7 text-[12px] bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full px-3.5"
+                >
+                  Book
+                </Button>
+              </Link>
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                  scrolled
+                    ? 'text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/6'
+                    : 'text-white/80 hover:bg-white/10'
+                }`}
+                aria-label="Toggle menu"
+                data-testid="mobile-menu-button"
+              >
+                <Menu className="h-[18px] w-[18px]" />
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </nav>
+
+      {/* ── Mobile full-screen overlay menu ── */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[60] bg-[#070709]/97 backdrop-blur-xl flex flex-col"
+          >
+            {/* Close button + logo */}
+            <div className="flex items-center justify-between px-5 py-5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-500/25">
+                  <Camera className="w-4 h-4 text-black" />
+                </div>
+                <span className="text-white font-bold text-[15px] tracking-tight" style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}>
+                  {config.branding.appName}
+                </span>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="w-9 h-9 rounded-xl bg-white/6 hover:bg-white/10 text-white/70 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Nav items — staggered */}
+            <div className="flex-1 flex flex-col justify-center px-6">
+              <nav className="space-y-1">
+                {authNavItems.map((item, idx) => {
+                  const isActive = location === item.href;
+                  return (
+                    <motion.div
+                      key={item.href}
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ delay: idx * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <Link href={item.href}>
+                        <span
+                          className={`flex items-center justify-between px-4 py-4 rounded-2xl text-[22px] font-bold tracking-tight transition-colors cursor-pointer ${
+                            isActive
+                              ? 'text-amber-400 bg-amber-500/8'
+                              : 'text-white/80 hover:text-white hover:bg-white/5'
                           }`}
-                        >
-                          {CURRENCY_SYMBOLS[c as Currency]} {c}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* User actions */}
-                  {user ? (
-                    <div className="px-3 pb-4 border-t border-gray-100 dark:border-white/[0.06] pt-3 space-y-1">
-                      <p className="text-gray-400 dark:text-white/30 text-[11px] px-4 mb-2">
-                        Hi, {user.firstName || user.email}
-                      </p>
-                      {pushSupported && permission !== "denied" && (
-                        <button
-                          onClick={subscribed ? unsubscribe : subscribe}
-                          disabled={pushLoading}
-                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 dark:text-white/65 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 text-[14px] transition-colors"
-                        >
-                          {subscribed
-                            ? <Bell className="w-4 h-4 text-amber-500" />
-                            : <BellOff className="w-4 h-4" />}
-                          {subscribed ? "Notifications on" : "Enable notifications"}
-                        </button>
-                      )}
-                      <button
-                        onClick={handleLogout}
-                        disabled={logoutMutation.isPending}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 dark:text-white/65 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 text-[14px] transition-colors"
-                        data-testid="mobile-logout-button"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        {logoutMutation.isPending ? "Logging out…" : "Logout"}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="px-3 pb-4 border-t border-gray-100 dark:border-white/[0.06] pt-3">
-                      <Link href="/auth">
-                        <Button
-                          className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl"
+                          style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}
                           onClick={() => setIsOpen(false)}
                         >
-                          Login / Register
-                        </Button>
+                          {item.label}
+                          {isActive && <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />}
+                        </span>
                       </Link>
-                    </div>
-                  )}
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+                    </motion.div>
+                  );
+                })}
 
-        </div>
-      </div>
-    </nav>
+                {/* Gallery access */}
+                <motion.div
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ delay: authNavItems.length * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <Link href="/gallery">
+                    <span
+                      className="flex items-center px-4 py-4 rounded-2xl text-[22px] font-bold tracking-tight text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                      style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}
+                      onClick={() => setIsOpen(false)}
+                      data-testid="mobile-gallery-access-button"
+                    >
+                      Gallery
+                    </span>
+                  </Link>
+                </motion.div>
+              </nav>
+            </div>
+
+            {/* Bottom actions */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ delay: 0.3, duration: 0.4 }}
+              className="px-6 pb-10 space-y-4"
+            >
+              {/* Currency */}
+              <div className="border-t border-white/[0.06] pt-5">
+                <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-white/25 mb-3">Currency</p>
+                <div className="flex flex-wrap gap-2">
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setCurrency(c as Currency)}
+                      className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
+                        selectedCurrency === c
+                          ? "bg-amber-500 text-black"
+                          : "bg-white/8 text-white/60 hover:bg-white/15 hover:text-white"
+                      }`}
+                    >
+                      {CURRENCY_SYMBOLS[c as Currency]} {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* User */}
+              {user ? (
+                <div className="border-t border-white/[0.06] pt-4 flex items-center justify-between">
+                  <span className="text-[13px] text-white/40">Hi, {user.firstName || user.email}</span>
+                  <button
+                    onClick={handleLogout}
+                    disabled={logoutMutation.isPending}
+                    className="flex items-center gap-2 text-[13px] text-white/50 hover:text-white transition-colors"
+                    data-testid="mobile-logout-button"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    {logoutMutation.isPending ? "Logging out…" : "Logout"}
+                  </button>
+                </div>
+              ) : (
+                <div className="border-t border-white/[0.06] pt-4">
+                  <Link href="/auth">
+                    <Button
+                      className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-2xl h-12 text-[15px]"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Login / Register
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
+              {/* Push notifications */}
+              {user && pushSupported && permission !== "denied" && (
+                <button
+                  onClick={subscribed ? unsubscribe : subscribe}
+                  disabled={pushLoading}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/50 hover:text-white hover:bg-white/5 text-[13px] transition-colors"
+                >
+                  {subscribed
+                    ? <Bell className="w-4 h-4 text-amber-500" />
+                    : <BellOff className="w-4 h-4" />}
+                  {subscribed ? "Notifications on" : "Enable notifications"}
+                </button>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

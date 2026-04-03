@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,7 +8,9 @@ import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Phone, Mail, MapPin, Instagram, Facebook, Twitter, ExternalLink } from "lucide-react";
+import { Phone, Mail, MapPin, Instagram, Facebook, Twitter, Send, Clock } from "lucide-react";
+import { motion } from "framer-motion";
+import { ScrollReveal, StaggerReveal, RevealItem } from "@/components/scroll-reveal";
 
 const contactFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -24,11 +25,7 @@ export default function Contact() {
 
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactFormSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      message: "",
-    },
+    defaultValues: { name: "", email: "", message: "" },
   });
 
   const sendMessageMutation = useMutation({
@@ -36,10 +33,7 @@ export default function Contact() {
       return apiRequest('POST', '/api/contact', data);
     },
     onSuccess: () => {
-      toast({
-        title: "Message Sent!",
-        description: "We'll get back to you within 24 hours.",
-      });
+      toast({ title: "Message Sent!", description: "We'll get back to you within 24 hours." });
       form.reset();
       queryClient.invalidateQueries({ queryKey: ['/api/contact'] });
     },
@@ -67,9 +61,8 @@ export default function Contact() {
     staleTime: 10 * 60 * 1000,
   });
 
-  // TikTok SVG path (lucide doesn't include it)
   const TikTokIcon = () => (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
       <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.82a8.18 8.18 0 004.78 1.52V6.9a4.85 4.85 0 01-1.01-.21z" />
     </svg>
   );
@@ -79,200 +72,256 @@ export default function Contact() {
       icon: Instagram,
       label: "Instagram",
       href: socialConfig?.instagramProfileUrl || (socialConfig?.instagramEmbedUrl ? "https://www.instagram.com" : null),
-      gradient: "from-pink-500 via-red-500 to-orange-400",
+      color: "text-pink-400",
       testId: "social-instagram",
     },
     {
       icon: Facebook,
       label: "Facebook",
       href: socialConfig?.facebookPageUrl || null,
-      gradient: "from-blue-600 to-blue-500",
+      color: "text-blue-400",
       testId: "social-facebook",
     },
     {
       icon: Twitter,
       label: "Twitter / X",
       href: socialConfig?.twitterUsername ? `https://twitter.com/${socialConfig.twitterUsername}` : null,
-      gradient: "from-sky-400 to-blue-500",
+      color: "text-sky-400",
       testId: "social-twitter",
     },
     {
       icon: TikTokIcon,
       label: "TikTok",
       href: socialConfig?.tiktokUsername ? `https://www.tiktok.com/@${socialConfig.tiktokUsername}` : null,
-      gradient: "from-gray-900 to-gray-700",
+      color: "text-white/60",
       testId: "social-tiktok",
     },
   ].filter((s) => s.href);
 
+  const contactInfo = [
+    {
+      icon: Phone,
+      label: "Phone",
+      value: "18763881801",
+      color: "bg-amber-500/10 border-amber-500/20",
+      iconColor: "text-amber-400",
+      testId: "contact-phone",
+    },
+    {
+      icon: Mail,
+      label: "Email",
+      value: "support@connectagrapher.com",
+      color: "bg-blue-500/10 border-blue-500/20",
+      iconColor: "text-blue-400",
+      testId: "contact-email",
+    },
+    {
+      icon: MapPin,
+      label: "Location",
+      value: "New Forest District, Manchester, Jamaica",
+      color: "bg-rose-500/10 border-rose-500/20",
+      iconColor: "text-rose-400",
+      testId: "contact-location",
+    },
+  ];
+
   return (
-    <div className="pt-20 pb-20 relative z-10">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold font-serif mb-4 gradient-text slide-in-up" data-testid="contact-title">Get In Touch</h1>
-          <p className="text-lg text-muted-foreground slide-in-up stagger-1">
-            Ready to create something beautiful together?
+    <div className="pt-24 pb-24 relative z-10 overflow-hidden">
+      {/* Hero heading */}
+      <div className="max-w-6xl mx-auto px-4 mb-16">
+        <ScrollReveal variant="fade-up">
+          <p className="eyebrow mb-4">Get In Touch</p>
+          <div className="relative inline-block">
+            <h1
+              className="font-extrabold text-foreground tracking-tight leading-[1.02]"
+              style={{ fontFamily: 'var(--font-display, var(--font-serif))', fontSize: 'clamp(2.4rem, 7vw, 5rem)' }}
+              data-testid="contact-title"
+            >
+              Let&apos;s Create{' '}
+              <span className="relative">
+                <span className="gradient-text">Together</span>
+                {/* Amber underline decoration */}
+                <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-400 rounded-full" />
+              </span>
+            </h1>
+          </div>
+          <p className="text-muted-foreground text-[16px] mt-4 max-w-md">
+            Ready to create something beautiful? Reach out and let&apos;s talk about your vision.
           </p>
-        </div>
+        </ScrollReveal>
+      </div>
 
-        <div className="grid lg:grid-cols-2 gap-12">
-          <div className="space-y-8 slide-in-up stagger-2">
-            <Card className="p-6 hover-3d" data-testid="contact-phone">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-amber-500/15 border border-amber-500/25 rounded-2xl flex items-center justify-center">
-                  <Phone className="text-amber-400 w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-semibold">Phone</h4>
-                  <p className="text-muted-foreground">18763881801</p>
+      {/* Main split */}
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="grid lg:grid-cols-5 gap-10 lg:gap-16">
+
+          {/* LEFT — contact info (60%) */}
+          <div className="lg:col-span-3 space-y-6">
+            <ScrollReveal variant="slide-left" delay={0.05}>
+              <p className="eyebrow mb-4">Contact Info</p>
+            </ScrollReveal>
+
+            <StaggerReveal className="space-y-4">
+              {contactInfo.map(({ icon: Icon, label, value, color, iconColor, testId }) => (
+                <RevealItem key={testId} variant="slide-left">
+                  <motion.div
+                    className="flex items-center gap-4 p-5 rounded-2xl bg-card border border-border"
+                    whileHover={{ x: 4, borderColor: 'rgba(245,158,11,0.3)' }}
+                    transition={{ duration: 0.2 }}
+                    data-testid={testId}
+                  >
+                    <div className={`w-12 h-12 ${color} border rounded-2xl flex items-center justify-center shrink-0`}>
+                      <Icon className={`${iconColor} w-5 h-5`} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-muted-foreground/60 mb-0.5">{label}</p>
+                      <p className="text-foreground font-medium text-[15px]">{value}</p>
+                    </div>
+                  </motion.div>
+                </RevealItem>
+              ))}
+            </StaggerReveal>
+
+            {/* Social links */}
+            <ScrollReveal variant="fade-up" delay={0.25}>
+              <div className="pt-2" data-testid="contact-social">
+                <p className="eyebrow mb-4">Follow Our Work</p>
+                <div className="flex flex-wrap gap-3">
+                  {socialLinks.length > 0 ? (
+                    socialLinks.map(({ icon: Icon, label, href, color, testId }) => (
+                      <a
+                        key={testId}
+                        href={href!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-card border border-border hover:border-amber-500/30 transition-all text-[13px] font-medium text-muted-foreground hover:text-foreground group"
+                        data-testid={testId}
+                      >
+                        <span className={`${color} group-hover:scale-110 transition-transform`}>
+                          <Icon className="w-4 h-4" />
+                        </span>
+                        {label}
+                      </a>
+                    ))
+                  ) : (
+                    <div className="flex gap-3">
+                      <a href="#" className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-card border border-border hover:border-amber-500/30 transition-all text-[13px] font-medium text-muted-foreground" data-testid="social-instagram">
+                        <Instagram className="w-4 h-4 text-pink-400" /> Instagram
+                      </a>
+                      <a href="#" className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-card border border-border hover:border-amber-500/30 transition-all text-[13px] font-medium text-muted-foreground" data-testid="social-facebook">
+                        <Facebook className="w-4 h-4 text-blue-400" /> Facebook
+                      </a>
+                      <a href="#" className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-card border border-border hover:border-amber-500/30 transition-all text-[13px] font-medium text-muted-foreground" data-testid="social-twitter">
+                        <Twitter className="w-4 h-4 text-sky-400" /> Twitter
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
-            </Card>
-
-            <Card className="p-6 hover-3d" data-testid="contact-email">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-blue-500/15 border border-blue-500/25 rounded-2xl flex items-center justify-center">
-                  <Mail className="text-blue-400 w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-semibold">Email</h4>
-                  <p className="text-muted-foreground">support@connectagrapher.com</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 hover-3d" data-testid="contact-location">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-rose-500/15 border border-rose-500/25 rounded-2xl flex items-center justify-center">
-                  <MapPin className="text-rose-400 w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-semibold">Location</h4>
-                  <p className="text-muted-foreground">New Forest District, Manchester, Jamaica</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 hover-3d" data-testid="contact-social">
-              <h4 className="font-semibold mb-4">Follow Our Work</h4>
-              {socialLinks.length > 0 ? (
-                <div className="flex space-x-4">
-                  {socialLinks.map(({ icon: Icon, label, href, gradient, testId }) => (
-                    <a
-                      key={testId}
-                      href={href!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={label}
-                      className={`w-10 h-10 bg-gradient-to-r ${gradient} rounded-full flex items-center justify-center text-white magnetic-btn transition-transform hover:scale-110`}
-                      data-testid={testId}
-                    >
-                      <Icon className="w-5 h-5" />
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex space-x-4">
-                  <a href="#" className="w-10 h-10 bg-pink-500/15 border border-pink-500/25 rounded-full flex items-center justify-center text-pink-400 magnetic-btn hover:bg-pink-500/25 transition-colors" data-testid="social-instagram">
-                    <Instagram className="w-5 h-5" />
-                  </a>
-                  <a href="#" className="w-10 h-10 bg-blue-500/15 border border-blue-500/25 rounded-full flex items-center justify-center text-blue-400 magnetic-btn hover:bg-blue-500/25 transition-colors" data-testid="social-facebook">
-                    <Facebook className="w-5 h-5" />
-                  </a>
-                  <a href="#" className="w-10 h-10 bg-sky-500/15 border border-sky-500/25 rounded-full flex items-center justify-center text-sky-400 magnetic-btn hover:bg-sky-500/25 transition-colors" data-testid="social-twitter">
-                    <Twitter className="w-5 h-5" />
-                  </a>
-                </div>
-              )}
-            </Card>
+            </ScrollReveal>
           </div>
 
-          <Card className="p-8 hover-3d slide-in-up stagger-3">
-            <h3 className="text-2xl font-bold mb-6" data-testid="contact-form-title">Send a Message</h3>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input 
-                          className="form-focus" 
-                          data-testid="input-contact-name"
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          {/* RIGHT — form (40%) */}
+          <ScrollReveal variant="slide-right" delay={0.1} className="lg:col-span-2">
+            <div className="card-premium p-7 shadow-xl shadow-black/5 dark:shadow-black/30">
+              <h3 className="font-bold text-[20px] mb-1 text-foreground" data-testid="contact-form-title">Send a Message</h3>
+              <p className="text-muted-foreground text-[13px] mb-6">We'll get back to you within 24 hours.</p>
 
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="email" 
-                          className="form-focus" 
-                          data-testid="input-contact-email"
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="form-focus rounded-xl border-border bg-muted/40 focus:bg-background transition-colors"
+                            data-testid="input-contact-name"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="message"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Message</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          rows={5}
-                          className="form-focus" 
-                          data-testid="textarea-contact-message"
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            className="form-focus rounded-xl border-border bg-muted/40 focus:bg-background transition-colors"
+                            data-testid="input-contact-email"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <Button 
-                  type="submit" 
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-lg font-semibold magnetic-btn"
-                  disabled={sendMessageMutation.isPending}
-                  data-testid="button-send-message"
-                >
-                  <i className="fas fa-paper-plane mr-2"></i>
-                  {sendMessageMutation.isPending ? 'Sending...' : 'Send Message'}
-                </Button>
-              </form>
-            </Form>
-          </Card>
+                  <FormField
+                    control={form.control}
+                    name="message"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">Message</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            rows={5}
+                            className="form-focus rounded-xl border-border bg-muted/40 focus:bg-background transition-colors resize-none"
+                            data-testid="textarea-contact-message"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      type="submit"
+                      className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-3 rounded-xl text-[14px] shadow-lg shadow-amber-500/20 transition-all"
+                      disabled={sendMessageMutation.isPending}
+                      data-testid="button-send-message"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      {sendMessageMutation.isPending ? 'Sending...' : 'Send Message'}
+                    </Button>
+                  </motion.div>
+                </form>
+              </Form>
+            </div>
+          </ScrollReveal>
         </div>
 
-        {/* Additional Information */}
-        <div className="mt-20 text-center">
-          <Card className="p-8 bg-amber-500/5 border-amber-500/20 hover-3d slide-in-up">
-            <h3 className="text-2xl font-bold mb-4 gradient-text" data-testid="response-time-title">Response Time</h3>
-            <p className="text-lg text-muted-foreground mb-6">
-              We typically respond to all inquiries within 24 hours. For urgent bookings or questions, feel free to call us directly at the number provided above.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Business Hours: Monday - Saturday, 9:00 AM - 7:00 PM (Jamaica Standard Time)
-            </p>
-          </Card>
-        </div>
+        {/* Bottom band — hours */}
+        <ScrollReveal variant="fade-up" delay={0.15} className="mt-14">
+          <div className="bg-[#070709] rounded-2xl px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4" data-testid="response-time-title">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                <Clock className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <p className="text-white font-semibold text-[15px]">Response Time</p>
+                <p className="text-white/40 text-[13px]">We typically respond within 24 hours</p>
+              </div>
+            </div>
+            <div className="h-px md:h-10 w-full md:w-px bg-white/[0.06]" />
+            <div className="text-center md:text-right">
+              <p className="text-white/60 text-[13px]">Business Hours</p>
+              <p className="text-white font-semibold text-[14px]">Mon – Sat, 9:00 AM – 7:00 PM</p>
+              <p className="text-white/40 text-[12px]">Jamaica Standard Time</p>
+            </div>
+          </div>
+        </ScrollReveal>
       </div>
     </div>
   );
