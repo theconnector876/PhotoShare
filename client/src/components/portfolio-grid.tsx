@@ -453,7 +453,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
       <AnimatePresence>
         {lightboxImage && (
           <motion.div
-            className="fixed inset-0 z-[9990] bg-black/96 backdrop-blur-lg flex items-center justify-center"
+            className="fixed inset-0 z-[9990] bg-black flex items-center justify-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

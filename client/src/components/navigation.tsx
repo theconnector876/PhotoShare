@@ -11,19 +11,14 @@ import { SUPPORTED_CURRENCIES, CURRENCY_SYMBOLS, type Currency } from "@shared/c
 import { usePush } from "@/hooks/use-push";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Sample the background luminance of the PAGE behind any overlay.
-// Uses elementsFromPoint (plural) so it looks through fixed/absolute overlays.
-// Returns true if background is light → text should be dark.
-function samplePageIsLight(): boolean {
+// Walk elements at a screen point to find the first opaque background,
+// skipping any element matching the given data-attribute skip key.
+function sampleLuminanceAt(cx: number, cy: number, skipAttr: string): boolean {
   try {
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
-    // elementsFromPoint returns all elements at this point, top-most first
     const els = document.elementsFromPoint(cx, cy);
     for (const el of els) {
-      // Skip the menu overlay and its children (identified by data attribute)
-      if ((el as HTMLElement).dataset?.menuOverlay || el.closest('[data-menu-overlay]')) continue;
-      // Walk up from each candidate to find a non-transparent background
+      const he = el as HTMLElement;
+      if (he.dataset?.[skipAttr] || he.closest(`[data-${skipAttr}]`)) continue;
       let node: Element | null = el;
       while (node && node !== document.documentElement) {
         const bg = window.getComputedStyle(node).backgroundColor;
@@ -32,8 +27,7 @@ function samplePageIsLight(): boolean {
           const alpha = m[4] !== undefined ? parseFloat(m[4]) : 1;
           if (alpha < 0.15) { node = node.parentElement; continue; }
           const [r, g, b] = [+m[1], +m[2], +m[3]];
-          const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-          return luminance > 0.55;
+          return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55;
         }
         node = node.parentElement;
       }
@@ -42,19 +36,36 @@ function samplePageIsLight(): boolean {
   return !document.documentElement.classList.contains('dark');
 }
 
+// Sample page background behind the mobile menu overlay (center of screen)
+function samplePageIsLight(): boolean {
+  return sampleLuminanceAt(window.innerWidth / 2, window.innerHeight / 2, 'menuOverlay');
+}
+
+// Sample page background behind the nav bar (top of page, y=32 = nav midpoint)
+function sampleNavIsLight(): boolean {
+  return sampleLuminanceAt(window.innerWidth / 2, 32, 'navBar');
+}
+
 export default function Navigation() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [menuOnLight, setMenuOnLight] = useState(false);
+  const [navOnLight, setNavOnLight] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user, logoutMutation } = useAuth();
   const { config } = useSiteConfig();
   const { selectedCurrency, setCurrency } = useCurrency();
   const { permission, subscribed, loading: pushLoading, supported: pushSupported, subscribe, unsubscribe } = usePush();
 
-  // Scroll detection
+  // Scroll detection + transparent-nav background sampling
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    const handleScroll = () => {
+      const isScrolled = window.scrollY > 20;
+      setScrolled(isScrolled);
+      // Only need background detection when nav is transparent (not scrolled)
+      if (!isScrolled) setNavOnLight(sampleNavIsLight());
+    };
+    handleScroll(); // initial sample on mount
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -116,6 +127,7 @@ export default function Navigation() {
     <>
       {/* ── Desktop / top nav ── */}
       <nav
+        data-nav-bar="true"
         className={`fixed top-0 w-full z-50 transition-all duration-300 ${
           scrolled
             ? 'bg-white/95 dark:bg-[#070709]/95 backdrop-blur-xl shadow-sm border-b border-black/5 dark:border-white/[0.04]'
@@ -143,7 +155,9 @@ export default function Navigation() {
                   className={`font-bold text-[15px] tracking-tight transition-colors duration-300 ${
                     scrolled
                       ? 'text-gray-900 dark:text-white'
-                      : 'text-white drop-shadow-md'
+                      : navOnLight
+                        ? 'text-gray-900'
+                        : 'text-white drop-shadow-md'
                   }`}
                   style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}
                 >
@@ -165,12 +179,14 @@ export default function Navigation() {
                   >
                     <Link href={item.href}>
                       <span
-                        className={`nav-link relative text-[13px] font-medium transition-colors pb-1 drop-shadow-sm ${
+                        className={`nav-link relative text-[13px] font-medium transition-colors duration-300 pb-1 drop-shadow-sm ${
                           isActive
                             ? 'active text-amber-500'
                             : scrolled
                               ? 'text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white'
-                              : 'text-white/95 hover:text-white'
+                              : navOnLight
+                                ? 'text-gray-800 hover:text-gray-950'
+                                : 'text-white/95 hover:text-white'
                         }`}
                       >
                         {item.label}
@@ -198,7 +214,9 @@ export default function Navigation() {
                     className={`h-8 text-[12px] gap-1 px-2.5 rounded-lg transition-colors ${
                       scrolled
                         ? 'text-gray-500 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6'
-                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                        : navOnLight
+                          ? 'text-gray-500 hover:text-gray-900 hover:bg-black/6'
+                          : 'text-white/60 hover:text-white hover:bg-white/10'
                     }`}
                   >
                     {CURRENCY_SYMBOLS[selectedCurrency]} {selectedCurrency}
@@ -235,7 +253,9 @@ export default function Navigation() {
                       className={`w-8 h-8 rounded-lg transition-colors ${
                         scrolled
                           ? 'text-gray-400 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6'
-                          : 'text-white/50 hover:text-white hover:bg-white/10'
+                          : navOnLight
+                            ? 'text-gray-400 hover:text-gray-900 hover:bg-black/6'
+                            : 'text-white/50 hover:text-white hover:bg-white/10'
                       }`}
                       disabled={pushLoading}
                       onClick={subscribed ? unsubscribe : subscribe}
@@ -254,8 +274,8 @@ export default function Navigation() {
 
               {/* Logged-in user / login */}
               {user ? (
-                <div className={`flex items-center gap-2 pl-2 border-l ${scrolled ? 'border-gray-200 dark:border-white/8' : 'border-white/15'}`}>
-                  <span className={`text-[11px] hidden lg:inline ${scrolled ? 'text-gray-400 dark:text-white/35' : 'text-white/40'}`}>
+                <div className={`flex items-center gap-2 pl-2 border-l ${scrolled ? 'border-gray-200 dark:border-white/8' : navOnLight ? 'border-black/10' : 'border-white/15'}`}>
+                  <span className={`text-[11px] hidden lg:inline ${scrolled ? 'text-gray-400 dark:text-white/35' : navOnLight ? 'text-gray-400' : 'text-white/40'}`}>
                     Hi, {user.firstName || user.email}
                   </span>
                   <Button
@@ -266,7 +286,9 @@ export default function Navigation() {
                     className={`h-8 text-[12px] rounded-lg transition-colors ${
                       scrolled
                         ? 'text-gray-500 dark:text-white/45 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6'
-                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                        : navOnLight
+                          ? 'text-gray-500 hover:text-gray-900 hover:bg-black/6'
+                          : 'text-white/60 hover:text-white hover:bg-white/10'
                     }`}
                     data-testid="button-logout"
                   >
@@ -281,7 +303,9 @@ export default function Navigation() {
                     className={`h-8 text-[12px] border-0 rounded-full px-4 transition-colors ${
                       scrolled
                         ? 'bg-gray-100 dark:bg-white/8 hover:bg-gray-200 dark:hover:bg-white/12 text-gray-700 dark:text-white'
-                        : 'bg-white/12 hover:bg-white/20 text-white'
+                        : navOnLight
+                          ? 'bg-black/8 hover:bg-black/14 text-gray-800'
+                          : 'bg-white/12 hover:bg-white/20 text-white'
                     }`}
                   >
                     Login
@@ -315,7 +339,9 @@ export default function Navigation() {
                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
                   scrolled
                     ? 'text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/6'
-                    : 'text-white/80 hover:bg-white/10'
+                    : navOnLight
+                      ? 'text-gray-700 hover:bg-black/8'
+                      : 'text-white/80 hover:bg-white/10'
                 }`}
                 aria-label="Toggle menu"
                 data-testid="mobile-menu-button"
