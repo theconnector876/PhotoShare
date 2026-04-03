@@ -62,28 +62,40 @@ export default function Payment() {
     fetchBooking();
   }, [bookingId, paymentType]);
 
+  const [payStatus, setPayStatus] = useState<'idle' | 'connecting' | 'retrying'>('idle');
+
   const handlePay = async () => {
     if (!bookingId) return;
     try {
       setIsPaying(true);
+      setPayStatus('connecting');
       const checkoutResponse = await apiRequest('POST', '/api/create-payment-intent', {
         bookingId,
         paymentType,
         tipAmount,
       });
       const checkoutData = await checkoutResponse.json();
-      if (checkoutData.error) throw new Error(checkoutData.error);
+      if (checkoutData.error) {
+        // Surface retry attempts in the UI label
+        if (checkoutData.error.includes('attempt 1')) setPayStatus('retrying');
+        throw new Error(checkoutData.error);
+      }
 
       if (checkoutData.autoMarked) {
-        // Zero-amount balance (coupon, no tip) — auto-marked paid on server
         navigate(checkoutData.redirectUrl || `/payment-success?booking=${bookingId}&type=${paymentType}`);
         return;
       }
 
       window.location.href = checkoutData.checkoutUrl;
     } catch (error: any) {
-      toast({ title: "Error", description: error?.message || "Failed to initiate payment", variant: "destructive" });
+      const msg = error?.message || "Failed to initiate payment";
+      toast({
+        title: "Payment Gateway Error",
+        description: msg.startsWith('WiPay') ? msg : `Could not connect to payment gateway. Please try again in a moment.`,
+        variant: "destructive",
+      });
       setIsPaying(false);
+      setPayStatus('idle');
     }
   };
 
@@ -238,7 +250,10 @@ export default function Payment() {
               ) : (
                 <CreditCard size={16} className="mr-2" />
               )}
-              {totalCharge === 0 ? 'Confirm Payment' : `Pay ${fmt(totalCharge)}`}
+              {isPaying
+                ? payStatus === 'retrying' ? 'Retrying connection…' : 'Connecting to gateway…'
+                : totalCharge === 0 ? 'Confirm Payment' : `Pay ${fmt(totalCharge)}`
+              }
             </Button>
 
             <div className="text-center text-sm text-muted-foreground">

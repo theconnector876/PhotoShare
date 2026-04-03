@@ -116,29 +116,71 @@ async function createWiPayCheckout(params: {
 
   console.log('[wipay] Creating checkout:', { orderId, total: totalStr, env: WIPAY_ENVIRONMENT });
 
-  const response = await fetch(WIPAY_BASE_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json',
-    },
-    body: body.toString(),
-  });
+  // Retry up to 3 attempts with a 12-second timeout each — WiPay occasionally
+  // returns a Cloudflare 522 (origin timeout) on the first request.
+  const TIMEOUT_MS = 12_000;
+  const MAX_ATTEMPTS = 3;
+  let lastError: Error = new Error('WiPay request failed');
 
-  const rawText = await response.text();
-  console.log('[wipay] Checkout response status:', response.status, 'body:', rawText.slice(0, 500));
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  let result: any;
-  try {
-    result = JSON.parse(rawText);
-  } catch {
-    throw new Error(`WiPay returned non-JSON (${response.status}): ${rawText.slice(0, 200)}`);
+    try {
+      const response = await fetch(WIPAY_BASE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        body: body.toString(),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
+      const rawText = await response.text();
+      console.log(`[wipay] Attempt ${attempt} status:`, response.status, 'body:', rawText.slice(0, 300));
+
+      // If WiPay / Cloudflare returned an HTML error page (5xx gateway errors),
+      // treat it as a transient failure and retry.
+      if (!rawText.trim().startsWith('{') && !rawText.trim().startsWith('[')) {
+        lastError = new Error(`WiPay payment gateway is temporarily unavailable (attempt ${attempt}). Please try again in a moment.`);
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+          continue;
+        }
+        throw lastError;
+      }
+
+      let result: any;
+      try {
+        result = JSON.parse(rawText);
+      } catch {
+        throw new Error('WiPay payment gateway returned an unexpected response. Please try again.');
+      }
+
+      if (!result.url) {
+        throw new Error(result.message || result.error || 'WiPay did not return a checkout URL. Please try again.');
+      }
+      return result.url;
+
+    } catch (err: any) {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') {
+        lastError = new Error(`WiPay payment gateway timed out (attempt ${attempt}). Please try again.`);
+        console.warn(`[wipay] Attempt ${attempt} timed out after ${TIMEOUT_MS}ms`);
+      } else if (err.message?.startsWith('WiPay')) {
+        throw err; // already a clean user-facing message
+      } else {
+        lastError = err;
+      }
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+      }
+    }
   }
 
-  if (!result.url) {
-    throw new Error(result.message || result.error || `WiPay did not return a checkout URL: ${JSON.stringify(result)}`);
-  }
-  return result.url;
+  throw lastError;
 }
 
 // Booking with user account creation schema
