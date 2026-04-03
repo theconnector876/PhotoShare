@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, X } from "lucide-react";
+import { Upload, X } from "@phosphor-icons/react";
 
 interface SimpleUploaderProps {
   onComplete?: (result: { successful: { uploadURL: string }[] }) => void;
@@ -82,7 +82,7 @@ export function SimpleUploader({
                 size="sm"
                 onClick={() => setShowModal(false)}
               >
-                <X className="w-4 h-4" />
+                <X size={16} />
               </Button>
             </div>
 
@@ -106,7 +106,7 @@ export function SimpleUploader({
                         size="sm"
                         onClick={() => removeFile(index)}
                       >
-                        <X className="w-3 h-3" />
+                        <X size={12} />
                       </Button>
                     </div>
                   ))}

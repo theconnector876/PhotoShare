@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { PlusIcon, EditIcon, Trash2, Globe, EyeOff, ExternalLink, Loader2, Instagram, Twitter, Facebook } from "lucide-react";
+import { Plus as PlusIcon, PencilSimple as EditIcon, Trash, Globe, EyeSlash as EyeOff, ArrowSquareOut as ExternalLink, CircleNotch as Loader2, InstagramLogo as Instagram, TwitterLogo as Twitter, FacebookLogo as Facebook } from "@phosphor-icons/react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 // ── Cloudinary upload helper (same pattern as admin-catalogues) ───────────────
@@ -149,7 +149,7 @@ function SocialConfigPanel() {
     <div className="space-y-6">
       <div className="bg-pink-50 dark:bg-pink-950 border border-pink-200 dark:border-pink-800 rounded-lg p-4 text-sm text-pink-800 dark:text-pink-200">
         <p className="font-semibold mb-2 flex items-center gap-2">
-          <Instagram className="h-4 w-4" /> Instagram — Easy setup via Behold.so (free, no developer account needed)
+          <Instagram size={16} /> Instagram — Easy setup via Behold.so (free, no developer account needed)
         </p>
         <ol className="list-decimal list-inside space-y-1">
           <li>Go to <a href="https://behold.so" target="_blank" rel="noopener noreferrer" className="underline font-medium">behold.so</a> and sign up for free</li>
@@ -169,7 +169,7 @@ function SocialConfigPanel() {
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
                   <FormLabel className="flex items-center gap-2">
-                    <Instagram className="h-4 w-4 text-pink-500" />
+                    <Instagram size={16} className="text-pink-500" />
                     Behold Feed URL
                     {config?.instagramEmbedUrl && <Badge className="bg-green-100 text-green-700 text-xs">Connected</Badge>}
                   </FormLabel>
@@ -187,7 +187,7 @@ function SocialConfigPanel() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
-                    <Instagram className="h-4 w-4 text-pink-500" />
+                    <Instagram size={16} className="text-pink-500" />
                     Instagram Profile URL
                   </FormLabel>
                   <FormControl>
@@ -204,7 +204,7 @@ function SocialConfigPanel() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
-                    <Twitter className="h-4 w-4 text-sky-500" />
+                    <Twitter size={16} className="text-sky-500" />
                     Twitter / X Username (without @)
                   </FormLabel>
                   <FormControl>
@@ -220,7 +220,7 @@ function SocialConfigPanel() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
-                    <Facebook className="h-4 w-4 text-blue-600" />
+                    <Facebook size={16} className="text-blue-600" />
                     Facebook Page URL
                   </FormLabel>
                   <FormControl>
@@ -245,7 +245,7 @@ function SocialConfigPanel() {
             />
           </div>
           <Button type="submit" disabled={saveMutation.isPending}>
-            {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {saveMutation.isPending && <Loader2 size={16} className="mr-2 animate-spin" />}
             Save Social Config
           </Button>
         </form>
@@ -408,7 +408,7 @@ function BlogPostDialog({
                 />
                 <label className="cursor-pointer">
                   <Button type="button" variant="outline" asChild disabled={uploading}>
-                    <span>{uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Upload"}</span>
+                    <span>{uploading ? <Loader2 size={16} className="animate-spin" /> : "Upload"}</span>
                   </Button>
                   <input type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
                 </label>
@@ -499,7 +499,7 @@ function BlogPostDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={saveMutation.isPending}>
-                {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {saveMutation.isPending && <Loader2 size={16} className="mr-2 animate-spin" />}
                 {isEdit ? "Save Changes" : "Create Post"}
               </Button>
             </DialogFooter>
@@ -569,7 +569,7 @@ export function AdminBlog() {
               <span>{drafts.length} drafts</span>
             </div>
             <Button onClick={handleNew}>
-              <PlusIcon className="h-4 w-4 mr-2" />
+              <PlusIcon size={16} className="mr-2" />
               New Post
             </Button>
           </div>
@@ -581,7 +581,7 @@ export function AdminBlog() {
               <p className="text-lg font-medium mb-2">No blog posts yet</p>
               <p className="text-sm mb-4">Create your first post to start attracting clients via SEO</p>
               <Button onClick={handleNew}>
-                <PlusIcon className="h-4 w-4 mr-2" />
+                <PlusIcon size={16} className="mr-2" />
                 Create First Post
               </Button>
             </div>
@@ -603,7 +603,7 @@ export function AdminBlog() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold truncate">{post.title}</h3>
                         <Badge variant={post.status === "published" ? "default" : "secondary"}>
-                          {post.status === "published" ? <Globe className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
+                          {post.status === "published" ? <Globe size={12} className="mr-1" /> : <EyeOff size={12} className="mr-1" />}
                           {post.status}
                         </Badge>
                       </div>
@@ -622,12 +622,12 @@ export function AdminBlog() {
                       {post.status === "published" && (
                         <a href={`/blog/${post.slug}`} target="_blank" rel="noopener noreferrer">
                           <Button variant="ghost" size="icon" title="View live">
-                            <ExternalLink className="h-4 w-4" />
+                            <ExternalLink size={16} />
                           </Button>
                         </a>
                       )}
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(post)} title="Edit">
-                        <EditIcon className="h-4 w-4" />
+                        <EditIcon size={16} />
                       </Button>
                       <Button
                         variant="ghost"
@@ -638,7 +638,7 @@ export function AdminBlog() {
                           if (confirm("Delete this post?")) deleteMutation.mutate(post.id);
                         }}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash size={16} />
                       </Button>
                     </div>
                   </CardContent>

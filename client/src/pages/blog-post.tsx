@@ -3,7 +3,7 @@ import { Link, useParams } from "wouter";
 import { Helmet } from "react-helmet-async";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Tag, ArrowLeft, Share2, Twitter, Facebook, Link as LinkIcon } from "lucide-react";
+import { CalendarBlank, Tag, ArrowLeft, ShareNetwork, TwitterLogo, FacebookLogo, Link as LinkIcon } from "@phosphor-icons/react";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { useSiteConfig } from "@/context/site-config";
 import { useToast } from "@/hooks/use-toast";
@@ -92,7 +92,7 @@ export default function BlogPostPage() {
         <p className="text-muted-foreground mb-6">This post doesn't exist or has been removed.</p>
         <Link href="/blog">
           <Button variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft size={16} className="mr-2" />
             Back to Blog
           </Button>
         </Link>
@@ -151,7 +151,7 @@ export default function BlogPostPage() {
         <div className="max-w-3xl mx-auto px-4 pt-6 pb-2">
           <Link href="/blog">
             <Button variant="ghost" className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft size={16} />
               Blog
             </Button>
           </Link>
@@ -175,7 +175,7 @@ export default function BlogPostPage() {
             <div className="flex gap-2 flex-wrap mb-4">
               {post.tags.map((tag) => (
                 <Badge key={tag} variant="secondary">
-                  <Tag className="h-3 w-3 mr-1" />
+                  <Tag size={12} className="mr-1" />
                   {tag}
                 </Badge>
               ))}
@@ -190,7 +190,7 @@ export default function BlogPostPage() {
           {/* Meta */}
           <div className="flex items-center gap-4 text-sm text-muted-foreground border-b pb-6 mb-8 flex-wrap">
             <span className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5" />
+              <CalendarBlank size={14} />
               {formatDate(post.publishedAt || post.createdAt)}
             </span>
             <span className="text-muted-foreground/40">|</span>
@@ -207,20 +207,20 @@ export default function BlogPostPage() {
           {/* Share */}
           <div className="mt-12 pt-8 border-t">
             <p className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-              <Share2 className="h-4 w-4" />
+              <ShareNetwork size={16} />
               Share this post
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={shareOnTwitter} className="gap-2">
-                <Twitter className="h-4 w-4 text-sky-500" />
+                <TwitterLogo size={16} className="text-sky-500" />
                 Twitter
               </Button>
               <Button variant="outline" size="sm" onClick={shareOnFacebook} className="gap-2">
-                <Facebook className="h-4 w-4 text-blue-600" />
+                <FacebookLogo size={16} className="text-blue-600" />
                 Facebook
               </Button>
               <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-2">
-                <LinkIcon className="h-4 w-4" />
+                <LinkIcon size={16} />
                 Copy Link
               </Button>
             </div>

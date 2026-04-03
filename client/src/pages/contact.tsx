@@ -8,7 +8,7 @@ import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Phone, Mail, MapPin, Instagram, Facebook, Twitter, Send, Clock } from "lucide-react";
+import { Phone, EnvelopeSimple, MapPin, InstagramLogo, FacebookLogo, TwitterLogo, PaperPlaneTilt, Clock } from "@phosphor-icons/react";
 import { motion } from "framer-motion";
 import { ScrollReveal, StaggerReveal, RevealItem } from "@/components/scroll-reveal";
 
@@ -69,21 +69,21 @@ export default function Contact() {
 
   const socialLinks = [
     {
-      icon: Instagram,
+      icon: InstagramLogo,
       label: "Instagram",
       href: socialConfig?.instagramProfileUrl || (socialConfig?.instagramEmbedUrl ? "https://www.instagram.com" : null),
       color: "text-pink-400",
       testId: "social-instagram",
     },
     {
-      icon: Facebook,
+      icon: FacebookLogo,
       label: "Facebook",
       href: socialConfig?.facebookPageUrl || null,
       color: "text-blue-400",
       testId: "social-facebook",
     },
     {
-      icon: Twitter,
+      icon: TwitterLogo,
       label: "Twitter / X",
       href: socialConfig?.twitterUsername ? `https://twitter.com/${socialConfig.twitterUsername}` : null,
       color: "text-sky-400",
@@ -108,7 +108,7 @@ export default function Contact() {
       testId: "contact-phone",
     },
     {
-      icon: Mail,
+      icon: EnvelopeSimple,
       label: "Email",
       value: "support@connectagrapher.com",
       color: "bg-blue-500/10 border-blue-500/20",
@@ -171,7 +171,7 @@ export default function Contact() {
                     data-testid={testId}
                   >
                     <div className={`w-12 h-12 ${color} border rounded-2xl flex items-center justify-center shrink-0`}>
-                      <Icon className={`${iconColor} w-5 h-5`} />
+                      <Icon size={20} className={`${iconColor}`} />
                     </div>
                     <div>
                       <p className="text-[11px] font-semibold tracking-[0.15em] uppercase text-muted-foreground/60 mb-0.5">{label}</p>
@@ -198,7 +198,7 @@ export default function Contact() {
                         data-testid={testId}
                       >
                         <span className={`${color} group-hover:scale-110 transition-transform`}>
-                          <Icon className="w-4 h-4" />
+                          <Icon size={16} />
                         </span>
                         {label}
                       </a>
@@ -206,13 +206,13 @@ export default function Contact() {
                   ) : (
                     <div className="flex gap-3">
                       <a href="#" className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-card border border-border hover:border-amber-500/30 transition-all text-[13px] font-medium text-muted-foreground" data-testid="social-instagram">
-                        <Instagram className="w-4 h-4 text-pink-400" /> Instagram
+                        <InstagramLogo size={16} className="text-pink-400" /> Instagram
                       </a>
                       <a href="#" className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-card border border-border hover:border-amber-500/30 transition-all text-[13px] font-medium text-muted-foreground" data-testid="social-facebook">
-                        <Facebook className="w-4 h-4 text-blue-400" /> Facebook
+                        <FacebookLogo size={16} className="text-blue-400" /> Facebook
                       </a>
                       <a href="#" className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-card border border-border hover:border-amber-500/30 transition-all text-[13px] font-medium text-muted-foreground" data-testid="social-twitter">
-                        <Twitter className="w-4 h-4 text-sky-400" /> Twitter
+                        <TwitterLogo size={16} className="text-sky-400" /> Twitter
                       </a>
                     </div>
                   )}
@@ -292,7 +292,7 @@ export default function Contact() {
                       disabled={sendMessageMutation.isPending}
                       data-testid="button-send-message"
                     >
-                      <Send className="w-4 h-4 mr-2" />
+                      <PaperPlaneTilt size={16} className="mr-2" />
                       {sendMessageMutation.isPending ? 'Sending...' : 'Send Message'}
                     </Button>
                   </motion.div>
@@ -307,7 +307,7 @@ export default function Contact() {
           <div className="bg-[#070709] rounded-2xl px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4" data-testid="response-time-title">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                <Clock className="w-5 h-5 text-amber-400" />
+                <Clock size={20} className="text-amber-400" />
               </div>
               <div>
                 <p className="text-white font-semibold text-[15px]">Response Time</p>

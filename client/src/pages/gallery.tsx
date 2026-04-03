@@ -10,7 +10,7 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Key, Eye, Heart, Download, Check, Lock, ChevronLeft, ChevronRight, X, MessageSquare, Send, Share2, Copy, ThumbsUp } from "lucide-react";
+import { Key, Eye, Heart, DownloadSimple, Check, Lock, CaretLeft, CaretRight, X, ChatDots, PaperPlaneTilt, ShareNetwork, Copy, ThumbsUp } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { useParams } from "wouter";
 import { WatermarkOverlay } from "@/components/watermark-overlay";
@@ -423,7 +423,7 @@ export default function Gallery() {
           {currentImages.length > 1 && (
             <button className="absolute left-4 top-[45%] -translate-y-1/2 text-white/80 hover:text-white p-3 rounded-full bg-black/40 hover:bg-black/60 transition-colors z-10"
               onClick={(e) => { e.stopPropagation(); prevImage(); }}>
-              <ChevronLeft className="w-7 h-7" />
+              <CaretLeft size={28} />
             </button>
           )}
 
@@ -444,7 +444,7 @@ export default function Gallery() {
           {currentImages.length > 1 && (
             <button className="absolute right-4 top-[45%] -translate-y-1/2 text-white/80 hover:text-white p-3 rounded-full bg-black/40 hover:bg-black/60 transition-colors z-10"
               onClick={(e) => { e.stopPropagation(); nextImage(); }}>
-              <ChevronRight className="w-7 h-7" />
+              <CaretRight size={28} />
             </button>
           )}
 
@@ -466,7 +466,7 @@ export default function Gallery() {
                   className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-white/20 text-white hover:bg-white/30 transition-colors"
                   onClick={() => downloadBlob(lightboxImage, `photo-${lightboxIndex! + 1}.jpg`)}
                 >
-                  <Download className="w-4 h-4" />
+                  <DownloadSimple size={16} />
                   Download
                 </button>
               )}
@@ -488,7 +488,7 @@ export default function Gallery() {
                 disabled={imageCommentSaving}
                 className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                <Send className="w-4 h-4" />
+                <PaperPlaneTilt size={16} />
               </button>
             </div>
             {imageComments[lightboxImage] && imageCommentDraft === imageComments[lightboxImage] && (
@@ -509,7 +509,7 @@ export default function Gallery() {
           {gallery?.shareEnabled && shareLink && (
             <div className="mt-4 flex items-center justify-center gap-2">
               <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-1.5 text-sm text-muted-foreground max-w-sm overflow-hidden">
-                <Share2 className="w-4 h-4 shrink-0" />
+                <ShareNetwork size={16} className="shrink-0" />
                 <span className="truncate">{shareLink}</span>
               </div>
               <Button size="sm" variant="outline" onClick={copyShareLink} className="shrink-0">
@@ -533,7 +533,7 @@ export default function Gallery() {
             </Button>
             {gallery.finalImages && gallery.finalImages.length > 0 && (
               <Button variant={viewMode === 'final' ? 'default' : 'ghost'} className={`magnetic-btn ${viewMode === 'final' ? 'bg-primary text-primary-foreground' : ''}`} onClick={() => setViewMode('final')} data-testid="button-view-final">
-                {gallery.finalDownloadEnabled ? <Download className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}
+                {gallery.finalDownloadEnabled ? <DownloadSimple size={16} className="mr-2" /> : <Lock size={16} className="mr-2" />}
                 Final ({gallery.finalImages.length})
               </Button>
             )}
@@ -556,13 +556,13 @@ export default function Gallery() {
             {selectedImages.length > 0 && (
               <Button variant="outline" size="sm" disabled={zipProgress !== null}
                 onClick={() => downloadAllZip(selectedImages, 'selected-photos.zip', setZipProgress)}>
-                <Download className="mr-2 h-4 w-4" />
+                <DownloadSimple size={16} className="mr-2" />
                 {zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedImages.length})`}
               </Button>
             )}
             <Button variant="outline" size="sm" disabled={zipProgress !== null}
               onClick={() => downloadAllZip(gallery.galleryImages, 'all-photos.zip', setZipProgress)}>
-              <Download className="mr-2 h-4 w-4" />
+              <DownloadSimple size={16} className="mr-2" />
               {zipProgress !== null ? `${zipProgress}%` : 'Download All'}
             </Button>
           </div>
@@ -571,7 +571,7 @@ export default function Gallery() {
           <div className="flex justify-center mb-6">
             <Button variant="outline" size="sm" disabled={zipProgress !== null}
               onClick={() => downloadAllZip(selectedImages, 'selected-photos.zip', setZipProgress)}>
-              <Download className="mr-2 h-4 w-4" />
+              <DownloadSimple size={16} className="mr-2" />
               {zipProgress !== null ? `${zipProgress}%` : 'Download All Selected'}
             </Button>
           </div>
@@ -582,13 +582,13 @@ export default function Gallery() {
               <Button size="sm" disabled={zipProgress !== null}
                 onClick={() => downloadAllZip(selectedFinalImages, 'selected-finals.zip', setZipProgress)}
                 className="bg-gradient-to-r from-primary to-secondary text-white">
-                <Download className="mr-2 h-4 w-4" />
+                <DownloadSimple size={16} className="mr-2" />
                 {zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedFinalImages.length})`}
               </Button>
             )}
             <Button variant="outline" size="sm" disabled={zipProgress !== null}
               onClick={() => downloadAllZip(gallery.finalImages, 'final-photos.zip', setZipProgress)}>
-              <Download className="mr-2 h-4 w-4" />
+              <DownloadSimple size={16} className="mr-2" />
               {zipProgress !== null ? `${zipProgress}%` : `Download All (${currentImages.length})`}
             </Button>
           </div>
@@ -676,7 +676,7 @@ export default function Gallery() {
                 {/* Note indicator */}
                 {hasNote && (
                   <div className="absolute top-2 left-2 p-1 bg-black/60 text-white rounded-full" title={imageComments[imageUrl]}>
-                    <MessageSquare className="w-3 h-3" />
+                    <ChatDots size={12} />
                   </div>
                 )}
 
@@ -697,7 +697,7 @@ export default function Gallery() {
                     className="absolute bottom-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors opacity-0 group-hover:opacity-100"
                     onClick={(e) => { e.stopPropagation(); logDownload(imageUrl, 'single'); downloadBlob(imageUrl, `photo-${index + 1}.jpg`); }}
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    <DownloadSimple size={14} />
                   </button>
                 )}
 
@@ -747,13 +747,13 @@ export default function Gallery() {
 
               {gallery.galleryDownloadEnabled && selectedImages.length > 0 && (
                 <Button variant="outline" disabled={zipProgress !== null} onClick={() => downloadAllZip(selectedImages, 'selected-photos.zip', setZipProgress)} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-selected">
-                  <Download className="mr-2 h-4 w-4" />{zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedImages.length})`}
+                  <DownloadSimple size={16} className="mr-2" />{zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedImages.length})`}
                 </Button>
               )}
 
               {gallery.galleryDownloadEnabled && currentImages.length > 0 && (
                 <Button variant="outline" disabled={zipProgress !== null} onClick={() => downloadAllZip(gallery.galleryImages, 'all-photos.zip', setZipProgress)} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-gallery">
-                  <Download className="mr-2 h-4 w-4" />{zipProgress !== null ? `${zipProgress}%` : 'Download All'}
+                  <DownloadSimple size={16} className="mr-2" />{zipProgress !== null ? `${zipProgress}%` : 'Download All'}
                 </Button>
               )}
             </div>
@@ -763,7 +763,7 @@ export default function Gallery() {
         {viewMode === 'selected' && gallery.selectedDownloadEnabled && currentImages.length > 0 && (
           <div className="text-center">
             <Button variant="outline" disabled={zipProgress !== null} onClick={() => downloadAllZip(selectedImages, 'selected-photos.zip', setZipProgress)} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-selected">
-              <Download className="mr-2 h-4 w-4" />{zipProgress !== null ? `${zipProgress}%` : 'Download All Selected'}
+              <DownloadSimple size={16} className="mr-2" />{zipProgress !== null ? `${zipProgress}%` : 'Download All Selected'}
             </Button>
           </div>
         )}
@@ -776,11 +776,11 @@ export default function Gallery() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
               {selectedFinalImages.length > 0 && (
                 <Button disabled={zipProgress !== null} onClick={() => downloadAllZip(selectedFinalImages, 'selected-finals.zip', setZipProgress)} className="bg-gradient-to-r from-primary to-secondary text-white px-8 py-3 rounded-lg font-semibold magnetic-btn animate-glow" data-testid="button-download-selected-final">
-                  <Download className="mr-2 h-4 w-4" />{zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedFinalImages.length})`}
+                  <DownloadSimple size={16} className="mr-2" />{zipProgress !== null ? `${zipProgress}%` : `Download Selected (${selectedFinalImages.length})`}
                 </Button>
               )}
               <Button variant="outline" disabled={zipProgress !== null} onClick={() => downloadAllZip(gallery.finalImages, 'final-photos.zip', setZipProgress)} className="px-8 py-3 rounded-lg font-semibold magnetic-btn" data-testid="button-download-all-final">
-                <Download className="mr-2 h-4 w-4" />{zipProgress !== null ? `${zipProgress}%` : `Download All (${currentImages.length})`}
+                <DownloadSimple size={16} className="mr-2" />{zipProgress !== null ? `${zipProgress}%` : `Download All (${currentImages.length})`}
               </Button>
               <Button
                 variant="outline"
@@ -798,7 +798,7 @@ export default function Gallery() {
         {/* Overall Comment */}
         <Card className="mt-10 p-6 hover-3d">
           <div className="flex items-center gap-2 mb-4">
-            <MessageSquare className="w-5 h-5 text-primary" />
+            <ChatDots size={20} className="text-primary" />
             <h4 className="text-lg font-semibold">Leave a Comment</h4>
           </div>
           <p className="text-sm text-muted-foreground mb-4">

@@ -1,4 +1,4 @@
-import { MessageSquare, Eye } from "lucide-react";
+import { ChatDots as MessageSquare, Eye } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import type { ConversationWithMeta } from "@shared/schema";
@@ -65,7 +65,7 @@ export function ConversationList({
         </div>
       ) : sorted.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-2 text-muted-foreground px-4 text-center">
-          <MessageSquare className="w-8 h-8 opacity-30" />
+          <MessageSquare size={32} className="opacity-30" />
           <p className="text-sm">No conversations yet</p>
         </div>
       ) : (
@@ -101,7 +101,7 @@ export function ConversationList({
                         <Badge className="bg-purple-500 text-white text-[9px] px-1.5 py-0 h-4 shrink-0">Group</Badge>
                       )}
                       {conv.currentUserRole === 'observer' && (
-                        <Eye className="w-3 h-3 text-muted-foreground shrink-0" title="View only" />
+                        <Eye size={12} className="text-muted-foreground shrink-0" title="View only" />
                       )}
                     </div>
                     <span className="text-[10px] text-muted-foreground shrink-0">

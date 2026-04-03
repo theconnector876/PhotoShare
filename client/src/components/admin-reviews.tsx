@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Star, CheckCircle, X, Eye } from "lucide-react";
+import { Star, CheckCircle, X, Eye } from "@phosphor-icons/react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 interface Review {
@@ -134,7 +134,7 @@ export function AdminReviews() {
           <div className="flex justify-between items-center">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Star className="w-5 h-5" />
+                <Star size={20} />
                 Review Management
               </CardTitle>
               <CardDescription>
@@ -192,7 +192,7 @@ export function AdminReviews() {
                           onClick={() => setSelectedReview(review)}
                           data-testid={`button-view-${review.id}`}
                         >
-                          <Eye className="w-4 h-4 mr-1" />
+                          <Eye size={16} className="mr-1" />
                           View
                         </Button>
                         {!review.isApproved && (
@@ -203,7 +203,7 @@ export function AdminReviews() {
                             disabled={approveReviewMutation.isPending}
                             data-testid={`button-approve-${review.id}`}
                           >
-                            <CheckCircle className="w-4 h-4 mr-1" />
+                            <CheckCircle size={16} className="mr-1" />
                             Approve
                           </Button>
                         )}
@@ -215,7 +215,7 @@ export function AdminReviews() {
                             disabled={approveReviewMutation.isPending}
                             data-testid={`button-unapprove-${review.id}`}
                           >
-                            <X className="w-4 h-4 mr-1" />
+                            <X size={16} className="mr-1" />
                             Unapprove
                           </Button>
                         )}
@@ -243,7 +243,7 @@ export function AdminReviews() {
                   onClick={() => setSelectedReview(null)}
                   data-testid="button-close-modal"
                 >
-                  <X className="w-4 h-4" />
+                  <X size={16} />
                 </Button>
               </div>
               
@@ -300,7 +300,7 @@ export function AdminReviews() {
                       disabled={approveReviewMutation.isPending}
                       data-testid="button-approve-modal"
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
+                      <CheckCircle size={16} className="mr-2" />
                       Approve Review
                     </Button>
                   ) : (
@@ -313,7 +313,7 @@ export function AdminReviews() {
                       disabled={approveReviewMutation.isPending}
                       data-testid="button-unapprove-modal"
                     >
-                      <X className="w-4 h-4 mr-2" />
+                      <X size={16} className="mr-2" />
                       Unapprove Review
                     </Button>
                   )}

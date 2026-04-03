@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Calendar, MapPin, DollarSign, ArrowLeft, Home } from "lucide-react";
+import { CheckCircle, CalendarBlank, MapPin, CurrencyDollar, ArrowLeft, House } from "@phosphor-icons/react";
 
 interface Booking {
   id: string;
@@ -45,14 +45,14 @@ export function PaymentSuccess() {
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
             <div className="text-red-500 mb-4">
-              <CheckCircle className="w-16 h-16 mx-auto" />
+              <CheckCircle size={64} className="mx-auto" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Invalid Payment Link</h2>
             <p className="text-muted-foreground mb-4">
               This payment confirmation link is invalid or missing booking information.
             </p>
             <Button onClick={() => setLocation("/")} data-testid="button-home">
-              <Home className="w-4 h-4 mr-2" />
+              <House size={16} className="mr-2" />
               Return Home
             </Button>
           </CardContent>
@@ -75,14 +75,14 @@ export function PaymentSuccess() {
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
             <div className="text-red-500 mb-4">
-              <CheckCircle className="w-16 h-16 mx-auto" />
+              <CheckCircle size={64} className="mx-auto" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Booking Not Found</h2>
             <p className="text-muted-foreground mb-4">
               The booking associated with this payment could not be found.
             </p>
             <Button onClick={() => setLocation("/")} data-testid="button-home">
-              <Home className="w-4 h-4 mr-2" />
+              <House size={16} className="mr-2" />
               Return Home
             </Button>
           </CardContent>
@@ -108,7 +108,7 @@ export function PaymentSuccess() {
         <Card className="mb-6">
           <CardContent className="p-6 text-center">
             <div className="text-amber-500 mb-4">
-              <CheckCircle className="w-16 h-16 mx-auto" />
+              <CheckCircle size={64} className="mx-auto" />
             </div>
             <h1 className="text-2xl font-bold mb-2" data-testid="text-success-title">
               Payment Successful!
@@ -123,7 +123,7 @@ export function PaymentSuccess() {
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
+              <CalendarBlank size={20} />
               Booking Details
             </CardTitle>
             <CardDescription>
@@ -167,7 +167,7 @@ export function PaymentSuccess() {
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5" />
+              <CurrencyDollar size={20} />
               Payment Summary
             </CardTitle>
           </CardHeader>
@@ -186,7 +186,7 @@ export function PaymentSuccess() {
                     {formatPrice(booking.depositAmount)}
                   </p>
                   {booking.depositPaid && (
-                    <CheckCircle className="w-5 h-5 text-amber-500" />
+                    <CheckCircle size={20} className="text-amber-500" />
                   )}
                 </div>
                 <Badge 
@@ -204,7 +204,7 @@ export function PaymentSuccess() {
                     {formatPrice(booking.balanceDue)}
                   </p>
                   {booking.balancePaid && (
-                    <CheckCircle className="w-5 h-5 text-amber-500" />
+                    <CheckCircle size={20} className="text-amber-500" />
                   )}
                 </div>
                 <Badge 
@@ -275,7 +275,7 @@ export function PaymentSuccess() {
             className="flex-1"
             data-testid="button-home"
           >
-            <Home className="w-4 h-4 mr-2" />
+            <House size={16} className="mr-2" />
             Return Home
           </Button>
           <Button 

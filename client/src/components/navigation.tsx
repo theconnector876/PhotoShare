@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LogOut, ChevronDown, Bell, BellOff, X, Menu, Camera } from "lucide-react";
+import { SignOut, CaretDown, Bell, BellSlash, X, List, Camera as CameraIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -80,7 +80,7 @@ export default function Navigation() {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
-                  <Camera className="w-4 h-4 text-black absolute opacity-0" />
+                  <CameraIcon size={16} className="text-black absolute opacity-0" />
                 </div>
                 <span
                   className={`font-bold text-[15px] tracking-tight transition-colors duration-300 ${
@@ -145,7 +145,7 @@ export default function Navigation() {
                     }`}
                   >
                     {CURRENCY_SYMBOLS[selectedCurrency]} {selectedCurrency}
-                    <ChevronDown className="w-3 h-3" />
+                    <CaretDown size={12} />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -185,8 +185,8 @@ export default function Navigation() {
                       aria-label={subscribed ? "Disable notifications" : "Enable notifications"}
                     >
                       {subscribed
-                        ? <Bell className="w-[15px] h-[15px] text-amber-500" />
-                        : <BellOff className="w-[15px] h-[15px]" />}
+                        ? <Bell size={15} weight="fill" className="text-amber-500" />
+                        : <BellSlash size={15} />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent className="bg-gray-900 dark:bg-[#1a1a1a] text-white border-gray-700 dark:border-white/10 text-xs">
@@ -213,7 +213,7 @@ export default function Navigation() {
                     }`}
                     data-testid="button-logout"
                   >
-                    <LogOut className="w-3.5 h-3.5 mr-1.5" />
+                    <SignOut size={14} className="mr-1.5" />
                     {logoutMutation.isPending ? "Logging out…" : "Logout"}
                   </Button>
                 </div>
@@ -263,7 +263,7 @@ export default function Navigation() {
                 aria-label="Toggle menu"
                 data-testid="mobile-menu-button"
               >
-                <Menu className="h-[18px] w-[18px]" />
+                <List size={18} />
               </button>
             </div>
 
@@ -285,7 +285,7 @@ export default function Navigation() {
             <div className="flex items-center justify-between px-5 py-5">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-500/25">
-                  <Camera className="w-4 h-4 text-black" />
+                  <CameraIcon size={16} className="text-black" weight="duotone" />
                 </div>
                 <span className="text-white font-bold text-[15px] tracking-tight" style={{ fontFamily: 'var(--font-display, var(--font-sans))' }}>
                   {config.branding.appName}
@@ -389,7 +389,7 @@ export default function Navigation() {
                     className="flex items-center gap-2 text-[13px] text-white/50 hover:text-white transition-colors"
                     data-testid="mobile-logout-button"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <SignOut size={16} />
                     {logoutMutation.isPending ? "Logging out…" : "Logout"}
                   </button>
                 </div>
@@ -414,8 +414,8 @@ export default function Navigation() {
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/50 hover:text-white hover:bg-white/5 text-[13px] transition-colors"
                 >
                   {subscribed
-                    ? <Bell className="w-4 h-4 text-amber-500" />
-                    : <BellOff className="w-4 h-4" />}
+                    ? <Bell size={16} weight="fill" className="text-amber-500" />
+                    : <BellSlash size={16} />}
                   {subscribed ? "Notifications on" : "Enable notifications"}
                 </button>
               )}

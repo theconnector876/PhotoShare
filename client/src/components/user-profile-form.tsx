@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Loader2, Save, Lock, Trash2 } from "lucide-react";
+import { Camera, CircleNotch as Loader2, FloppyDisk as Save, Lock, Trash } from "@phosphor-icons/react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -100,7 +100,7 @@ export function UserProfileForm() {
               disabled={uploadingPhoto}
               type="button"
             >
-              {uploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+              {uploadingPhoto ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
             </button>
             <input
               ref={fileInputRef}
@@ -154,7 +154,7 @@ export function UserProfileForm() {
           {/* Email — read-only */}
           <div className="space-y-1">
             <Label className="flex items-center gap-1">
-              <Lock className="w-3 h-3" /> Email
+              <Lock size={12} /> Email
             </Label>
             <Input value={user?.email ?? ""} readOnly className="bg-muted text-muted-foreground cursor-not-allowed" />
           </div>
@@ -165,9 +165,9 @@ export function UserProfileForm() {
             className="w-full"
           >
             {saveMutation.isPending ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+              <><Loader2 size={16} className="mr-2 animate-spin" /> Saving...</>
             ) : (
-              <><Save className="w-4 h-4 mr-2" /> Save Profile</>
+              <><Save size={16} className="mr-2" /> Save Profile</>
             )}
           </Button>
 
@@ -179,7 +179,7 @@ export function UserProfileForm() {
                 onClick={() => setShowDeleteConfirm(true)}
                 className="text-xs text-destructive hover:underline flex items-center gap-1"
               >
-                <Trash2 className="w-3 h-3" /> Delete my account
+                <Trash size={12} /> Delete my account
               </button>
             ) : (
               <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3">
@@ -207,7 +207,7 @@ export function UserProfileForm() {
                       }
                     }}
                   >
-                    {deletingAccount ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                    {deletingAccount ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
                     Yes, delete permanently
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setShowDeleteConfirm(false)}>

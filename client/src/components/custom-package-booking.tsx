@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Shield, ChevronDown, CheckCircle, AlertTriangle, Tag } from "lucide-react";
+import { ShieldCheck as Shield, CaretDown as ChevronDown, CheckCircle, Warning as AlertTriangle, Tag } from "@phosphor-icons/react";
 import type { BookingTerms } from "@shared/booking-terms";
 import { DEFAULT_BOOKING_TERMS } from "@shared/booking-terms";
 
@@ -157,7 +157,7 @@ export default function CustomPackageBooking({ packageId, photographerId }: Prop
   if (pkgError || !pkg) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-4">
-        <AlertTriangle className="w-12 h-12 text-yellow-500" />
+        <AlertTriangle size={48} className="text-yellow-500" />
         <h2 className="text-2xl font-bold">Package not found</h2>
         <p className="text-muted-foreground">This offer may have expired or been removed.</p>
       </div>
@@ -181,7 +181,7 @@ export default function CustomPackageBooking({ packageId, photographerId }: Prop
         <Card className="mb-8 border-primary/20 bg-primary/[0.03]">
           <CardContent className="p-6">
             <div className="flex items-start gap-3 mb-4">
-              <Tag className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <Tag size={20} className="text-primary mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs font-semibold text-primary uppercase tracking-wide">Private Package</p>
                 <h3 className="text-xl font-bold mt-0.5">{pkg.name}</h3>
@@ -196,7 +196,7 @@ export default function CustomPackageBooking({ packageId, photographerId }: Prop
                 {items.map((it, i) => (
                   <div key={i} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <CheckCircle size={14} className="text-primary shrink-0" />
                       <span>{it.name}</span>
                     </div>
                     <span className={it.price > 0 ? "font-medium" : "text-muted-foreground"}>

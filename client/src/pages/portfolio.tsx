@@ -7,7 +7,7 @@ import { AdminSectionEdit } from "@/components/admin-section-edit";
 import { AdminInlineEditor } from "@/components/admin-inline-editor";
 import { motion } from "framer-motion";
 import { ScrollReveal } from "@/components/scroll-reveal";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@phosphor-icons/react";
 
 const CATEGORIES = ["All", "Weddings", "Portraits", "Events", "Fashion", "Commercial"];
 
@@ -116,7 +116,7 @@ export default function Portfolio() {
                 data-testid="button-book-from-portfolio"
               >
                 {portfolio.ctaLabel}
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight size={16} className="ml-2" />
               </Button>
             </motion.div>
           </Link>

@@ -32,11 +32,11 @@ import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
-  ImageIcon, UploadIcon, Eye, X,
-  ChevronDown, ChevronUp, CheckCircle2, AlertCircle,
-  Clock, Loader2, Copy, ArrowUpDown, Download, GripVertical,
-  FolderPlus, Folder, Trash2, Droplets, Save, Share2, Lock, ThumbsUp, History, Plus,
-} from "lucide-react";
+  Image as ImageIcon, Upload as UploadIcon, Eye, X,
+  CaretDown as ChevronDown, CaretUp as ChevronUp, CheckCircle as CheckCircle2, Warning as AlertCircle,
+  Clock, CircleNotch as Loader2, Copy, ArrowsDownUp as ArrowUpDown, DownloadSimple as Download, DotsSixVertical as GripVertical,
+  FolderPlus, Folder, Trash, Drop as Droplets, FloppyDisk as Save, ShareNetwork as Share2, Lock, ThumbsUp, ClockCounterClockwise as History, Plus,
+} from "@phosphor-icons/react";
 import { type WatermarkSettings, DEFAULT_WATERMARK_SETTINGS } from "@/lib/cloudinary-watermark";
 import { WatermarkPreviewCanvas } from "@/components/watermark-overlay";
 
@@ -153,11 +153,11 @@ function FileRow({ item }: { item: FileItem }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2.5 border-b border-green-100 last:border-0">
       <div className="w-5 shrink-0 flex items-center justify-center">
-        {item.status === "queued"    && <Clock className="w-4 h-4 text-green-400" />}
-        {item.status === "uploading" && <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />}
-        {item.status === "done"      && <CheckCircle2 className="w-4 h-4 text-green-600" />}
-        {item.status === "duplicate" && <Copy className="w-4 h-4 text-amber-500" />}
-        {item.status === "error"     && <AlertCircle className="w-4 h-4 text-red-500" />}
+        {item.status === "queued"    && <Clock size={16} className="text-green-400" />}
+        {item.status === "uploading" && <Loader2 size={16} className="text-yellow-500 animate-spin" />}
+        {item.status === "done"      && <CheckCircle2 size={16} className="text-green-600" />}
+        {item.status === "duplicate" && <Copy size={16} className="text-amber-500" />}
+        {item.status === "error"     && <AlertCircle size={16} className="text-red-500" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
@@ -520,12 +520,12 @@ function ImageSection({
             <Button size="sm" variant="outline"
               className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50 px-2"
               onClick={handleDeleteSelected}>
-              <Trash2 className="w-3 h-3 mr-1" /> Delete {selectedUrls.size}
+              <Trash size={12} className="mr-1" /> Delete {selectedUrls.size}
             </Button>
             <Button size="sm" variant="ghost"
               className="h-7 text-xs text-gray-500 px-2"
               onClick={() => { setSelectedUrls(new Set()); lastSelectedIdxRef.current = null; }}>
-              <X className="w-3 h-3 mr-1" /> Clear
+              <X size={12} className="mr-1" /> Clear
             </Button>
           </>
         ) : (
@@ -533,7 +533,7 @@ function ImageSection({
           <>
             <Select value={sortOrder} onValueChange={onSortChange}>
               <SelectTrigger className="h-7 text-xs w-36 border-green-200">
-                <ArrowUpDown className="w-3 h-3 mr-1 shrink-0 opacity-60" />
+                <ArrowUpDown size={12} className="mr-1 shrink-0 opacity-60" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -549,7 +549,7 @@ function ImageSection({
             </Button>
             <label htmlFor={fileInputId}
               className="inline-flex items-center h-7 text-xs px-2 rounded-md border border-border text-muted-foreground hover:bg-muted cursor-pointer transition-colors font-medium select-none">
-              <UploadIcon className="w-3 h-3 mr-1" /> Upload
+              <UploadIcon size={12} className="mr-1" /> Upload
             </label>
           </>
         )}
@@ -577,7 +577,7 @@ function ImageSection({
                 activeFolder === folder ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400"
               }`}
             >
-              <Folder className="w-3 h-3" />
+              <Folder size={12} />
               {folder} ({typeFolders[folder]?.length || 0})
             </button>
           ))}
@@ -598,7 +598,7 @@ function ImageSection({
             <SelectItem value="__none__">No folder (general)</SelectItem>
             {folderNames.map((f) => (
               <SelectItem key={f} value={f}>
-                <span className="flex items-center gap-1"><Folder className="w-3 h-3" />{f}</span>
+                <span className="flex items-center gap-1"><Folder size={12} />{f}</span>
               </SelectItem>
             ))}
           </SelectContent>
@@ -620,14 +620,14 @@ function ImageSection({
               Add
             </Button>
             <Button size="sm" variant="ghost" className="h-7 px-1" onClick={() => { setShowFolderInput(false); onNewFolderInputChange(""); }}>
-              <X className="w-3 h-3" />
+              <X size={12} />
             </Button>
           </div>
         ) : (
           <Button size="sm" variant="outline"
             className="h-7 text-xs border-border text-muted-foreground hover:bg-muted px-2 shrink-0"
             onClick={() => setShowFolderInput(true)}>
-            <FolderPlus className="w-3 h-3 mr-1" /> New Folder
+            <FolderPlus size={12} className="mr-1" /> New Folder
           </Button>
         )}
       </div>
@@ -653,7 +653,7 @@ function ImageSection({
           htmlFor={fileInputId}
           className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-green-200 py-8 text-sm text-green-600 hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer"
         >
-          <UploadIcon className="w-6 h-6 opacity-60" />
+          <UploadIcon size={24} className="opacity-60" />
           {activeFolder
             ? `No photos in "${activeFolder}" yet — tap or drag to upload`
             : "Tap or drag photos here to upload"}
@@ -693,7 +693,7 @@ function ImageSection({
                 {/* Drag handle (bottom-left) */}
                 {canDrag && (
                   <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <GripVertical className="w-3.5 h-3.5 text-white drop-shadow" />
+                    <GripVertical size={14} className="text-white drop-shadow" />
                   </div>
                 )}
 
@@ -701,19 +701,19 @@ function ImageSection({
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 pointer-events-none">
                   <button onClick={(e) => { e.stopPropagation(); onPreview(url); }}
                     className="p-1.5 bg-white/90 rounded-full shadow pointer-events-auto">
-                    <Eye className="w-3 h-3 text-gray-700" />
+                    <Eye size={12} className="text-gray-700" />
                   </button>
                   {type === "final" && (
                     <a href={url} download target="_blank" rel="noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       className="p-1.5 bg-white/90 rounded-full shadow pointer-events-auto">
-                      <Download className="w-3 h-3 text-green-700" />
+                      <Download size={12} className="text-green-700" />
                     </a>
                   )}
                   {selectedUrls.size === 0 && (
                     <button onClick={(e) => { e.stopPropagation(); onRemove(gallery, type, url); }}
                       className="p-1.5 bg-white/90 rounded-full shadow pointer-events-auto">
-                      <X className="w-3 h-3 text-red-500" />
+                      <X size={12} className="text-red-500" />
                     </button>
                   )}
                 </div>
@@ -729,7 +729,7 @@ function ImageSection({
                       : "bg-white/80 border-gray-400 opacity-0 group-hover:opacity-100"
                   }`}
                 >
-                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                  {isSelected && <CheckCircle2 size={14} className="text-white" />}
                 </button>
               </div>
             );
@@ -739,7 +739,7 @@ function ImageSection({
             htmlFor={fileInputId}
             className="aspect-square rounded-lg border-2 border-dashed border-green-200 flex flex-col items-center justify-center text-green-500 hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer"
           >
-            <UploadIcon className="w-4 h-4 mb-0.5" />
+            <UploadIcon size={16} className="mb-0.5" />
             <span className="text-[10px]">Add more</span>
           </label>
         </div>
@@ -778,7 +778,7 @@ function GalleryLogsPanel({ galleryId, endpoint }: { galleryId: string; endpoint
         className="flex items-center gap-1.5 text-xs text-purple-700 hover:text-purple-900 font-medium"
         onClick={() => { setOpen(o => !o); if (!open && !logs) load(); }}
       >
-        <History className="w-3.5 h-3.5" />
+        <History size={14} />
         Activity Logs {open ? '▲' : '▼'}
       </button>
       {open && (
@@ -799,7 +799,7 @@ function GalleryLogsPanel({ galleryId, endpoint }: { galleryId: string; endpoint
               logs.accessLogs.length === 0 ? <div className="p-3 text-center text-muted-foreground">No views yet</div> :
               logs.accessLogs.map((l: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b border-purple-50 last:border-0">
-                  <Eye className="w-3 h-3 text-purple-400 shrink-0" />
+                  <Eye size={12} className="text-purple-400 shrink-0" />
                   <span className="flex-1 truncate text-muted-foreground">{l.email || 'Anonymous'}</span>
                   <span className="text-muted-foreground/60 shrink-0">{fmt(l.accessedAt)}</span>
                 </div>
@@ -808,7 +808,7 @@ function GalleryLogsPanel({ galleryId, endpoint }: { galleryId: string; endpoint
               logs.downloadLogs.length === 0 ? <div className="p-3 text-center text-muted-foreground">No downloads yet</div> :
               logs.downloadLogs.map((l: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b border-purple-50 last:border-0">
-                  <Download className="w-3 h-3 text-purple-400 shrink-0" />
+                  <Download size={12} className="text-purple-400 shrink-0" />
                   <span className="flex-1 truncate text-muted-foreground">{l.email || 'Anonymous'} — {l.downloadType}</span>
                   <span className="text-muted-foreground/60 shrink-0">{fmt(l.downloadedAt)}</span>
                 </div>
@@ -817,7 +817,7 @@ function GalleryLogsPanel({ galleryId, endpoint }: { galleryId: string; endpoint
               Object.keys(likesByImage).length === 0 ? <div className="p-3 text-center text-muted-foreground">No likes yet</div> :
               Object.entries(likesByImage).map(([url, count]: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b border-purple-50 last:border-0">
-                  <ThumbsUp className="w-3 h-3 text-pink-400 shrink-0" />
+                  <ThumbsUp size={12} className="text-pink-400 shrink-0" />
                   <span className="flex-1 truncate text-muted-foreground">{url.split('/').pop()}</span>
                   <span className="font-medium text-pink-600">{count} like{count !== 1 ? 's' : ''}</span>
                 </div>
@@ -1229,7 +1229,7 @@ export function AdminGalleries() {
   if (isError)
     return (
       <div className="flex flex-col items-center justify-center p-8 gap-4 text-red-600">
-        <AlertCircle className="w-8 h-8" />
+        <AlertCircle size={32} />
         <p className="text-sm font-medium">Failed to load galleries: {error instanceof Error ? error.message : "Unknown error"}</p>
         <button onClick={() => refetch()} className="text-xs underline">Try again</button>
       </div>
@@ -1242,14 +1242,14 @@ export function AdminGalleries() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-green-800">
-                <ImageIcon className="w-5 h-5" /> Gallery Management
+                <ImageIcon size={20} /> Gallery Management
               </CardTitle>
               <CardDescription className="text-green-600 mt-1">
                 Upload photos, organise into folders (e.g. Reception, Ceremony), drag to reorder.
               </CardDescription>
             </div>
             <Button onClick={() => setShowCreateDialog(true)} className="bg-amber-500 hover:bg-amber-600 shrink-0">
-              <Plus className="w-4 h-4 mr-1" /> New Gallery
+              <Plus size={16} className="mr-1" /> New Gallery
             </Button>
           </div>
         </CardHeader>
@@ -1322,20 +1322,20 @@ export function AdminGalleries() {
                           <Button size="sm" variant="outline"
                             className="border-border text-muted-foreground hover:bg-muted"
                             onClick={() => window.open(`/gallery/${encodeURIComponent(gallery.clientEmail)}/${gallery.accessCode}`, "_blank")}>
-                            <Eye className="w-4 h-4 sm:mr-1" />
+                            <Eye size={16} className="sm:mr-1" />
                             <span className="hidden sm:inline">Client View</span>
                           </Button>
                           <Button size="sm"
                             variant={isExpanded ? "default" : "outline"}
                             className={isExpanded ? "bg-amber-600 hover:bg-amber-700 text-white" : "border-border text-muted-foreground hover:bg-muted"}
                             onClick={() => setExpandedId(isExpanded ? null : gallery.id)}>
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                             <span className="ml-1">{isExpanded ? "Collapse" : "Manage"}</span>
                           </Button>
                           <Button size="sm" variant="outline"
                             className="border-red-200 text-red-600 hover:bg-red-50"
                             onClick={() => setDeleteConfirmId(gallery.id)}>
-                            <Trash2 className="w-4 h-4" />
+                            <Trash size={16} />
                           </Button>
                         </div>
                       </div>
@@ -1360,7 +1360,7 @@ export function AdminGalleries() {
                               </Select>
                             </div>
                             <div className="flex items-center gap-3 ml-auto sm:ml-0 flex-wrap">
-                              <Download className="w-3.5 h-3.5 text-green-700 shrink-0" />
+                              <Download size={14} className="text-green-700 shrink-0" />
                               <span className="text-xs text-green-700 font-medium">Downloads:</span>
                               <label className="flex items-center gap-1 text-xs text-green-700">
                                 <Switch
@@ -1388,7 +1388,7 @@ export function AdminGalleries() {
 
                           {/* Share & Access controls */}
                           <div className="flex items-center gap-3 flex-wrap mt-1">
-                            <Share2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            <Share2 size={14} className="text-blue-600 shrink-0" />
                             <span className="text-xs text-blue-700 font-medium">Access:</span>
                             <label className="flex items-center gap-1 text-xs text-blue-700">
                               <Switch
@@ -1416,7 +1416,7 @@ export function AdminGalleries() {
                                 className="flex items-center gap-1 text-xs text-blue-600 hover:underline ml-1"
                                 onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/gallery?gallery=${gallery.id}`); }}
                               >
-                                <Copy className="w-3 h-3" /> Copy share link
+                                <Copy size={12} /> Copy share link
                               </button>
                             )}
                           </div>
@@ -1438,13 +1438,13 @@ export function AdminGalleries() {
                                   onClick={() => setWatermarkPanelOpen(prev => ({ ...prev, [gallery.id]: !isWmOpen }))}
                                 >
                                   <div className="flex items-center gap-1.5">
-                                    <Droplets className="w-3.5 h-3.5 text-green-600" />
+                                    <Droplets size={14} className="text-green-600" />
                                     <span>Watermark Settings</span>
                                     {(wm.enabled?.gallery || wm.enabled?.selected || wm.enabled?.final) && (
                                       <span className="text-xs text-green-600 font-normal">(active)</span>
                                     )}
                                   </div>
-                                  {isWmOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                  {isWmOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                                 </button>
 
                                 {isWmOpen && (
@@ -1505,7 +1505,7 @@ export function AdminGalleries() {
                                           )}
                                           <Button size="sm" variant="outline" className="h-8 text-xs" asChild disabled={isUploading}>
                                             <label htmlFor={wmFileInputId} className="cursor-pointer flex items-center gap-1">
-                                              {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <UploadIcon className="w-3 h-3" />}
+                                              {isUploading ? <Loader2 size={12} className="animate-spin" /> : <UploadIcon size={12} />}
                                               {wm.imageUrl ? "Replace" : "Upload"}
                                             </label>
                                           </Button>
@@ -1513,7 +1513,7 @@ export function AdminGalleries() {
                                             <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive hover:text-destructive" onClick={() =>
                                               setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], imageUrl: "", imagePublicId: "" } }))
                                             }>
-                                              <Trash2 className="w-3 h-3" />
+                                              <Trash size={12} />
                                             </Button>
                                           )}
                                           <input
@@ -1594,7 +1594,7 @@ export function AdminGalleries() {
                                     </div>
 
                                     <Button size="sm" onClick={() => saveWatermarkSettings(gallery.id)} className="w-full h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white">
-                                      <Save className="w-3 h-3 mr-1" /> Save Watermark Settings
+                                      <Save size={12} className="mr-1" /> Save Watermark Settings
                                     </Button>
                                   </div>
                                 )}
@@ -1686,7 +1686,7 @@ export function AdminGalleries() {
               disabled={!createEmail || createGalleryMutation.isPending}
               onClick={() => createGalleryMutation.mutate({ clientEmail: createEmail, accessCode: createCode || undefined })}
             >
-              {createGalleryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
+              {createGalleryMutation.isPending ? <Loader2 size={16} className="animate-spin mr-1" /> : <Plus size={16} className="mr-1" />}
               Create Gallery
             </Button>
           </DialogFooter>
@@ -1705,7 +1705,7 @@ export function AdminGalleries() {
               disabled={deleteGalleryMutation.isPending}
               onClick={() => deleteConfirmId && deleteGalleryMutation.mutate(deleteConfirmId)}
             >
-              {deleteGalleryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              {deleteGalleryMutation.isPending ? <Loader2 size={16} className="animate-spin mr-1" /> : <Trash size={16} className="mr-1" />}
               Delete
             </Button>
           </DialogFooter>

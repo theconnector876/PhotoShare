@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { ChevronLeft, ChevronRight, GripVertical, Trash2, StarIcon, MessageSquareIcon, RefreshCwIcon, X, ZoomIn, Camera } from "lucide-react";
+import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, DotsSixVertical as GripVertical, Trash, Star as StarIcon, ChatDots as MessageSquareIcon, ArrowCounterClockwise as RefreshCwIcon, X, MagnifyingGlassPlus as ZoomIn, Camera } from "@phosphor-icons/react";
 import { defaultCatalogues } from "@/data/photo-catalogues";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -222,7 +222,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
         <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-600 dark:text-amber-400 flex items-center gap-3">
           <span className="flex-1">Showing sample portfolio — live data unavailable.</span>
           <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/catalogues"] })} variant="outline" size="sm" className="gap-1.5 shrink-0" data-testid="button-retry-catalogues">
-            <RefreshCwIcon className="w-3.5 h-3.5" /> Retry
+            <RefreshCwIcon size={14} /> Retry
           </Button>
         </div>
       )}
@@ -328,7 +328,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                     <span className="text-white/40 text-[11px]">{imageCount} photo{imageCount !== 1 ? 's' : ''}</span>
                     <span className="w-1 h-1 rounded-full bg-white/25" />
                     <span className="text-white/40 text-[11px] flex items-center gap-1">
-                      <ZoomIn className="w-3 h-3" /> View
+                      <ZoomIn size={12} /> View
                     </span>
                   </div>
                 </motion.div>
@@ -336,7 +336,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                 {/* Image count badge — always visible */}
                 {imageCount > 1 && (
                   <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Camera className="w-2.5 h-2.5" />
+                    <Camera size={10} />
                     {imageCount}
                   </div>
                 )}
@@ -361,7 +361,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
       {filteredCatalogues.length === 0 && !isLoading && (
         <div className="text-center py-20">
           <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Camera className="w-7 h-7 text-muted-foreground" />
+            <Camera size={28} className="text-muted-foreground" />
           </div>
           <h3 className="text-lg font-semibold mb-2">No Work Found</h3>
           <p className="text-muted-foreground text-sm max-w-sm mx-auto">
@@ -398,7 +398,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                       <div className="absolute top-1 left-1 bg-amber-500 text-black text-[9px] font-bold px-1.5 py-0.5 rounded">COVER</div>
                     )}
                     <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <GripVertical className="w-4 h-4 text-white drop-shadow" />
+                      <GripVertical size={16} className="text-white drop-shadow" />
                     </div>
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 flex items-end justify-center gap-1 pb-2 opacity-0 group-hover:opacity-100 transition-all">
                       {index !== 0 && (
@@ -416,7 +416,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                         className="p-1 bg-red-500/90 rounded-full shadow"
                         onClick={() => setEditImages(editImages.filter((_, idx) => idx !== index))}
                       >
-                        <Trash2 className="w-3 h-3 text-white" />
+                        <Trash size={12} className="text-white" />
                       </button>
                     </div>
                   </div>
@@ -467,7 +467,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
               onClick={() => setLightboxImage(null)}
               data-testid="lightbox-close"
             >
-              <X className="w-5 h-5" />
+              <X size={20} />
             </button>
 
             {/* Prev */}
@@ -478,14 +478,14 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                   onClick={(e) => { e.stopPropagation(); navigateLightbox('prev'); }}
                   data-testid="lightbox-prev"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <ChevronLeft size={24} />
                 </button>
                 <button
                   className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white/8 hover:bg-white/15 text-white flex items-center justify-center transition-all hover:scale-105"
                   onClick={(e) => { e.stopPropagation(); navigateLightbox('next'); }}
                   data-testid="lightbox-next"
                 >
-                  <ChevronRight className="w-6 h-6" />
+                  <ChevronRight size={24} />
                 </button>
               </>
             )}
@@ -549,7 +549,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                     {reviews.length > 0 && (
                       <div>
                         <div className="flex items-center gap-1.5 mb-3">
-                          <MessageSquareIcon className="w-3.5 h-3.5 text-white/40" />
+                          <MessageSquareIcon size={14} className="text-white/40" />
                           <span className="text-white/60 text-[12px] font-semibold uppercase tracking-wider">Reviews</span>
                         </div>
                         <div className="space-y-3">
@@ -558,7 +558,7 @@ export default function PortfolioGrid({ preview = false }: PortfolioGridProps) {
                               <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-white font-semibold text-[13px]">{r.clientName}</span>
                                 <div className="flex gap-0.5">
-                                  {[...Array(r.rating)].map((_, i) => <StarIcon key={i} className="w-3 h-3 text-amber-400 fill-amber-400" />)}
+                                  {[...Array(r.rating)].map((_, i) => <StarIcon key={i} size={12} weight="fill" className="text-amber-400" />)}
                                 </div>
                               </div>
                               <p className="text-white/60 text-[12px] leading-relaxed">{r.reviewText}</p>

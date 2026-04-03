@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { MessageSquareIcon, MailIcon, UserIcon, Trash2, CheckCheck, Mail, ChevronDown, ChevronRight } from "lucide-react";
+import { ChatDots as MessageSquareIcon, EnvelopeSimple as MailIcon, User as UserIcon, Trash, Check as CheckCheck, EnvelopeSimple as Mail, CaretDown as ChevronDown, CaretRight as ChevronRight } from "@phosphor-icons/react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -78,7 +78,7 @@ function ThreadCard({ thread, onReply, onDelete, onStatusChange }: ThreadCardPro
             onClick={() => setExpanded(e => !e)}
           >
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <UserIcon className="w-4 h-4 text-gray-500 shrink-0" />
+              <UserIcon size={16} className="text-gray-500 shrink-0" />
               <h3 className={`text-sm ${thread.status === "unread" ? "font-bold" : "font-semibold"}`}>
                 {thread.from.name}
               </h3>
@@ -96,7 +96,7 @@ function ThreadCard({ thread, onReply, onDelete, onStatusChange }: ThreadCardPro
               )}
             </div>
             <div className="flex items-center gap-2 mb-1">
-              <MailIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <MailIcon size={14} className="text-gray-400 shrink-0" />
               <a
                 href={`mailto:${thread.from.email}`}
                 className="text-sm text-blue-600 hover:underline truncate"
@@ -115,7 +115,7 @@ function ThreadCard({ thread, onReply, onDelete, onStatusChange }: ThreadCardPro
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(thread.lastActivity)}</span>
             <button onClick={() => setExpanded(e => !e)} className="text-muted-foreground">
-              {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
             </button>
           </div>
         </div>
@@ -156,14 +156,14 @@ function ThreadCard({ thread, onReply, onDelete, onStatusChange }: ThreadCardPro
         {/* Actions */}
         <div className="flex flex-wrap gap-2 pt-3 border-t">
           <Button size="sm" variant="outline" onClick={() => onReply(thread)}>
-            <Mail className="w-3.5 h-3.5 mr-1.5" /> Reply
+            <Mail size={14} className="mr-1.5" /> Reply
           </Button>
           {thread.status !== "responded" && (
             <Button
               size="sm" variant="outline"
               onClick={() => onStatusChange(thread.threadId, thread.status === "unread" ? "read" : "unread")}
             >
-              <CheckCheck className="w-3.5 h-3.5 mr-1.5" />
+              <CheckCheck size={14} className="mr-1.5" />
               {thread.status === "unread" ? "Mark Read" : "Mark Unread"}
             </Button>
           )}
@@ -173,7 +173,7 @@ function ThreadCard({ thread, onReply, onDelete, onStatusChange }: ThreadCardPro
               className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800"
               onClick={() => onStatusChange(thread.threadId, "responded")}
             >
-              <CheckCheck className="w-3.5 h-3.5 mr-1.5" /> Mark Responded
+              <CheckCheck size={14} className="mr-1.5" /> Mark Responded
             </Button>
           )}
           <Button
@@ -181,7 +181,7 @@ function ThreadCard({ thread, onReply, onDelete, onStatusChange }: ThreadCardPro
             className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
             onClick={() => onDelete(thread.threadId)}
           >
-            <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
+            <Trash size={14} className="mr-1.5" /> Delete
           </Button>
         </div>
       </CardContent>
@@ -327,7 +327,7 @@ export function AdminContacts() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MessageSquareIcon className="w-5 h-5" />
+            <MessageSquareIcon size={20} />
             Messages
             {totalUnread > 0 && (
               <Badge className="bg-red-500 text-white text-xs ml-1">{totalUnread} unread</Badge>
@@ -419,7 +419,7 @@ export function AdminContacts() {
                       <div className="flex justify-between items-start gap-3 mb-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <UserIcon className="w-4 h-4 text-gray-500 shrink-0" />
+                            <UserIcon size={16} className="text-gray-500 shrink-0" />
                             <h3 className={`text-sm ${c.status === "unread" ? "font-bold" : "font-semibold"}`}>{c.name}</h3>
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-50 text-purple-700 border-purple-200">
                               Contact Form
@@ -429,7 +429,7 @@ export function AdminContacts() {
                             </Badge>
                           </div>
                           <div className="flex items-center gap-2 mb-1">
-                            <MailIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <MailIcon size={14} className="text-gray-400 shrink-0" />
                             <a href={`mailto:${c.email}`} className="text-sm text-blue-600 hover:underline truncate">{c.email}</a>
                           </div>
                           <p className="text-sm text-gray-600 line-clamp-2">{c.message}</p>
@@ -442,7 +442,7 @@ export function AdminContacts() {
                             size="sm" variant="outline"
                             onClick={() => updateContactStatus.mutate({ id: c.id, status: c.status === "unread" ? "read" : "unread" })}
                           >
-                            <CheckCheck className="w-3.5 h-3.5 mr-1.5" />
+                            <CheckCheck size={14} className="mr-1.5" />
                             {c.status === "unread" ? "Mark Read" : "Mark Unread"}
                           </Button>
                         )}
@@ -452,7 +452,7 @@ export function AdminContacts() {
                             className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800"
                             onClick={() => updateContactStatus.mutate({ id: c.id, status: "responded" })}
                           >
-                            <CheckCheck className="w-3.5 h-3.5 mr-1.5" /> Mark Responded
+                            <CheckCheck size={14} className="mr-1.5" /> Mark Responded
                           </Button>
                         )}
                         <Button
@@ -460,7 +460,7 @@ export function AdminContacts() {
                           className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
                           onClick={() => deleteContact.mutate(c.id)}
                         >
-                          <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
+                          <Trash size={14} className="mr-1.5" /> Delete
                         </Button>
                       </div>
                     </CardContent>

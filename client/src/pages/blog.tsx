@@ -4,7 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, Tag, ArrowRight, BookOpen } from "lucide-react";
+import { CalendarBlank, Tag, ArrowRight, BookOpen } from "@phosphor-icons/react";
 import { SocialFeed } from "@/components/social-feed";
 import { useSiteConfig } from "@/context/site-config";
 import { useState } from "react";
@@ -62,7 +62,7 @@ export default function Blog() {
         <section className="py-20 bg-muted/30">
           <div className="max-w-4xl mx-auto px-4 text-center">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <BookOpen className="h-8 w-8 text-primary" />
+              <BookOpen size={32} className="text-primary" />
             </div>
             <h1 className="text-4xl md:text-6xl font-bold font-serif gradient-text mb-4">
               Blog & Inspiration
@@ -84,7 +84,7 @@ export default function Blog() {
               </div>
             ) : posts.length === 0 ? (
               <div className="text-center py-20">
-                <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <BookOpen size={48} className="text-muted-foreground mx-auto mb-4" />
                 <h2 className="text-2xl font-semibold mb-2">Coming Soon</h2>
                 <p className="text-muted-foreground">We're working on some great content. Check back soon!</p>
                 <div className="mt-6">
@@ -111,7 +111,7 @@ export default function Blog() {
                           </div>
                         ) : (
                           <div className="h-56 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                            <BookOpen className="h-12 w-12 text-primary/40" />
+                            <BookOpen size={48} className="text-primary/40" />
                           </div>
                         )}
                         <CardContent className="p-5 flex flex-col gap-3 flex-1">
@@ -119,7 +119,7 @@ export default function Blog() {
                             <div className="flex gap-1.5 flex-wrap">
                               {post.tags.slice(0, 3).map((tag) => (
                                 <Badge key={tag} variant="secondary" className="text-xs">
-                                  <Tag className="h-2.5 w-2.5 mr-1" />
+                                  <Tag size={10} className="mr-1" />
                                   {tag}
                                 </Badge>
                               ))}
@@ -133,11 +133,11 @@ export default function Blog() {
                           )}
                           <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2 border-t">
                             <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
+                              <CalendarBlank size={12} />
                               {formatDate(post.publishedAt || post.createdAt)}
                             </span>
                             <span className="flex items-center gap-1 text-primary font-medium group-hover:gap-2 transition-all duration-200">
-                              Read more <ArrowRight className="h-3 w-3" />
+                              Read more <ArrowRight size={12} />
                             </span>
                           </div>
                         </CardContent>

@@ -24,12 +24,12 @@ import { Slider } from "@/components/ui/slider";
 import { ChatPanel } from "@/components/chat-panel";
 import { PhotographerPayouts } from "@/components/photographer-payouts";
 import {
-  Camera, Calendar, User, Clock, CheckCircle, Upload, Phone, Mail,
-  MapPin, DollarSign, Users, GripVertical, X, Eye, Loader2, CheckCircle2,
-  AlertCircle, Copy, MessageSquare, LayoutDashboard, LogOut, BanknoteIcon,
-  Link as LinkIcon, Plus, Image as GalleryIcon, ChevronRight, ChevronDown, Tag, Save, Droplets, Trash2 as TrashIcon,
-  Download, ThumbsUp, History,
-} from "lucide-react";
+  Camera, CalendarBlank as Calendar, User, Clock, CheckCircle, Upload, Phone, EnvelopeSimple as Mail,
+  MapPin, CurrencyDollar as DollarSign, Users, DotsSixVertical as GripVertical, X, Eye, CircleNotch as Loader2, CheckCircle as CheckCircle2,
+  Warning as AlertCircle, Copy, ChatDots as MessageSquare, SquaresFour as LayoutDashboard, SignOut as LogOut, Money as BanknoteIcon,
+  Link as LinkIcon, Plus, Image as GalleryIcon, CaretRight as ChevronRight, CaretDown as ChevronDown, Tag, FloppyDisk as Save, Drop as Droplets, Trash as TrashIcon,
+  DownloadSimple as Download, ThumbsUp, ClockCounterClockwise as History,
+} from "@phosphor-icons/react";
 import {
   DropdownMenu as GalleryDropdownMenu,
   DropdownMenuContent as GalleryDropdownMenuContent,
@@ -233,7 +233,7 @@ function PhotographerGalleryLogs({ galleryId }: { galleryId: string }) {
         className="flex items-center gap-1.5 text-xs text-purple-700 hover:text-purple-900 font-medium"
         onClick={() => { setOpen(o => !o); if (!open && !logs) load(); }}
       >
-        <History className="w-3.5 h-3.5" />
+        <History size={14} />
         Activity Logs {open ? '▲' : '▼'}
       </button>
       {open && (
@@ -253,7 +253,7 @@ function PhotographerGalleryLogs({ galleryId }: { galleryId: string }) {
               logs.accessLogs.length === 0 ? <div className="p-3 text-center text-muted-foreground">No views yet</div> :
               logs.accessLogs.map((l: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b last:border-0">
-                  <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <Eye size={12} className="text-muted-foreground shrink-0" />
                   <span className="flex-1 truncate text-muted-foreground">{l.email || 'Anonymous'}</span>
                   <span className="text-muted-foreground/60 shrink-0">{fmt(l.accessedAt)}</span>
                 </div>
@@ -262,7 +262,7 @@ function PhotographerGalleryLogs({ galleryId }: { galleryId: string }) {
               logs.downloadLogs.length === 0 ? <div className="p-3 text-center text-muted-foreground">No downloads yet</div> :
               logs.downloadLogs.map((l: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b last:border-0">
-                  <Download className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <Download size={12} className="text-muted-foreground shrink-0" />
                   <span className="flex-1 truncate text-muted-foreground">{l.email || 'Anonymous'} — {l.downloadType}</span>
                   <span className="text-muted-foreground/60 shrink-0">{fmt(l.downloadedAt)}</span>
                 </div>
@@ -271,7 +271,7 @@ function PhotographerGalleryLogs({ galleryId }: { galleryId: string }) {
               Object.keys(likesByImage).length === 0 ? <div className="p-3 text-center text-muted-foreground">No likes yet</div> :
               Object.entries(likesByImage).map(([url, count]: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-1.5 border-b last:border-0">
-                  <ThumbsUp className="w-3 h-3 text-pink-400 shrink-0" />
+                  <ThumbsUp size={12} className="text-pink-400 shrink-0" />
                   <span className="flex-1 truncate text-muted-foreground">{url.split('/').pop()}</span>
                   <span className="font-medium text-pink-600">{count} like{count !== 1 ? 's' : ''}</span>
                 </div>
@@ -897,7 +897,7 @@ export default function PhotographerDashboard() {
   // ── Guards ─────────────────────────────────────────────────────────────────
 
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+    return <div className="flex items-center justify-center min-h-screen"><Loader2 size={24} className="animate-spin text-muted-foreground" /></div>;
   }
   if (!user) return <Redirect to="/auth" />;
 
@@ -916,7 +916,7 @@ export default function PhotographerDashboard() {
         {/* Brand */}
         <div className="px-4 py-4 border-b">
           <div className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-primary" />
+            <Camera size={20} className="text-primary" />
             <span className="font-bold text-sm text-primary">ConnectAgrapher</span>
           </div>
         </div>
@@ -949,7 +949,7 @@ export default function PhotographerDashboard() {
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
-              <item.icon className="w-4 h-4 shrink-0" />
+              <item.icon size={16} className="shrink-0" />
               <span className="flex-1 text-left">{item.label}</span>
               {item.badge > 0 && (
                 <Badge className="bg-red-500 text-white text-[10px] px-1.5 py-0 h-4">{item.badge}</Badge>
@@ -964,7 +964,7 @@ export default function PhotographerDashboard() {
             onClick={copyBookingLink}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            <LinkIcon className="w-4 h-4 shrink-0" />
+            <LinkIcon size={16} className="shrink-0" />
             <span className="truncate">Copy booking link</span>
           </button>
           <button
@@ -972,7 +972,7 @@ export default function PhotographerDashboard() {
             disabled={logoutMutation.isPending}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            <LogOut className="w-4 h-4 shrink-0" />
+            <LogOut size={16} className="shrink-0" />
             <span>Sign Out</span>
           </button>
         </div>
@@ -994,14 +994,14 @@ export default function PhotographerDashboard() {
             onClick={() => logoutMutation.mutate()}
             className="p-2 text-muted-foreground hover:text-foreground"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut size={16} />
           </button>
         </header>
 
         {/* Approval banner */}
         {status !== "approved" && (
           <div className="bg-amber-50 border-b border-amber-100 px-4 md:px-6 py-2.5 flex items-center gap-2 text-sm text-amber-800">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <AlertCircle size={16} className="shrink-0" />
             <span>Your account is pending approval. Complete your profile while we review your details.</span>
           </div>
         )}
@@ -1027,7 +1027,7 @@ export default function PhotographerDashboard() {
               {offers.length === 0 && (
                 <Card>
                   <CardContent className="p-10 text-center text-muted-foreground">
-                    <DollarSign className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <DollarSign size={40} className="mx-auto mb-3 opacity-30" />
                     <p>No open offers right now. Check back soon.</p>
                   </CardContent>
                 </Card>
@@ -1053,11 +1053,11 @@ export default function PhotographerDashboard() {
                     <CardContent className="space-y-3">
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <MapPin className="w-3.5 h-3.5" />
+                          <MapPin size={14} />
                           {b.location}, {b.parish}
                         </div>
                         <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Users className="w-3.5 h-3.5" />
+                          <Users size={14} />
                           {b.numberOfPeople} {b.numberOfPeople === 1 ? 'person' : 'people'}
                         </div>
                       </div>
@@ -1072,7 +1072,7 @@ export default function PhotographerDashboard() {
                           onClick={() => acceptOfferMutation.mutate(offer.id)}
                           disabled={acceptOfferMutation.isPending || declineOfferMutation.isPending}
                         >
-                          <CheckCircle className="w-4 h-4 mr-1.5" />
+                          <CheckCircle size={16} className="mr-1.5" />
                           Accept Offer
                         </Button>
                         <Button
@@ -1081,7 +1081,7 @@ export default function PhotographerDashboard() {
                           onClick={() => declineOfferMutation.mutate(offer.id)}
                           disabled={acceptOfferMutation.isPending || declineOfferMutation.isPending}
                         >
-                          <X className="w-4 h-4 mr-1.5" />
+                          <X size={16} className="mr-1.5" />
                           Decline
                         </Button>
                       </div>
@@ -1126,7 +1126,7 @@ export default function PhotographerDashboard() {
                         onClick={() => setActiveTab("bookings")}
                         className="text-xs text-primary flex items-center gap-1 hover:underline"
                       >
-                        View all <ChevronRight className="w-3 h-3" />
+                        View all <ChevronRight size={12} />
                       </button>
                     )}
                   </div>
@@ -1134,7 +1134,7 @@ export default function PhotographerDashboard() {
                 <CardContent className="pt-0">
                   {upcomingBookings.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      <Calendar className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <Calendar size={32} className="mx-auto mb-2 opacity-30" />
                       <p className="text-sm">No upcoming bookings. Share your booking link to get started!</p>
                     </div>
                   ) : (
@@ -1166,7 +1166,7 @@ export default function PhotographerDashboard() {
                   <div className="flex gap-2">
                     <Input value={bookingLink} readOnly className="text-xs" />
                     <Button variant="outline" onClick={copyBookingLink} className="shrink-0">
-                      <Copy className="w-4 h-4 mr-1.5" /> Copy
+                      <Copy size={16} className="mr-1.5" /> Copy
                     </Button>
                   </div>
                 </CardContent>
@@ -1193,7 +1193,7 @@ export default function PhotographerDashboard() {
                         disabled={uploadingAvatar}
                         className="absolute bottom-0 right-0 bg-primary text-white rounded-full p-1.5 shadow hover:bg-primary/90"
                       >
-                        {uploadingAvatar ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                        {uploadingAvatar ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
                       </button>
                       <input ref={avatarFileRef} type="file" accept="image/*" className="hidden"
                         onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); }} />
@@ -1241,13 +1241,13 @@ export default function PhotographerDashboard() {
 
                     {/* Specialties — tag chips */}
                     <div className="space-y-2">
-                      <Label className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" /> Specialties</Label>
+                      <Label className="flex items-center gap-1.5"><Tag size={14} /> Specialties</Label>
                       <div className="flex flex-wrap gap-2 min-h-[32px]">
                         {profileForm.specialties.map(s => (
                           <span key={s} className="flex items-center gap-1 bg-primary/10 text-primary text-xs px-2.5 py-1 rounded-full">
                             {s}
                             <button type="button" onClick={() => setProfileForm(f => ({ ...f, specialties: f.specialties.filter(x => x !== s) }))}>
-                              <X className="w-3 h-3" />
+                              <X size={12} />
                             </button>
                           </span>
                         ))}
@@ -1276,7 +1276,7 @@ export default function PhotographerDashboard() {
                             }
                             setSpecialtyInput("");
                           }}
-                        ><Plus className="w-4 h-4" /></Button>
+                        ><Plus size={16} /></Button>
                       </div>
                     </div>
 
@@ -1288,7 +1288,7 @@ export default function PhotographerDashboard() {
                           <div key={i} className="flex gap-2 items-center">
                             <Input value={url} readOnly className="text-xs bg-muted" />
                             <button type="button" onClick={() => setProfileForm(f => ({ ...f, portfolioLinks: f.portfolioLinks.filter((_, j) => j !== i) }))}>
-                              <X className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                              <X size={16} className="text-muted-foreground hover:text-destructive" />
                             </button>
                           </div>
                         ))}
@@ -1310,7 +1310,7 @@ export default function PhotographerDashboard() {
                                 setPortfolioInput("");
                               }
                             }}
-                          ><Plus className="w-4 h-4" /></Button>
+                          ><Plus size={16} /></Button>
                         </div>
                       </div>
                     </div>
@@ -1344,7 +1344,7 @@ export default function PhotographerDashboard() {
                     </div>
 
                     <Button onClick={() => updateProfileMutation.mutate()} disabled={updateProfileMutation.isPending} className="w-full">
-                      {updateProfileMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : <><Save className="w-4 h-4 mr-2" />Save Profile</>}
+                      {updateProfileMutation.isPending ? <><Loader2 size={16} className="mr-2 animate-spin" />Saving…</> : <><Save size={16} className="mr-2" />Save Profile</>}
                     </Button>
                   </div>
                 </div>
@@ -1354,7 +1354,7 @@ export default function PhotographerDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Calendar className="w-4 h-4" /> Assigned Bookings
+                    <Calendar size={16} /> Assigned Bookings
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -1378,7 +1378,7 @@ export default function PhotographerDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <GalleryIcon className="w-4 h-4" /> My Catalogues
+                    <GalleryIcon size={16} /> My Catalogues
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -1435,7 +1435,7 @@ export default function PhotographerDashboard() {
               {filteredBookings.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center text-muted-foreground">
-                    <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <Calendar size={40} className="mx-auto mb-3 opacity-30" />
                     <p className="text-sm">{(userBookings?.length ?? 0) === 0 ? "No bookings yet. Share your booking link to get started!" : "No bookings match this filter."}</p>
                   </CardContent>
                 </Card>
@@ -1455,27 +1455,27 @@ export default function PhotographerDashboard() {
                       {/* Client info */}
                       <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
                         <span className="flex items-center gap-1.5 font-medium">
-                          <User className="w-3.5 h-3.5 text-muted-foreground" />{booking.clientName}
+                          <User size={14} className="text-muted-foreground" />{booking.clientName}
                         </span>
                         <a href={`mailto:${booking.email}`} className="flex items-center gap-1.5 text-blue-600 hover:underline">
-                          <Mail className="w-3.5 h-3.5" />{booking.email}
+                          <Mail size={14} />{booking.email}
                         </a>
                         <a href={`tel:${booking.contactNumber}`} className="flex items-center gap-1.5 text-blue-600 hover:underline">
-                          <Phone className="w-3.5 h-3.5" />{booking.contactNumber}
+                          <Phone size={14} />{booking.contactNumber}
                         </a>
                       </div>
 
                       {/* Shoot details */}
                       <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5" />{booking.shootDate} at {booking.shootTime}
+                          <Calendar size={14} />{booking.shootDate} at {booking.shootTime}
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5" />{booking.location}, {booking.parish}
+                          <MapPin size={14} />{booking.location}, {booking.parish}
                         </span>
                         {booking.numberOfPeople > 1 && (
                           <span className="flex items-center gap-1.5">
-                            <Users className="w-3.5 h-3.5" />{booking.numberOfPeople} people
+                            <Users size={14} />{booking.numberOfPeople} people
                           </span>
                         )}
                       </div>
@@ -1567,7 +1567,7 @@ export default function PhotographerDashboard() {
               {!userGalleries?.length ? (
                 <Card>
                   <CardContent className="py-12 text-center text-muted-foreground">
-                    <Camera className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                    <Camera size={40} className="mx-auto mb-3 opacity-40" />
                     <p className="text-sm">No galleries assigned yet.</p>
                   </CardContent>
                 </Card>
@@ -1592,7 +1592,7 @@ export default function PhotographerDashboard() {
                             onClick={() => window.open(`/gallery/${encodeURIComponent(gallery.clientEmail)}/${gallery.accessCode}`, '_blank')}
                             title="View gallery as client"
                           >
-                            <Eye className="w-3 h-3" /><span className="hidden sm:inline">Client View</span>
+                            <Eye size={12} /><span className="hidden sm:inline">Client View</span>
                           </Button>
                         )}
                         <Select
@@ -1670,13 +1670,13 @@ export default function PhotographerDashboard() {
                                 onClick={() => setWatermarkPanelOpen(prev => ({ ...prev, [gallery.id]: !isOpen }))}
                               >
                                 <div className="flex items-center gap-1.5">
-                                  <Droplets className="w-3.5 h-3.5 text-primary" />
+                                  <Droplets size={14} className="text-primary" />
                                   <span>Watermark Settings</span>
                                   {(wm.enabled?.gallery || wm.enabled?.selected || wm.enabled?.final) && (
                                     <span className="text-xs text-primary font-normal">(active)</span>
                                   )}
                                 </div>
-                                {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                               </button>
 
                               {isOpen && (
@@ -1737,7 +1737,7 @@ export default function PhotographerDashboard() {
                                         )}
                                         <Button size="sm" variant="outline" className="h-8 text-xs" asChild disabled={isUploading}>
                                           <label htmlFor={wmFileInputId} className="cursor-pointer flex items-center gap-1">
-                                            {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                                            {isUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                                             {wm.imageUrl ? "Replace" : "Upload"}
                                           </label>
                                         </Button>
@@ -1745,7 +1745,7 @@ export default function PhotographerDashboard() {
                                           <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive hover:text-destructive" onClick={() =>
                                             setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], imageUrl: "", imagePublicId: "" } }))
                                           }>
-                                            <TrashIcon className="w-3 h-3" />
+                                            <TrashIcon size={12} />
                                           </Button>
                                         )}
                                         <input
@@ -1826,7 +1826,7 @@ export default function PhotographerDashboard() {
                                   </div>
 
                                   <Button size="sm" onClick={() => saveWatermarkSettings(gallery.id)} className="w-full h-8 text-xs">
-                                    <Save className="w-3 h-3 mr-1" /> Save Watermark Settings
+                                    <Save size={12} className="mr-1" /> Save Watermark Settings
                                   </Button>
                                 </div>
                               )}
@@ -1850,8 +1850,8 @@ export default function PhotographerDashboard() {
                               >
                                 <h5 className="text-sm font-medium capitalize text-foreground flex items-center gap-1.5">
                                   {isOpen
-                                    ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-                                    : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+                                    ? <ChevronDown size={14} className="text-muted-foreground" />
+                                    : <ChevronRight size={14} className="text-muted-foreground" />}
                                   {type}
                                   <span className="text-muted-foreground font-normal text-xs">({images.length})</span>
                                 </h5>
@@ -1861,7 +1861,7 @@ export default function PhotographerDashboard() {
                                     <GalleryDropdownMenu>
                                       <GalleryDropdownMenuTrigger asChild>
                                         <Button size="sm" variant="ghost" className="h-6 text-xs px-2">
-                                          <Copy className="w-3 h-3 mr-1" /> Copy Names
+                                          <Copy size={12} className="mr-1" /> Copy Names
                                         </Button>
                                       </GalleryDropdownMenuTrigger>
                                       <GalleryDropdownMenuContent align="end">
@@ -1876,7 +1876,7 @@ export default function PhotographerDashboard() {
                                   )}
                                   <Button size="sm" variant="outline" asChild className="h-6 text-xs px-2">
                                     <label htmlFor={fileInputId} className="cursor-pointer">
-                                      <Upload className="w-3 h-3 mr-1" /> Upload
+                                      <Upload size={12} className="mr-1" /> Upload
                                     </label>
                                   </Button>
                                 </div>
@@ -1891,7 +1891,7 @@ export default function PhotographerDashboard() {
                                   {images.length === 0 ? (
                                     <label htmlFor={fileInputId}
                                       className="flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-muted py-6 text-sm text-muted-foreground hover:border-primary/40 hover:bg-muted/30 transition-colors cursor-pointer">
-                                      <Upload className="w-5 h-5 opacity-40" />
+                                      <Upload size={20} className="opacity-40" />
                                       Tap to upload
                                     </label>
                                   ) : (
@@ -1914,21 +1914,21 @@ export default function PhotographerDashboard() {
                                           >
                                             <img src={url} alt="" className="w-full h-full object-cover" />
                                             <div className="absolute top-0.5 left-0.5 opacity-0 group-hover:opacity-100 pointer-events-none">
-                                              <GripVertical className="w-3 h-3 text-white drop-shadow" />
+                                              <GripVertical size={12} className="text-white drop-shadow" />
                                             </div>
                                             {/* Delete button — always visible on mobile via touch, hover on desktop */}
                                             <button
                                               onClick={e => { e.stopPropagation(); handleGalRemove(gallery, type, url); }}
                                               className="absolute top-0.5 right-0.5 p-1 bg-white/90 rounded-full shadow opacity-0 group-hover:opacity-100 sm:opacity-0 active:opacity-100"
                                             >
-                                              <X className="w-2.5 h-2.5 text-red-500" />
+                                              <X size={10} className="text-red-500" />
                                             </button>
                                           </div>
                                         );
                                       })}
                                       <label htmlFor={fileInputId}
                                         className="aspect-square rounded-lg border-2 border-dashed border-muted flex flex-col items-center justify-center text-muted-foreground hover:border-primary/40 hover:bg-muted/20 cursor-pointer transition-colors">
-                                        <Upload className="w-3.5 h-3.5 mb-0.5" />
+                                        <Upload size={14} className="mb-0.5" />
                                         <span className="text-[9px]">Add</span>
                                       </label>
                                     </div>
@@ -1974,10 +1974,10 @@ export default function PhotographerDashboard() {
                               <div className={`absolute inset-0 flex flex-col items-center justify-center ${
                                 item.status === "uploading" ? "bg-black/20" : item.status === "done" ? "bg-green-600/60" : item.status === "duplicate" ? "bg-amber-500/75" : item.status === "error" ? "bg-red-500/70" : "bg-black/25"
                               }`}>
-                                {item.status === "uploading" && <Loader2 className="w-5 h-5 text-white animate-spin" />}
-                                {item.status === "done"      && <CheckCircle2 className="w-7 h-7 text-white" />}
-                                {item.status === "duplicate" && <Copy className="w-5 h-5 text-white" />}
-                                {item.status === "error"     && <AlertCircle className="w-5 h-5 text-white" />}
+                                {item.status === "uploading" && <Loader2 size={20} className="text-white animate-spin" />}
+                                {item.status === "done"      && <CheckCircle2 size={28} className="text-white" />}
+                                {item.status === "duplicate" && <Copy size={20} className="text-white" />}
+                                {item.status === "error"     && <AlertCircle size={20} className="text-white" />}
                               </div>
                             </div>
                           ))}
@@ -1988,7 +1988,7 @@ export default function PhotographerDashboard() {
                           {canClose ? "All photos saved to Connectagrapher" : "Saving photos to Connectagrapher…"}
                         </p>
                         <Button size="sm" onClick={closeGalUploadPanel} disabled={!canClose}>
-                          {canClose ? "Done" : <><Loader2 className="w-3 h-3 animate-spin mr-1" />Uploading</>}
+                          {canClose ? "Done" : <><Loader2 size={12} className="animate-spin mr-1" />Uploading</>}
                         </Button>
                       </div>
                     </DialogContent>
@@ -2028,7 +2028,7 @@ export default function PhotographerDashboard() {
                 <div className="flex gap-2 justify-end">
                   <Button variant="outline" size="sm" onClick={() => { setPricingForm(defaultPricingConfig); toast({ title: "Reset to defaults" }); }}>Reset Defaults</Button>
                   <Button size="sm" onClick={() => updatePricingMutation.mutate(pricingForm)} disabled={updatePricingMutation.isPending}>
-                    <Save className="w-4 h-4 mr-1.5" />
+                    <Save size={16} className="mr-1.5" />
                     {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
                   </Button>
                 </div>
@@ -2238,7 +2238,7 @@ export default function PhotographerDashboard() {
                 <div className="flex gap-2 justify-end pb-4">
                   <Button variant="outline" size="sm" onClick={() => { setPricingForm(defaultPricingConfig); toast({ title: "Reset to defaults" }); }}>Reset Defaults</Button>
                   <Button size="sm" onClick={() => updatePricingMutation.mutate(pricingForm)} disabled={updatePricingMutation.isPending}>
-                    <Save className="w-4 h-4 mr-1.5" />
+                    <Save size={16} className="mr-1.5" />
                     {updatePricingMutation.isPending ? "Saving…" : "Save Pricing"}
                   </Button>
                 </div>
@@ -2249,7 +2249,7 @@ export default function PhotographerDashboard() {
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-semibold">Custom Private Packages</CardTitle>
                       <Button size="sm" variant="outline" onClick={() => setShowCreatePkg(true)}>
-                        <Plus className="w-3.5 h-3.5 mr-1" />New Package
+                        <Plus size={14} className="mr-1" />New Package
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -2281,7 +2281,7 @@ export default function PhotographerDashboard() {
                                 navigator.clipboard.writeText(url).then(() => toast({ title: "Link copied!" })).catch(() => toast({ title: "Copy failed", description: url }));
                               }}
                             >
-                              <Copy className="w-3.5 h-3.5" />
+                              <Copy size={14} />
                             </Button>
                             <Button
                               size="icon" variant="ghost" className="h-7 w-7"
@@ -2299,7 +2299,7 @@ export default function PhotographerDashboard() {
                               onClick={() => deletePkgMutation.mutate(pkg.id)}
                               disabled={deletePkgMutation.isPending}
                             >
-                              <X className="w-3.5 h-3.5" />
+                              <X size={14} />
                             </Button>
                           </div>
                         </div>
@@ -2367,7 +2367,7 @@ export default function PhotographerDashboard() {
                                 </div>
                                 {pkgForm.items.length > 1 && (
                                   <button onClick={() => setPkgForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }))} className="text-muted-foreground hover:text-red-500 shrink-0">
-                                    <X className="w-3.5 h-3.5" />
+                                    <X size={14} />
                                   </button>
                                 )}
                               </div>
@@ -2376,7 +2376,7 @@ export default function PhotographerDashboard() {
                         </div>
                         <Button type="button" variant="ghost" size="sm" className="mt-2 h-7 text-xs"
                           onClick={() => setPkgForm(p => ({ ...p, items: [...p.items, { name: "", price: "" }] }))}>
-                          <Plus className="w-3 h-3 mr-1" />Add item
+                          <Plus size={12} className="mr-1" />Add item
                         </Button>
                         {pkgComputedTotal > 0 && (
                           <p className="text-sm font-medium mt-2">
@@ -2480,7 +2480,7 @@ export default function PhotographerDashboard() {
               activeTab === item.id ? "text-primary" : "text-muted-foreground"
             }`}
           >
-            <item.icon className="w-5 h-5 mb-0.5" />
+            <item.icon size={20} className="mb-0.5" />
             {item.label}
             {item.badge > 0 && (
               <span className="absolute top-1.5 right-[calc(50%-14px)] w-2 h-2 bg-red-500 rounded-full" />

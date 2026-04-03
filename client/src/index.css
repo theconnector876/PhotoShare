@@ -628,4 +628,143 @@ body::before {
     transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .portfolio-img-hover:hover { transform: scale(1.07); }
+
+  /* ── Text selection ── */
+  ::selection {
+    background: rgba(245, 158, 11, 0.25);
+    color: inherit;
+  }
+  ::-moz-selection {
+    background: rgba(245, 158, 11, 0.25);
+    color: inherit;
+  }
+
+  /* ── Scrollbar (webkit) ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(245, 158, 11, 0.3);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(245, 158, 11, 0.55);
+  }
+
+  /* ── Input placeholder ── */
+  ::placeholder { color: hsl(var(--muted-foreground) / 0.6); }
+
+  /* ── Focus ring ── */
+  :focus-visible {
+    outline: 2px solid rgba(245, 158, 11, 0.6);
+    outline-offset: 2px;
+  }
+
+  /* ── Better heading rendering ── */
+  h1, h2, h3 {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Improved body text ── */
+  p {
+    text-rendering: geometricPrecision;
+    hanging-punctuation: first last;
+  }
+
+  /* ── Admin layout helpers ── */
+  .admin-panel {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+  .admin-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: hsl(var(--card));
+  }
+  .admin-row {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+    transition: background 0.15s ease;
+  }
+  .admin-row:last-child { border-bottom: none; }
+  .admin-row:hover { background: hsl(var(--muted) / 0.5); }
+
+  /* ── Stat card ── */
+  .stat-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    padding: 1.25rem;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+  .stat-card:hover {
+    border-color: rgba(245, 158, 11, 0.3);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+  }
+  .dark .stat-card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+
+  /* ── Tier badge colors ── */
+  .tier-bronze { color: #b45309; background: rgba(180,83,9,0.1); border: 1px solid rgba(180,83,9,0.25); }
+  .tier-silver { color: #94a3b8; background: rgba(148,163,184,0.1); border: 1px solid rgba(148,163,184,0.25); }
+  .tier-gold   { color: #f59e0b; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); }
+  .tier-platinum { color: #cbd5e1; background: rgba(203,213,225,0.08); border: 1px solid rgba(203,213,225,0.2); }
+
+  /* ── Gradient border ── */
+  .gradient-border {
+    position: relative;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(245,158,11,0.5), rgba(249,115,22,0.3), rgba(245,158,11,0.1));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* ── Sparkle animation for featured items ── */
+  @keyframes sparkle {
+    0%, 100% { opacity: 0.6; transform: scale(1) rotate(0deg); }
+    50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+  }
+  .animate-sparkle { animation: sparkle 3s ease-in-out infinite; }
+
+  /* ── Slide-up reveal ── */
+  @keyframes slideUpReveal {
+    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .slide-up-reveal { animation: slideUpReveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+  /* ── Glow text ── */
+  .glow-text-amber {
+    text-shadow: 0 0 24px rgba(245,158,11,0.4), 0 0 48px rgba(245,158,11,0.15);
+  }
+
+  /* ── Image reveal ── */
+  .img-reveal {
+    overflow: hidden;
+  }
+  .img-reveal img {
+    transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), filter 0.4s ease;
+    filter: brightness(0.95);
+  }
+  .img-reveal:hover img {
+    transform: scale(1.04);
+    filter: brightness(1);
+  }
 }

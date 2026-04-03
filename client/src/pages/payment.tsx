@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { ArrowLeft, CreditCard, Heart } from "lucide-react";
+import { ArrowLeft, CreditCard, Heart } from "@phosphor-icons/react";
 
 export default function Payment() {
   const [, navigate] = useLocation();
@@ -102,7 +102,7 @@ export default function Payment() {
           <CardContent className="p-8 text-center">
             <p>Unable to load payment information</p>
             <Button onClick={() => navigate('/dashboard')} className="mt-4">
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft size={16} className="mr-2" />
               Back to Dashboard
             </Button>
           </CardContent>
@@ -133,7 +133,7 @@ export default function Payment() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5" />
+              <CreditCard size={20} />
               {paymentType === 'balance' ? 'Final Payment' : 'Deposit Payment'}
             </CardTitle>
             <CardDescription>
@@ -182,7 +182,7 @@ export default function Payment() {
             {paymentType === 'balance' && (
               <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-4 rounded-lg space-y-3">
                 <div className="flex items-center gap-2">
-                  <Heart className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <Heart size={16} className="text-amber-600 dark:text-amber-400" />
                   <h4 className="font-semibold text-amber-800 dark:text-amber-300">Leave a Tip (optional)</h4>
                 </div>
                 <p className="text-sm text-amber-700 dark:text-amber-400">Show your appreciation for your photographer.</p>
@@ -214,7 +214,7 @@ export default function Payment() {
             <div className="bg-amber-50 dark:bg-amber-950/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                  <CreditCard className="w-4 h-4 text-amber-500" />
+                  <CreditCard size={16} className="text-amber-500" />
                 </div>
                 <div>
                   <h4 className="font-semibold mb-1">Secure Payment</h4>
@@ -236,7 +236,7 @@ export default function Payment() {
               {isPaying ? (
                 <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
               ) : (
-                <CreditCard className="w-4 h-4 mr-2" />
+                <CreditCard size={16} className="mr-2" />
               )}
               {totalCharge === 0 ? 'Confirm Payment' : `Pay ${fmt(totalCharge)}`}
             </Button>

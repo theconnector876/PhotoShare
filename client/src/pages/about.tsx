@@ -7,6 +7,20 @@ import { AdminInlineEditor } from "@/components/admin-inline-editor";
 import { motion } from "framer-motion";
 import { ScrollReveal, StaggerReveal, RevealItem } from "@/components/scroll-reveal";
 import { CountUp } from "@/components/count-up";
+import { Camera, Star, Clock, ShieldCheck, Heart, Aperture, Sparkle, Trophy, Lightning } from "@phosphor-icons/react";
+
+// Map Font Awesome icon class strings → Phosphor components
+const FA_TO_PHOSPHOR: Record<string, React.ReactNode> = {
+  "fas fa-camera":      <Camera size={22} weight="duotone" className="text-amber-400" />,
+  "fas fa-star":        <Star size={22} weight="duotone" className="text-amber-400" />,
+  "fas fa-clock":       <Clock size={22} weight="duotone" className="text-amber-400" />,
+  "fas fa-shield-alt":  <ShieldCheck size={22} weight="duotone" className="text-amber-400" />,
+  "fas fa-heart":       <Heart size={22} weight="duotone" className="text-amber-400" />,
+  "fas fa-award":       <Trophy size={22} weight="duotone" className="text-amber-400" />,
+  "fas fa-bolt":        <Lightning size={22} weight="duotone" className="text-amber-400" />,
+  "fas fa-aperture":    <Aperture size={22} weight="duotone" className="text-amber-400" />,
+};
+const DEFAULT_HIGHLIGHT_ICON = <Sparkle size={22} weight="duotone" className="text-amber-400" />;
 
 export default function About() {
   const { config } = useSiteConfig();
@@ -211,8 +225,8 @@ export default function About() {
                 transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
                 data-testid={`highlight-${index}`}
               >
-                <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-amber-500/15 group-hover:border-amber-500/35 transition-colors">
-                  <i className={`${item.icon} text-amber-400 text-lg`} />
+                <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-amber-500/15 group-hover:border-amber-500/35 transition-all duration-300 group-hover:scale-110">
+                  {FA_TO_PHOSPHOR[item.icon] ?? DEFAULT_HIGHLIGHT_ICON}
                 </div>
                 <h3 className="font-bold text-[17px] mb-2 text-foreground">{item.title}</h3>
                 <p className="text-muted-foreground text-[14px] leading-relaxed">{item.description}</p>

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BanknoteIcon, CheckCircle2, XCircle, Clock, Loader2, Settings, Upload, ImageIcon, ExternalLink } from "lucide-react";
+import { Money as BanknoteIcon, CheckCircle as CheckCircle2, XCircle, Clock, CircleNotch as Loader2, Gear as Settings, Upload, Image as ImageIcon, ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
 
 interface BookingSnapshot {
   id: string;
@@ -164,7 +164,7 @@ export function AdminPayouts() {
                 <Badge variant={cfg.variant} className="text-xs">{cfg.label}</Badge>
                 {p.payoutMethod && (
                   <Badge variant="outline" className="text-xs gap-1">
-                    <BanknoteIcon className="w-3 h-3" /> Bank Wire
+                    <BanknoteIcon size={12} /> Bank Wire
                   </Badge>
                 )}
               </div>
@@ -232,7 +232,7 @@ export function AdminPayouts() {
               {p.receiptUrl && (
                 <a href={p.receiptUrl} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1">
-                  <ImageIcon className="w-3 h-3" /> View Bank Receipt <ExternalLink className="w-3 h-3" />
+                  <ImageIcon size={12} /> View Bank Receipt <ExternalLink size={12} />
                 </a>
               )}
             </div>
@@ -267,7 +267,7 @@ export function AdminPayouts() {
           </TabsTrigger>
           <TabsTrigger value="completed" className="text-xs sm:text-sm">History</TabsTrigger>
           <TabsTrigger value="config" className="text-xs sm:text-sm">
-            <Settings className="w-3 h-3 mr-1" /> Config
+            <Settings size={12} className="mr-1" /> Config
           </TabsTrigger>
         </TabsList>
 
@@ -317,7 +317,7 @@ export function AdminPayouts() {
                 onClick={() => saveConfigMutation.mutate(payoutPctInput)}
                 disabled={saveConfigMutation.isPending}
               >
-                {saveConfigMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                {saveConfigMutation.isPending ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
                 Save
               </Button>
             </CardContent>
@@ -426,7 +426,7 @@ export function AdminPayouts() {
                     <div className="flex items-center gap-2">
                       <a href={receiptUrl} target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-1 text-sm text-blue-600 hover:underline">
-                        <ImageIcon className="w-4 h-4" /> View uploaded receipt <ExternalLink className="w-3 h-3" />
+                        <ImageIcon size={16} /> View uploaded receipt <ExternalLink size={12} />
                       </a>
                       <Button size="sm" variant="ghost" className="text-xs h-6 px-2"
                         onClick={() => setReceiptUrl("")}>Remove</Button>
@@ -439,8 +439,8 @@ export function AdminPayouts() {
                       disabled={uploadingReceipt}
                     >
                       {uploadingReceipt
-                        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
-                        : <><Upload className="w-4 h-4 mr-2" /> Upload Receipt</>}
+                        ? <><Loader2 size={16} className="mr-2 animate-spin" /> Uploading...</>
+                        : <><Upload size={16} className="mr-2" /> Upload Receipt</>}
                     </Button>
                   )}
                 </div>
@@ -455,20 +455,20 @@ export function AdminPayouts() {
               disabled={updateMutation.isPending}
               className="text-destructive hover:text-destructive"
             >
-              <XCircle className="w-4 h-4 mr-1" /> Reject
+              <XCircle size={16} className="mr-1" /> Reject
             </Button>
             <Button
               variant="secondary"
               onClick={() => selected && updateMutation.mutate({ id: selected.id, status: "processing", adminNotes, referenceNumber: refNumber, receiptUrl: receiptUrl || undefined })}
               disabled={updateMutation.isPending}
             >
-              <Clock className="w-4 h-4 mr-1" /> Mark Processing
+              <Clock size={16} className="mr-1" /> Mark Processing
             </Button>
             <Button
               onClick={() => selected && updateMutation.mutate({ id: selected.id, status: "completed", adminNotes, referenceNumber: refNumber, receiptUrl: receiptUrl || undefined })}
               disabled={updateMutation.isPending}
             >
-              {updateMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+              {updateMutation.isPending ? <Loader2 size={16} className="mr-2 animate-spin" /> : <CheckCircle2 size={16} className="mr-1" />}
               Mark as Paid
             </Button>
           </DialogFooter>

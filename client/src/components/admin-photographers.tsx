@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Camera, CheckCircleIcon, XCircleIcon, Edit } from "lucide-react";
+import { Camera, CheckCircle as CheckCircleIcon, XCircle as XCircleIcon, PencilSimple as Edit } from "@phosphor-icons/react";
 import { defaultPricingConfig, type PricingConfig } from "@shared/pricing";
 
 type PendingPhotographer = {
@@ -116,7 +116,7 @@ export function AdminPhotographers() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Camera className="w-5 h-5" />
+            <Camera size={20} />
             Photographer Approvals
           </CardTitle>
           <CardDescription>
@@ -164,7 +164,7 @@ export function AdminPhotographers() {
                           onClick={() => approveMutation.mutate(item.user.id)}
                           disabled={approveMutation.isPending}
                         >
-                          <CheckCircleIcon className="w-4 h-4 mr-1" />
+                          <CheckCircleIcon size={16} className="mr-1" />
                           Approve
                         </Button>
                         <Button
@@ -173,7 +173,7 @@ export function AdminPhotographers() {
                           onClick={() => rejectMutation.mutate(item.user.id)}
                           disabled={rejectMutation.isPending}
                         >
-                          <XCircleIcon className="w-4 h-4 mr-1" />
+                          <XCircleIcon size={16} className="mr-1" />
                           Reject
                         </Button>
                       </div>
@@ -189,7 +189,7 @@ export function AdminPhotographers() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Edit className="w-5 h-5" />
+            <Edit size={20} />
             Photographer Pricing
           </CardTitle>
           <CardDescription>

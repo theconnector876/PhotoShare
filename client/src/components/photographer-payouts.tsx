@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BanknoteIcon, Clock, CheckCircle2, XCircle, Loader2, AlertCircle, ChevronDown, ChevronUp, ImageIcon, ExternalLink } from "lucide-react";
+import { Money as BanknoteIcon, Clock, CheckCircle as CheckCircle2, XCircle, CircleNotch as Loader2, Warning as AlertCircle, CaretDown as ChevronDown, CaretUp as ChevronUp, Image as ImageIcon, ArrowSquareOut as ExternalLink } from "@phosphor-icons/react";
 import type { Booking } from "@shared/schema";
 
 interface PayoutDetails {
@@ -57,10 +57,10 @@ interface Payout {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode }> = {
-  pending:    { label: "Pending Review", variant: "secondary",    icon: <Clock className="w-3 h-3" /> },
-  processing: { label: "Processing",     variant: "default",      icon: <Loader2 className="w-3 h-3 animate-spin" /> },
-  completed:  { label: "Paid",           variant: "default",      icon: <CheckCircle2 className="w-3 h-3" /> },
-  rejected:   { label: "Rejected",       variant: "destructive",  icon: <XCircle className="w-3 h-3" /> },
+  pending:    { label: "Pending Review", variant: "secondary",    icon: <Clock size={12} /> },
+  processing: { label: "Processing",     variant: "default",      icon: <Loader2 size={12} className="animate-spin" /> },
+  completed:  { label: "Paid",           variant: "default",      icon: <CheckCircle2 size={12} /> },
+  rejected:   { label: "Rejected",       variant: "destructive",  icon: <XCircle size={12} /> },
 };
 
 function formatAmount(amount: number, currency: string) {
@@ -226,7 +226,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                   onClick={() => requestPayoutMutation.mutate(selectedBookingIds)}
                   disabled={requestPayoutMutation.isPending || !hasDetails}
                 >
-                  {requestPayoutMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  {requestPayoutMutation.isPending ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
                   Request Payout
                 </Button>
               </CardContent>
@@ -281,7 +281,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                           className="h-7 px-2 text-xs"
                           onClick={() => setExpandedPayoutId(isExpanded ? null : p.id)}
                         >
-                          {isExpanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+                          {isExpanded ? <ChevronUp size={12} className="mr-1" /> : <ChevronDown size={12} className="mr-1" />}
                           {isExpanded ? "Hide" : "View receipt"}
                         </Button>
                       </div>
@@ -349,7 +349,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-2"
                             >
-                              <ImageIcon className="w-3 h-3" /> Open receipt <ExternalLink className="w-3 h-3" />
+                              <ImageIcon size={12} /> Open receipt <ExternalLink size={12} />
                             </a>
                           </div>
                         )}
@@ -371,7 +371,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <BanknoteIcon className="w-4 h-4" /> Bank Wire Details
+                <BanknoteIcon size={16} /> Bank Wire Details
               </CardTitle>
               <CardDescription>
                 Your bank details are only visible to admins when processing your payout. All transfers are done manually via bank wire.
@@ -455,7 +455,7 @@ export function PhotographerPayouts({ bookings }: { bookings: Booking[] }) {
                 disabled={saveDetailsMutation.isPending || !form.bankName || !form.accountHolderName || !form.accountNumber}
                 className="w-full sm:w-auto"
               >
-                {saveDetailsMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                {saveDetailsMutation.isPending ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
                 Save Bank Details
               </Button>
             </CardContent>

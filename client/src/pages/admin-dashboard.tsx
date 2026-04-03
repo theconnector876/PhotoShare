@@ -3,30 +3,31 @@ import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  CalendarIcon,
-  ImageIcon,
-  MessageSquareIcon,
-  UsersIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  XCircleIcon,
-  FolderIcon,
+  CalendarBlank as CalendarIcon,
+  Image as ImageIcon,
+  ChatDots as MessageSquareIcon,
+  Users as UsersIcon,
+  CheckCircle as CheckCircleIcon,
+  Clock as ClockIcon,
+  XCircle as XCircleIcon,
+  Folder as FolderIcon,
   Star,
-  Shield,
+  ShieldCheck as Shield,
   Camera,
-  DollarSignIcon,
-  Settings,
+  CurrencyDollar as DollarSignIcon,
+  Gear as Settings,
   Tag,
-  MessageSquare,
+  ChatDots as MessageSquare,
   User,
   BookOpen,
-  BanknoteIcon
-} from "lucide-react";
+  Money as BanknoteIcon
+} from "@phosphor-icons/react";
 import { AdminBookings } from "@/components/admin-bookings";
 import { AdminGalleries } from "@/components/admin-galleries";
 import { AdminContacts } from "@/components/admin-contacts";
@@ -118,199 +119,144 @@ export function AdminDashboard() {
 
   return (
     <div className={isChat
-      ? "h-screen overflow-hidden flex flex-col bg-gradient-to-br from-background to-muted/30"
-      : "min-h-screen bg-gradient-to-br from-background to-muted/30 p-4"
+      ? "h-screen overflow-hidden flex flex-col bg-background"
+      : "min-h-screen bg-background pb-16"
     }>
       <div className={isChat
-        ? "max-w-7xl w-full mx-auto flex flex-col flex-1 min-h-0 px-4 pt-4"
-        : "max-w-7xl mx-auto"
+        ? "max-w-7xl w-full mx-auto flex flex-col flex-1 min-h-0 px-4 pt-20"
+        : "max-w-7xl mx-auto px-4 pt-20"
       }>
-        {/* Header */}
-        <div className={isChat ? "mb-3 flex-shrink-0" : "mb-8"}>
-          <div className="flex justify-between items-center">
+        {/* ── Header ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className={isChat ? "mb-3 flex-shrink-0" : "mb-8"}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-              <p className="text-amber-500 mt-2">Welcome back, {user?.firstName || user?.email}</p>
+              <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-amber-500 mb-1.5 flex items-center gap-1.5">
+                <Settings size={11} /> Admin Console
+              </p>
+              <h1
+                className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground"
+                style={{ fontFamily: 'var(--font-display, var(--font-serif))' }}
+              >
+                Admin Dashboard
+              </h1>
+              <p className="text-muted-foreground mt-1.5 text-sm">
+                Welcome back, {user?.firstName || user?.email}
+              </p>
             </div>
-            <div className="flex gap-4">
+            <div className="flex items-center gap-2">
               <Link href="/">
-                <Button 
-                  variant="outline" 
-                  data-testid="button-home"
-                >
-                  Back to Website
-                </Button>
-              </Link>
-              <Link href="/auth">
-                <Button 
-                  variant="destructive" 
-                  data-testid="button-logout"
-                >
-                  Logout
+                <Button variant="outline" size="sm" className="rounded-full h-9 px-4 gap-1.5 text-xs" data-testid="button-home">
+                  ← Website
                 </Button>
               </Link>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Statistics Cards — hidden on chat tab */}
-        {!isChat && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("bookings")}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
-              <ClockIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600" data-testid="stat-pending-bookings">
-                {pendingBookings}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Require confirmation
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("bookings")}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Confirmed Bookings</CardTitle>
-              <CheckCircleIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-500" data-testid="stat-confirmed-bookings">
-                {confirmedBookings}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Ready for shoots
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("galleries")}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Galleries</CardTitle>
-              <ImageIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600" data-testid="stat-pending-galleries">
-                {pendingGalleries}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Need image uploads
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("contacts")}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Unread Messages</CardTitle>
-              <MessageSquareIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600" data-testid="stat-unread-messages">
-                {unreadContacts}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                New inquiries
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("catalogues")}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Published Catalogues</CardTitle>
-              <FolderIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-500" data-testid="stat-published-catalogues">
-                {publishedCatalogues}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Live on portfolio
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTabValue("reviews")}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
-              <Star className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600" data-testid="stat-pending-reviews">
-                {pendingReviews}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Need approval
-              </p>
-            </CardContent>
-          </Card>
-        </div>}
+        {/* ── Stat cards ── */}
+        {!isChat && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8"
+          >
+            {[
+              { icon: <ClockIcon size={20} weight="duotone" className="text-amber-500" />, value: pendingBookings, label: "Pending", sub: "bookings", tab: "bookings", accent: "text-amber-500", testId: "stat-pending-bookings" },
+              { icon: <CheckCircleIcon size={20} weight="duotone" className="text-emerald-400" />, value: confirmedBookings, label: "Confirmed", sub: "ready for shoots", tab: "bookings", accent: "text-emerald-400", testId: "stat-confirmed-bookings" },
+              { icon: <ImageIcon size={20} weight="duotone" className="text-blue-400" />, value: pendingGalleries, label: "Galleries", sub: "need uploads", tab: "galleries", accent: "text-blue-400", testId: "stat-pending-galleries" },
+              { icon: <MessageSquareIcon size={20} weight="duotone" className="text-violet-400" />, value: unreadContacts, label: "Messages", sub: "unread", tab: "contacts", accent: "text-violet-400", testId: "stat-unread-messages" },
+              { icon: <FolderIcon size={20} weight="duotone" className="text-amber-400" />, value: publishedCatalogues, label: "Catalogues", sub: "live", tab: "catalogues", accent: "text-amber-400", testId: "stat-published-catalogues" },
+              { icon: <Star size={20} weight="duotone" className="text-rose-400" />, value: pendingReviews, label: "Reviews", sub: "need approval", tab: "reviews", accent: "text-rose-400", testId: "stat-pending-reviews" },
+            ].map((stat) => (
+              <Card
+                key={stat.testId}
+                className="cursor-pointer rounded-2xl p-4 hover:border-amber-500/30 hover:shadow-md transition-all duration-200 group"
+                onClick={() => setTabValue(stat.tab)}
+                data-testid={stat.testId}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  {stat.icon}
+                  <span className="text-[9px] text-muted-foreground/40 group-hover:text-amber-500 transition-colors font-medium uppercase tracking-wide">View →</span>
+                </div>
+                <div className={`text-2xl font-extrabold tracking-tight ${stat.accent}`}>{stat.value}</div>
+                <div className="text-[11px] font-semibold text-foreground mt-0.5">{stat.label}</div>
+                <div className="text-[10px] text-muted-foreground">{stat.sub}</div>
+              </Card>
+            ))}
+          </motion.div>
+        )}
 
         {/* Main Content Tabs */}
         <Tabs value={tabValue} onValueChange={setTabValue} className={isChat ? "flex flex-col flex-1 min-h-0" : "space-y-6"}>
           <div className={`overflow-x-auto pb-1 -mx-1 px-1${isChat ? " flex-shrink-0" : ""}`}>
             <TabsList className="inline-flex w-max min-w-full h-auto flex-wrap sm:flex-nowrap gap-1 p-1">
               <TabsTrigger value="bookings" data-testid="tab-bookings" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <CalendarIcon className="w-4 h-4 shrink-0" />
+                <CalendarIcon size={16} className="shrink-0" />
                 <span>Bookings</span>
                 {pendingBookings > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">{pendingBookings}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="galleries" data-testid="tab-galleries" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <ImageIcon className="w-4 h-4 shrink-0" />
+                <ImageIcon size={16} className="shrink-0" />
                 <span>Galleries</span>
                 {pendingGalleries > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{pendingGalleries}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="contacts" data-testid="tab-contacts" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <MessageSquareIcon className="w-4 h-4 shrink-0" />
+                <MessageSquareIcon size={16} className="shrink-0" />
                 <span>Messages</span>
                 {unreadContacts > 0 && <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0">{unreadContacts}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="catalogues" data-testid="tab-catalogues" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <FolderIcon className="w-4 h-4 shrink-0" />
+                <FolderIcon size={16} className="shrink-0" />
                 <span>Catalogues</span>
                 {draftCatalogues > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{draftCatalogues}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="reviews" data-testid="tab-reviews" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <Star className="w-4 h-4 shrink-0" />
+                <Star size={16} className="shrink-0" />
                 <span>Reviews</span>
                 {pendingReviews > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">{pendingReviews}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="users" data-testid="tab-users" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <Shield className="w-4 h-4 shrink-0" />
+                <Shield size={16} className="shrink-0" />
                 <span>Users</span>
               </TabsTrigger>
               <TabsTrigger value="photographers" data-testid="tab-photographers" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <Camera className="w-4 h-4 shrink-0" />
+                <Camera size={16} className="shrink-0" />
                 <span>Photographers</span>
                 {pendingPhotographerCount > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">{pendingPhotographerCount}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="pricing" data-testid="tab-pricing" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <DollarSignIcon className="w-4 h-4 shrink-0" />
+                <DollarSignIcon size={16} className="shrink-0" />
                 <span>Pricing</span>
               </TabsTrigger>
               <TabsTrigger value="coupons" data-testid="tab-coupons" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <Tag className="w-4 h-4 shrink-0" />
+                <Tag size={16} className="shrink-0" />
                 <span>Coupons</span>
               </TabsTrigger>
               <TabsTrigger value="site" data-testid="tab-site" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <Settings className="w-4 h-4 shrink-0" />
+                <Settings size={16} className="shrink-0" />
                 <span>Site</span>
               </TabsTrigger>
               <TabsTrigger value="chat" data-testid="tab-chat" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <MessageSquare className="w-4 h-4 shrink-0" />
+                <MessageSquare size={16} className="shrink-0" />
                 <span>Chat</span>
                 {unreadChatCount > 0 && <Badge className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0">{unreadChatCount}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="blog" data-testid="tab-blog" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <BookOpen className="w-4 h-4 shrink-0" />
+                <BookOpen size={16} className="shrink-0" />
                 <span>Blog</span>
               </TabsTrigger>
               <TabsTrigger value="payouts" data-testid="tab-payouts" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <BanknoteIcon className="w-4 h-4 shrink-0" />
+                <BanknoteIcon size={16} className="shrink-0" />
                 <span>Payouts</span>
               </TabsTrigger>
               <TabsTrigger value="profile" data-testid="tab-profile" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                <User className="w-4 h-4 shrink-0" />
+                <User size={16} className="shrink-0" />
                 <span>Profile</span>
               </TabsTrigger>
             </TabsList>

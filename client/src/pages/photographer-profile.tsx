@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, Camera, Instagram, Facebook, Globe, ChevronLeft, ChevronRight, Star, Calendar } from "lucide-react";
+import { MapPin, Camera, InstagramLogo, FacebookLogo, Globe, CaretLeft, CaretRight, Star, CalendarBlank } from "@phosphor-icons/react";
 import type { PricingConfig } from "@shared/pricing";
 import { useCurrency } from "@/context/currency";
 
@@ -59,7 +59,7 @@ function CatalogueCard({ cat }: { cat: Catalogue }) {
             <img src={imgs[idx]} alt={cat.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-              <Camera className="w-8 h-8" />
+              <Camera size={32} />
             </div>
           )}
           {imgs.length > 1 && (
@@ -68,13 +68,13 @@ function CatalogueCard({ cat }: { cat: Catalogue }) {
                 className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={e => { e.stopPropagation(); setIdx(i => (i - 1 + imgs.length) % imgs.length); }}
               >
-                <ChevronLeft className="w-3 h-3" />
+                <CaretLeft size={12} />
               </button>
               <button
                 className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={e => { e.stopPropagation(); setIdx(i => (i + 1) % imgs.length); }}
               >
-                <ChevronRight className="w-3 h-3" />
+                <CaretRight size={12} />
               </button>
               <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1">
                 {imgs.slice(0, 5).map((_, i) => (
@@ -107,7 +107,7 @@ function CatalogueCard({ cat }: { cat: Catalogue }) {
               className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 text-white rounded-full p-2"
               onClick={e => { e.stopPropagation(); setIdx(i => (i - 1 + imgs.length) % imgs.length); }}
             >
-              <ChevronLeft className="w-5 h-5" />
+              <CaretLeft size={20} />
             </button>
           )}
           <img
@@ -121,7 +121,7 @@ function CatalogueCard({ cat }: { cat: Catalogue }) {
               className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 text-white rounded-full p-2"
               onClick={e => { e.stopPropagation(); setIdx(i => (i + 1) % imgs.length); }}
             >
-              <ChevronRight className="w-5 h-5" />
+              <CaretRight size={20} />
             </button>
           )}
           <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm">{idx + 1} / {imgs.length}</p>
@@ -195,7 +195,7 @@ export default function PhotographerProfile() {
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           onClick={() => window.history.back()}
         >
-          <ChevronLeft className="w-4 h-4" /> Back
+          <CaretLeft size={16} /> Back
         </button>
 
         {/* Hero Header */}
@@ -217,7 +217,7 @@ export default function PhotographerProfile() {
               <h1 className="text-3xl font-bold">{photographer.displayName}</h1>
               {photographer.location && (
                 <p className="text-muted-foreground flex items-center gap-1 mt-1">
-                  <MapPin className="w-4 h-4 shrink-0" /> {photographer.location}
+                  <MapPin size={16} className="shrink-0" /> {photographer.location}
                 </p>
               )}
               {photographer.specialties?.length > 0 && (
@@ -231,17 +231,17 @@ export default function PhotographerProfile() {
               <div className="flex gap-3 mt-3">
                 {socials.instagram && (
                   <a href={`https://instagram.com/${socials.instagram.replace("@", "")}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
-                    <Instagram className="w-4 h-4" />
+                    <InstagramLogo size={16} />
                   </a>
                 )}
                 {socials.facebook && (
                   <a href={socials.facebook} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
-                    <Facebook className="w-4 h-4" />
+                    <FacebookLogo size={16} />
                   </a>
                 )}
                 {socials.website && (
                   <a href={socials.website} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
-                    <Globe className="w-4 h-4" />
+                    <Globe size={16} />
                   </a>
                 )}
               </div>
@@ -250,7 +250,7 @@ export default function PhotographerProfile() {
               )}
               {photographer.availability && (
                 <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5" /> {photographer.availability}
+                  <CalendarBlank size={14} /> {photographer.availability}
                 </p>
               )}
             </div>
@@ -269,7 +269,7 @@ export default function PhotographerProfile() {
         {/* Portfolio / Past Work */}
         <section>
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Camera className="w-5 h-5 text-primary" /> Past Work
+            <Camera size={20} className="text-primary" /> Past Work
           </h2>
           {loadingCats ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -291,7 +291,7 @@ export default function PhotographerProfile() {
         {/* Packages & Pricing */}
         <section>
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Star className="w-5 h-5 text-primary" /> Packages & Pricing
+            <Star size={20} className="text-primary" /> Packages & Pricing
           </h2>
 
           {/* Service tabs */}

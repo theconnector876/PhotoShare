@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Star } from "lucide-react";
+import { Star } from "@phosphor-icons/react";
 
 const reviewSchema = z.object({
   clientName: z.string().min(1, "Name is required"),
@@ -84,9 +84,9 @@ export default function ReviewForm({ catalogueId, catalogueTitle, onSuccess }: R
             data-testid={`star-${star}`}
           >
             <Star
-              className={`w-6 h-6 ${
-                star <= value ? "fill-amber-400 text-amber-400" : "text-gray-300"
-              }`}
+              size={24}
+              weight={star <= value ? "fill" : "regular"}
+              className={star <= value ? "text-amber-400" : "text-gray-300"}
             />
           </button>
         ))}
@@ -98,7 +98,7 @@ export default function ReviewForm({ catalogueId, catalogueTitle, onSuccess }: R
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Star className="w-5 h-5 text-yellow-500" />
+          <Star size={20} className="text-yellow-500" />
           {catalogueTitle ? `Review: ${catalogueTitle}` : "Leave a Review"}
         </CardTitle>
       </CardHeader>

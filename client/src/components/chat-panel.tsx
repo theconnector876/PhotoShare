@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ConversationList } from "./conversation-list";
 import { ChatWindow } from "./chat-window";
-import { MessageSquare, Plus } from "lucide-react";
+import { ChatDots as MessageSquare, Plus } from "@phosphor-icons/react";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -305,7 +305,7 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
                 className="w-full h-8 text-xs"
                 onClick={() => setShowNewChat(true)}
               >
-                <Plus className="w-3 h-3 mr-1" />
+                <Plus size={12} className="mr-1" />
                 New Chat
               </Button>
             </div>
@@ -359,7 +359,7 @@ export function ChatPanel({ isAdmin }: ChatPanelProps) {
             />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-              <MessageSquare className="w-12 h-12 opacity-20" />
+              <MessageSquare size={48} className="opacity-20" />
               <p className="text-sm">Select a conversation to start messaging</p>
             </div>
           )}

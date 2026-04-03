@@ -14,17 +14,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Copy, ToggleLeft, ToggleRight, Link as LinkIcon } from "lucide-react";
+import { Plus, Trash, Copy, ToggleLeft, ToggleRight, Link as LinkIcon } from "@phosphor-icons/react";
 import type { CustomPackage } from "@shared/schema";
 
 const TIERS = ["bronze", "silver", "gold", "platinum"] as const;
 type Tier = (typeof TIERS)[number];
 
 const TIER_STYLE: Record<Tier, string> = {
-  bronze:   "border-orange-300 bg-orange-50 text-orange-700",
-  silver:   "border-gray-300 bg-gray-50 text-gray-600",
-  gold:     "border-yellow-300 bg-yellow-50 text-yellow-700",
-  platinum: "border-emerald-300 bg-emerald-50 text-emerald-700",
+  bronze:   "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-600/40 dark:bg-amber-600/10 dark:text-amber-500",
+  silver:   "border-slate-300 bg-slate-50 text-slate-600 dark:border-slate-500/40 dark:bg-slate-400/10 dark:text-slate-400",
+  gold:     "border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-400",
+  platinum: "border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-300/30 dark:bg-white/5 dark:text-slate-300",
 };
 
 // Number field with optional unit prefix
@@ -466,7 +466,7 @@ function CustomPackagesSection({ apiBase = "/api/admin/custom-packages", queryKe
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Custom Private Packages</CardTitle>
             <Button size="sm" onClick={() => setShowCreate(true)}>
-              <Plus className="w-4 h-4 mr-1" />New Package
+              <Plus size={16} className="mr-1" />New Package
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -505,7 +505,7 @@ function CustomPackagesSection({ apiBase = "/api/admin/custom-packages", queryKe
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <Button size="icon" variant="ghost" className="h-7 w-7" title="Copy booking link" onClick={() => copyLink(pkg)}>
-                      <Copy className="w-3.5 h-3.5" />
+                      <Copy size={14} />
                     </Button>
                     <Button
                       size="icon" variant="ghost" className="h-7 w-7"
@@ -513,7 +513,7 @@ function CustomPackagesSection({ apiBase = "/api/admin/custom-packages", queryKe
                       onClick={() => toggleMutation.mutate({ id: pkg.id, isActive: !pkg.isActive })}
                       disabled={toggleMutation.isPending}
                     >
-                      {pkg.isActive ? <ToggleRight className="w-3.5 h-3.5 text-green-600" /> : <ToggleLeft className="w-3.5 h-3.5" />}
+                      {pkg.isActive ? <ToggleRight size={14} className="text-green-600" /> : <ToggleLeft size={14} />}
                     </Button>
                     <Button
                       size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600"
@@ -521,7 +521,7 @@ function CustomPackagesSection({ apiBase = "/api/admin/custom-packages", queryKe
                       onClick={() => deleteMutation.mutate(pkg.id)}
                       disabled={deleteMutation.isPending}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash size={14} />
                     </Button>
                   </div>
                 </div>
@@ -607,14 +607,14 @@ function CustomPackagesSection({ apiBase = "/api/admin/custom-packages", queryKe
                     </div>
                     {form.items.length > 1 && (
                       <button onClick={() => removeItem(idx)} className="text-muted-foreground hover:text-red-500 shrink-0">
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash size={14} />
                       </button>
                     )}
                   </div>
                 ))}
               </div>
               <Button type="button" variant="ghost" size="sm" className="mt-2 h-7 text-xs" onClick={addItem}>
-                <Plus className="w-3 h-3 mr-1" />Add item
+                <Plus size={12} className="mr-1" />Add item
               </Button>
               {computedTotal > 0 && (
                 <p className="text-sm font-medium mt-2">

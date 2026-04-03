@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Shield, User, Crown, Mail, Calendar, Ban, Unlock, Trash2, KeyRound, Pencil, Eye, Phone, MapPin, Camera } from "lucide-react";
+import { Users, ShieldCheck as Shield, User, Crown, EnvelopeSimple as Mail, CalendarBlank as Calendar, Prohibit as Ban, LockOpen as Unlock, Trash, Key as KeyRound, PencilSimple as Pencil, Eye, Phone, MapPin, Camera } from "@phosphor-icons/react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -244,7 +244,7 @@ export function AdminUsers() {
           <div className="flex justify-between items-center">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
+                <Users size={20} />
                 User Management
               </CardTitle>
               <CardDescription>Manage user accounts and admin privileges.</CardDescription>
@@ -252,7 +252,7 @@ export function AdminUsers() {
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-create-user">
-                  <User className="w-4 h-4 mr-2" />
+                  <User size={16} className="mr-2" />
                   Create User
                 </Button>
               </DialogTrigger>
@@ -358,24 +358,24 @@ export function AdminUsers() {
                             <h4 className="font-semibold text-lg">{user.firstName} {user.lastName}</h4>
                             {user.isAdmin && (
                               <Badge className="bg-purple-500 text-white">
-                                <Crown className="w-3 h-3 mr-1" />Admin
+                                <Crown size={12} className="mr-1" />Admin
                               </Badge>
                             )}
                             {user.isBlocked && (
-                              <Badge variant="destructive"><Ban className="w-3 h-3 mr-1" />Blocked</Badge>
+                              <Badge variant="destructive"><Ban size={12} className="mr-1" />Blocked</Badge>
                             )}
                             {user.role && <Badge variant="secondary">{user.role}</Badge>}
                             {user.photographerStatus && <Badge variant="outline">{user.photographerStatus}</Badge>}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
-                            <div className="flex items-center gap-1"><Mail className="w-4 h-4" />{user.email}</div>
-                            <div className="flex items-center gap-1"><Calendar className="w-4 h-4" />Joined {formatDate(user.createdAt)}</div>
+                            <div className="flex items-center gap-1"><Mail size={16} />{user.email}</div>
+                            <div className="flex items-center gap-1"><Calendar size={16} />Joined {formatDate(user.createdAt)}</div>
                           </div>
                         </div>
                         <div className="flex gap-2 flex-wrap justify-end">
                           {!user.isAdmin && (
                             <Button variant="outline" size="sm" onClick={() => makeAdminMutation.mutate(user.id)} disabled={makeAdminMutation.isPending} data-testid={`button-make-admin-${user.id}`}>
-                              <Shield className="w-4 h-4 mr-1" />Make Admin
+                              <Shield size={16} className="mr-1" />Make Admin
                             </Button>
                           )}
                           <Button
@@ -383,7 +383,7 @@ export function AdminUsers() {
                             size="sm"
                             onClick={() => setViewingUserId(user.id)}
                           >
-                            <Eye className="w-4 h-4 mr-1" />View
+                            <Eye size={16} className="mr-1" />View
                           </Button>
                           <Button
                             variant="outline"
@@ -393,7 +393,7 @@ export function AdminUsers() {
                               editForm.reset({ firstName: user.firstName || "", lastName: user.lastName || "", email: user.email || "", password: "" });
                             }}
                           >
-                            <Pencil className="w-4 h-4 mr-1" />Edit
+                            <Pencil size={16} className="mr-1" />Edit
                           </Button>
                           <Button
                             variant="outline"
@@ -401,13 +401,13 @@ export function AdminUsers() {
                             onClick={() => blockUserMutation.mutate({ id: user.id, blocked: !user.isBlocked })}
                             disabled={blockUserMutation.isPending}
                           >
-                            {user.isBlocked ? <><Unlock className="w-4 h-4 mr-1" />Unblock</> : <><Ban className="w-4 h-4 mr-1" />Block</>}
+                            {user.isBlocked ? <><Unlock size={16} className="mr-1" />Unblock</> : <><Ban size={16} className="mr-1" />Block</>}
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => resetPasswordMutation.mutate(user.id)} disabled={resetPasswordMutation.isPending}>
-                            <KeyRound className="w-4 h-4 mr-1" />Reset PW
+                            <KeyRound size={16} className="mr-1" />Reset PW
                           </Button>
                           <Button variant="destructive" size="sm" onClick={() => setDeletingUserId(user.id)}>
-                            <Trash2 className="w-4 h-4 mr-1" />Delete
+                            <Trash size={16} className="mr-1" />Delete
                           </Button>
                         </div>
                       </div>
@@ -473,7 +473,7 @@ export function AdminUsers() {
         <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <User className="w-5 h-5" />
+              <User size={20} />
               User Profile
             </DialogTitle>
           </DialogHeader>
@@ -491,10 +491,10 @@ export function AdminUsers() {
                       {userProfile.user.firstName} {userProfile.user.lastName}
                     </h3>
                     {userProfile.user.isAdmin && (
-                      <Badge className="bg-purple-500 text-white"><Crown className="w-3 h-3 mr-1" />Admin</Badge>
+                      <Badge className="bg-purple-500 text-white"><Crown size={12} className="mr-1" />Admin</Badge>
                     )}
                     {userProfile.user.isBlocked && (
-                      <Badge variant="destructive"><Ban className="w-3 h-3 mr-1" />Blocked</Badge>
+                      <Badge variant="destructive"><Ban size={12} className="mr-1" />Blocked</Badge>
                     )}
                     {userProfile.user.role && <Badge variant="secondary">{userProfile.user.role}</Badge>}
                     {userProfile.user.photographerStatus && (
@@ -502,9 +502,9 @@ export function AdminUsers() {
                     )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2"><Mail className="w-4 h-4" />{userProfile.user.email}</div>
-                    {userProfile.user.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4" />{userProfile.user.phone}</div>}
-                    <div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Joined {formatDate(userProfile.user.createdAt)}</div>
+                    <div className="flex items-center gap-2"><Mail size={16} />{userProfile.user.email}</div>
+                    {userProfile.user.phone && <div className="flex items-center gap-2"><Phone size={16} />{userProfile.user.phone}</div>}
+                    <div className="flex items-center gap-2"><Calendar size={16} />Joined {formatDate(userProfile.user.createdAt)}</div>
                   </div>
                 </div>
 
@@ -513,16 +513,16 @@ export function AdminUsers() {
                   <>
                     <Separator />
                     <div>
-                      <h4 className="text-sm font-semibold mb-2 flex items-center gap-2"><Camera className="w-4 h-4" />Photographer Profile</h4>
+                      <h4 className="text-sm font-semibold mb-2 flex items-center gap-2"><Camera size={16} />Photographer Profile</h4>
                       <div className="space-y-2 text-sm">
                         {userProfile.photographerProfile.displayName && (
                           <p><span className="text-muted-foreground">Display name:</span> {userProfile.photographerProfile.displayName}</p>
                         )}
                         {userProfile.photographerProfile.location && (
-                          <p className="flex items-center gap-1"><MapPin className="w-3 h-3 text-muted-foreground" />{userProfile.photographerProfile.location}</p>
+                          <p className="flex items-center gap-1"><MapPin size={12} className="text-muted-foreground" />{userProfile.photographerProfile.location}</p>
                         )}
                         {userProfile.photographerProfile.phone && (
-                          <p className="flex items-center gap-1"><Phone className="w-3 h-3 text-muted-foreground" />{userProfile.photographerProfile.phone}</p>
+                          <p className="flex items-center gap-1"><Phone size={12} className="text-muted-foreground" />{userProfile.photographerProfile.phone}</p>
                         )}
                         {userProfile.photographerProfile.bio && (
                           <p className="text-muted-foreground leading-relaxed">{userProfile.photographerProfile.bio}</p>

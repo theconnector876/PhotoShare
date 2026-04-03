@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Instagram, Twitter, Facebook, ExternalLink } from "lucide-react";
+import { InstagramLogo, TwitterLogo, FacebookLogo, ArrowSquareOut } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef } from "react";
 
@@ -44,7 +44,7 @@ function BeholdFeed({ feedUrl, profileUrl }: { feedUrl: string; profileUrl?: str
     <div>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Instagram className="h-5 w-5 text-pink-500" />
+          <InstagramLogo size={20} className="text-pink-500" />
           <h3 className="text-lg font-semibold">Instagram</h3>
         </div>
         {profileUrl && (
@@ -54,7 +54,7 @@ function BeholdFeed({ feedUrl, profileUrl }: { feedUrl: string; profileUrl?: str
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm font-medium text-pink-500 hover:text-pink-600 transition-colors"
           >
-            Follow us <ExternalLink className="h-3.5 w-3.5" />
+            Follow us <ArrowSquareOut size={14} />
           </a>
         )}
       </div>
@@ -72,7 +72,7 @@ function BeholdFeed({ feedUrl, profileUrl }: { feedUrl: string; profileUrl?: str
             rel="noopener noreferrer"
             className="text-sm text-muted-foreground hover:text-pink-500 flex items-center justify-center gap-1 transition-colors"
           >
-            View all posts on Instagram <ExternalLink className="h-3 w-3" />
+            View all posts on Instagram <ArrowSquareOut size={12} />
           </a>
         </div>
       )}
@@ -86,19 +86,19 @@ function InstagramProfileCard({ profileUrl }: { profileUrl: string }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <Instagram className="h-5 w-5 text-pink-500" />
+        <InstagramLogo size={20} className="text-pink-500" />
         <h3 className="text-lg font-semibold">Instagram</h3>
       </div>
       <div className="rounded-lg border p-6 text-center space-y-4 bg-gradient-to-br from-pink-50 to-orange-50 dark:from-pink-950/20 dark:to-orange-950/20">
         <div className="flex justify-center">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 via-red-500 to-orange-400 flex items-center justify-center">
-            <Instagram className="h-10 w-10 text-white" />
+            <InstagramLogo size={40} className="text-white" />
           </div>
         </div>
         <p className="text-muted-foreground text-sm">Follow us on Instagram for behind-the-scenes content, photography inspiration, and more.</p>
         <a href={profileUrl} target="_blank" rel="noopener noreferrer">
           <Button className="bg-gradient-to-r from-pink-500 to-orange-400 hover:from-pink-600 hover:to-orange-500 text-white gap-2">
-            <Instagram className="h-4 w-4" />
+            <InstagramLogo size={16} />
             Follow on Instagram
           </Button>
         </a>
@@ -127,7 +127,7 @@ function TwitterWidget({ username }: { username: string }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <Twitter className="h-5 w-5 text-sky-500" />
+        <TwitterLogo size={20} className="text-sky-500" />
         <h3 className="text-lg font-semibold">Twitter / X</h3>
       </div>
       <div ref={ref} className="overflow-hidden rounded-lg border">
@@ -148,7 +148,7 @@ function TwitterWidget({ username }: { username: string }) {
           rel="noopener noreferrer"
           className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1"
         >
-          Follow @{username} <ExternalLink className="h-3 w-3" />
+          Follow @{username} <ArrowSquareOut size={12} />
         </a>
       </div>
     </div>
@@ -164,7 +164,7 @@ function FacebookWidget({ pageUrl }: { pageUrl: string }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <Facebook className="h-5 w-5 text-blue-600" />
+        <FacebookLogo size={20} className="text-blue-600" />
         <h3 className="text-lg font-semibold">Facebook</h3>
       </div>
       <div className="overflow-hidden rounded-lg border bg-white" style={{ minHeight: 400 }}>
@@ -187,7 +187,7 @@ function FacebookWidget({ pageUrl }: { pageUrl: string }) {
           rel="noopener noreferrer"
           className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1"
         >
-          Visit our Facebook Page <ExternalLink className="h-3 w-3" />
+          Visit our Facebook Page <ArrowSquareOut size={12} />
         </a>
       </div>
     </div>
@@ -219,7 +219,7 @@ function TikTokWidget({ username }: { username: string }) {
         </div>
         <a href={`https://www.tiktok.com/@${username}`} target="_blank" rel="noopener noreferrer">
           <Button className="bg-black hover:bg-black/80 text-white gap-2">
-            <ExternalLink className="h-4 w-4" />
+            <ArrowSquareOut size={16} />
             View on TikTok
           </Button>
         </a>

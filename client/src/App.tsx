@@ -15,7 +15,7 @@ import { useNativePush } from "@/hooks/use-native-push";
 import { FullPageLoader } from "@/components/aperture-loader";
 import { CustomCursor } from "@/components/custom-cursor";
 import { Link } from "wouter";
-import { Instagram, Facebook, Twitter, Camera } from "lucide-react";
+import { InstagramLogo, FacebookLogo, TwitterLogo, Camera } from "@phosphor-icons/react";
 
 // Lazy-loaded pages — each splits into its own chunk, only loaded when visited
 const Home                  = lazy(() => import("@/pages/home"));
@@ -123,7 +123,7 @@ function PremiumFooter() {
           <div className="lg:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
-                <Camera className="w-4 h-4 text-black" />
+                <Camera size={16} weight="duotone" className="text-black" />
               </div>
               <span className="text-white font-bold text-[15px] tracking-tight" style={{ fontFamily: 'var(--font-display, sans-serif)' }}>
                 ConnectAGrapher
@@ -134,13 +134,13 @@ function PremiumFooter() {
             </p>
             <div className="flex gap-3">
               <a href="#" className="w-8 h-8 rounded-full bg-white/6 hover:bg-amber-500/20 hover:text-amber-400 flex items-center justify-center transition-colors" aria-label="Instagram">
-                <Instagram className="w-3.5 h-3.5" />
+                <InstagramLogo size={14} weight="duotone" />
               </a>
               <a href="#" className="w-8 h-8 rounded-full bg-white/6 hover:bg-amber-500/20 hover:text-amber-400 flex items-center justify-center transition-colors" aria-label="Facebook">
-                <Facebook className="w-3.5 h-3.5" />
+                <FacebookLogo size={14} weight="duotone" />
               </a>
               <a href="#" className="w-8 h-8 rounded-full bg-white/6 hover:bg-amber-500/20 hover:text-amber-400 flex items-center justify-center transition-colors" aria-label="Twitter">
-                <Twitter className="w-3.5 h-3.5" />
+                <TwitterLogo size={14} weight="duotone" />
               </a>
             </div>
           </div>

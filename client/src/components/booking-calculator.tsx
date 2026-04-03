@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useBookingCalculator } from "@/hooks/use-booking-calculator";
 import PackageCard from "@/components/package-card";
-import { Camera, Heart, Users, Plus, Minus, ChevronDown, Shield, AlertTriangle, Clock, DollarSign, CheckCircle, Tag, X } from "lucide-react";
+import { Camera, Heart, Users, Plus, Minus, CaretDown as ChevronDown, ShieldCheck as Shield, Warning as AlertTriangle, Clock, CurrencyDollar as DollarSign, CheckCircle, Tag, X } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -581,7 +581,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                   disabled={calculation.peopleCount <= 1}
                   data-testid="decrease-people"
                 >
-                  <Minus className="h-4 w-4" />
+                  <Minus size={16} />
                 </Button>
                 <span className="text-2xl font-bold counter-animation" data-testid="people-count">
                   {calculation.peopleCount}
@@ -593,7 +593,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                   onClick={() => updatePeople(calculation.peopleCount + 1)}
                   data-testid="increase-people"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus size={16} />
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
@@ -682,7 +682,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
         {/* Coupon Code */}
         <Card className="p-5 mb-8 hover-3d">
           <div className="flex items-center gap-2 mb-3">
-            <Tag className="w-4 h-4 text-primary" />
+            <Tag size={16} className="text-primary" />
             <span className="font-semibold text-sm">Have a coupon code?</span>
           </div>
           {couponData ? (
@@ -695,7 +695,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
                 </p>
               </div>
               <button onClick={removeCoupon} className="text-amber-400 hover:text-red-400 transition-colors ml-3">
-                <X className="w-4 h-4" />
+                <X size={16} />
               </button>
             </div>
           ) : (
@@ -775,7 +775,7 @@ export default function BookingCalculator({ photographerId }: BookingCalculatorP
               {!isLoggedIn && (
                 <div className="p-4 bg-muted/50 rounded-lg border border-border">
                   <h5 className="text-lg font-semibold mb-4 flex items-center">
-                    <Shield className="w-5 h-5 mr-2 text-primary" />
+                    <Shield size={20} className="mr-2 text-primary" />
                     Create Your Account
                   </h5>
                   <p className="text-sm text-muted-foreground mb-4">

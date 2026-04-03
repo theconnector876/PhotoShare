@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit2, Tag, Check, X } from "lucide-react";
+import { Plus, Trash, PencilSimple as Edit2, Tag, Check, X } from "@phosphor-icons/react";
 
 interface Coupon {
   id: string;
@@ -125,7 +125,7 @@ export function AdminCoupons() {
           <p className="text-sm text-muted-foreground">Create and manage discount coupons for bookings</p>
         </div>
         <Button onClick={openCreate} className="gap-2">
-          <Plus className="w-4 h-4" /> New Coupon
+          <Plus size={16} /> New Coupon
         </Button>
       </div>
 
@@ -136,7 +136,7 @@ export function AdminCoupons() {
           <Tag className="mx-auto mb-4 w-10 h-10 text-muted-foreground" />
           <h3 className="font-semibold mb-2">No coupons yet</h3>
           <p className="text-sm text-muted-foreground mb-4">Create your first coupon to offer discounts on bookings.</p>
-          <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" /> Create Coupon</Button>
+          <Button onClick={openCreate}><Plus size={16} className="mr-2" /> Create Coupon</Button>
         </Card>
       ) : (
         <div className="grid gap-3">
@@ -169,11 +169,11 @@ export function AdminCoupons() {
                       onCheckedChange={(v) => toggleMutation.mutate({ id: c.id, isActive: v })}
                     />
                     <Button size="icon" variant="ghost" onClick={() => openEdit(c)}>
-                      <Edit2 className="w-4 h-4" />
+                      <Edit2 size={16} />
                     </Button>
                     <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive"
                       onClick={() => { if (confirm(`Delete coupon "${c.code}"?`)) deleteMutation.mutate(c.id); }}>
-                      <Trash2 className="w-4 h-4" />
+                      <Trash size={16} />
                     </Button>
                   </div>
                 </div>

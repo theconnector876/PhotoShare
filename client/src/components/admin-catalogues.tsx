@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ImageIcon, FolderIcon, PlusIcon, EyeIcon, EditIcon, StarIcon, ArrowUp, ArrowDown, X, Trash2, Globe, EyeOff, Upload, FileArchive } from "lucide-react";
+import { Image as ImageIcon, Folder as FolderIcon, Plus as PlusIcon, Eye as EyeIcon, PencilSimple as EditIcon, Star as StarIcon, ArrowUp, ArrowDown, X, Trash, Globe, EyeSlash as EyeOff, Upload, FileZip as FileArchive } from "@phosphor-icons/react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 // ── Cloudinary signed upload helpers ─────────────────────────────────────────
@@ -566,7 +566,7 @@ export function AdminCatalogues() {
           <div className="flex justify-between items-center">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <FolderIcon className="w-5 h-5" />
+                <FolderIcon size={20} />
                 Portfolio Catalogues
               </CardTitle>
               <CardDescription>
@@ -575,13 +575,13 @@ export function AdminCatalogues() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => { setZipGroups([]); setIsZipImportDialogOpen(true); }} data-testid="button-import-zip">
-                <FileArchive className="w-4 h-4 mr-2" />
+                <FileArchive size={16} className="mr-2" />
                 Import ZIP
               </Button>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-create-catalogue">
-                  <PlusIcon className="w-4 h-4 mr-2" />
+                  <PlusIcon size={16} className="mr-2" />
                   Create Catalogue
                 </Button>
               </DialogTrigger>
@@ -670,14 +670,14 @@ export function AdminCatalogues() {
                           <img src={createCoverUrl} className="w-full h-full object-cover" />
                           <button type="button" onClick={() => setCreateCoverUrl("")}
                             className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80">
-                            <X className="w-3 h-3" />
+                            <X size={12} />
                           </button>
                         </div>
                       ) : (
                         <label htmlFor="create-cover-input"
                           className="flex flex-col items-center justify-center w-full h-32 rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
                           onClick={() => createCoverRef.current?.click()}>
-                          <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                          <Upload size={24} className="text-gray-400 mb-1" />
                           <span className="text-sm text-gray-500">{isUploadingCreateCover ? "Uploading…" : "Click to upload cover image"}</span>
                         </label>
                       )}
@@ -695,7 +695,7 @@ export function AdminCatalogues() {
                               <img src={url} className="w-full h-full object-cover" />
                               <button type="button" onClick={() => setCreateGalleryUrls(prev => prev.filter((_, j) => j !== i))}
                                 className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80">
-                                <X className="w-2.5 h-2.5" />
+                                <X size={10} />
                               </button>
                             </div>
                           ))}
@@ -703,7 +703,7 @@ export function AdminCatalogues() {
                       )}
                       <label className="flex items-center gap-2 text-sm text-green-700 cursor-pointer hover:text-green-800"
                         onClick={() => createImagesRef.current?.click()}>
-                        <Upload className="w-4 h-4" />
+                        <Upload size={16} />
                         {isUploadingCreateImages ? "Uploading…" : `Add images${createGalleryUrls.length > 0 ? ` (${createGalleryUrls.length} added)` : ""}`}
                       </label>
                     </div>
@@ -815,13 +815,13 @@ export function AdminCatalogues() {
                           <img src={editCoverUrl} className="w-full h-full object-cover" />
                           <button type="button" onClick={() => setEditCoverUrl("")}
                             className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80">
-                            <X className="w-3 h-3" />
+                            <X size={12} />
                           </button>
                         </div>
                       ) : (
                         <label className="flex flex-col items-center justify-center w-full h-32 rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
                           onClick={() => editCoverRef.current?.click()}>
-                          <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                          <Upload size={24} className="text-gray-400 mb-1" />
                           <span className="text-sm text-gray-500">{isUploadingEditCover ? "Uploading…" : "Click to upload cover image"}</span>
                         </label>
                       )}
@@ -839,7 +839,7 @@ export function AdminCatalogues() {
                               <img src={url} className="w-full h-full object-cover" />
                               <button type="button" onClick={() => setEditGalleryUrls(prev => prev.filter((_, j) => j !== i))}
                                 className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80">
-                                <X className="w-2.5 h-2.5" />
+                                <X size={10} />
                               </button>
                             </div>
                           ))}
@@ -847,7 +847,7 @@ export function AdminCatalogues() {
                       )}
                       <label className="flex items-center gap-2 text-sm text-green-700 cursor-pointer hover:text-green-800"
                         onClick={() => editImagesRef.current?.click()}>
-                        <Upload className="w-4 h-4" />
+                        <Upload size={16} />
                         {isUploadingEditImages ? "Uploading…" : `Add images${editGalleryUrls.length > 0 ? ` (${editGalleryUrls.length} added)` : ""}`}
                       </label>
                     </div>
@@ -991,42 +991,42 @@ export function AdminCatalogues() {
                           <Button variant="outline" size="sm"
                             onClick={() => setViewCatalogue(catalogue)}
                             data-testid={`button-view-catalogue-${catalogue.id}`}>
-                            <EyeIcon className="w-4 h-4 mr-1" /> View
+                            <EyeIcon size={16} className="mr-1" /> View
                           </Button>
                           <Button variant="outline" size="sm"
                             onClick={() => openEditDialog(catalogue)}
                             data-testid={`button-edit-catalogue-${catalogue.id}`}>
-                            <EditIcon className="w-4 h-4 mr-1" /> Edit
+                            <EditIcon size={16} className="mr-1" /> Edit
                           </Button>
                           {catalogue.isPublished ? (
                             <Button variant="outline" size="sm"
                               onClick={() => unpublishCatalogueMutation.mutate(catalogue.id)}
                               disabled={unpublishCatalogueMutation.isPending}>
-                              <EyeOff className="w-4 h-4 mr-1" /> Unpublish
+                              <EyeOff size={16} className="mr-1" /> Unpublish
                             </Button>
                           ) : (
                             <Button variant="outline" size="sm"
                               onClick={() => publishCatalogueMutation.mutate(catalogue.id)}
                               disabled={publishCatalogueMutation.isPending}>
-                              <Globe className="w-4 h-4 mr-1" /> Publish
+                              <Globe size={16} className="mr-1" /> Publish
                             </Button>
                           )}
                           <Button variant="outline" size="sm"
                             className="text-red-600 border-red-200 hover:bg-red-50"
                             onClick={() => { setCatalogueToDelete(catalogue); setIsDeleteDialogOpen(true); }}>
-                            <Trash2 className="w-4 h-4 mr-1" /> Delete
+                            <Trash size={16} className="mr-1" /> Delete
                           </Button>
                         </div>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm"
                             onClick={() => moveCatalogue(catalogue.id, "up")}
                             data-testid={`button-move-up-${catalogue.id}`}>
-                            <ArrowUp className="w-4 h-4" />
+                            <ArrowUp size={16} />
                           </Button>
                           <Button variant="outline" size="sm"
                             onClick={() => moveCatalogue(catalogue.id, "down")}
                             data-testid={`button-move-down-${catalogue.id}`}>
-                            <ArrowDown className="w-4 h-4" />
+                            <ArrowDown size={16} />
                           </Button>
                         </div>
                       </div>
@@ -1129,7 +1129,7 @@ export function AdminCatalogues() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileArchive className="w-5 h-5" />
+              <FileArchive size={20} />
               Import Catalogues from ZIP
             </DialogTitle>
             <DialogDescription>
@@ -1150,7 +1150,7 @@ export function AdminCatalogues() {
                 else toast({ title: "Please drop a .zip file", variant: "destructive" });
               }}
             >
-              <FileArchive className="w-8 h-8 text-gray-400 mb-2" />
+              <FileArchive size={32} className="text-gray-400 mb-2" />
               <span className="text-sm text-gray-500 font-medium">Click or drag a ZIP file here</span>
               <span className="text-xs text-gray-400 mt-1">Subfolders → catalogues · Images inside → gallery</span>
             </div>
@@ -1174,10 +1174,10 @@ export function AdminCatalogues() {
                     className="absolute top-2 right-2 text-gray-400 hover:text-red-500"
                     onClick={() => removeZipGroup(i)}
                   >
-                    <X className="w-4 h-4" />
+                    <X size={16} />
                   </button>
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <FolderIcon className="w-4 h-4" />
+                    <FolderIcon size={16} />
                     <span>{group.folderName}</span>
                     <span className="text-gray-400">· {group.files.length} image{group.files.length !== 1 ? "s" : ""}</span>
                   </div>
@@ -1211,7 +1211,7 @@ export function AdminCatalogues() {
                   Choose different ZIP
                 </Button>
                 <Button onClick={handleZipImport} disabled={zipGroups.every(g => !g.title.trim())}>
-                  <Upload className="w-4 h-4 mr-2" />
+                  <Upload size={16} className="mr-2" />
                   Import {zipGroups.length} Catalogue{zipGroups.length !== 1 ? "s" : ""}
                 </Button>
               </div>

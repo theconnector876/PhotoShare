@@ -1,4 +1,4 @@
-import { Pencil } from "lucide-react";
+import { PencilSimple as Pencil } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
@@ -30,7 +30,7 @@ export function AdminSectionEdit({ sectionId, label, className, onEdit }: AdminS
         window.location.hash = sectionId;
       }}
     >
-      <Pencil className="w-4 h-4" />
+      <Pencil size={16} />
       {label}
     </Button>
   );

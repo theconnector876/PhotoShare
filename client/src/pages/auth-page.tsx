@@ -14,7 +14,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Camera, Heart, Users, LogIn, UserPlus, ArrowLeft, Upload } from "lucide-react";
+import { Camera, Heart, Users, SignIn, UserPlus, ArrowLeft, Upload } from "@phosphor-icons/react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 
@@ -337,7 +337,7 @@ export default function AuthPage() {
                 className="flex-1 text-sm"
                 onClick={() => setMode('login')}
               >
-                <LogIn className="w-4 h-4 mr-2" />
+                <SignIn size={16} className="mr-2" />
                 Login
               </Button>
               <Button

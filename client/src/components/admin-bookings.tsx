@@ -15,34 +15,34 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  CalendarIcon,
-  MapPinIcon,
-  UsersIcon,
-  DollarSignIcon,
-  ClockIcon,
-  Edit,
+  CalendarBlank as CalendarIcon,
+  MapPin as MapPinIcon,
+  Users as UsersIcon,
+  CurrencyDollar as DollarSignIcon,
+  Clock as ClockIcon,
+  PencilSimple as Edit,
   Check,
   X,
-  RefreshCw,
-  Mail,
+  ArrowCounterClockwise as RefreshCw,
+  EnvelopeSimple as Mail,
   Upload,
   Eye,
   FolderPlus,
   CreditCard,
-  MessageSquare,
+  ChatDots as MessageSquare,
   Camera,
-  GripVertical,
+  DotsSixVertical as GripVertical,
   Copy,
-  Send,
-  Download,
-  Radio,
-  TrendingUp,
-  CheckCircle2,
+  PaperPlaneTilt as Send,
+  DownloadSimple as Download,
+  RadioButton as Radio,
+  TrendUp as TrendingUp,
+  CheckCircle as CheckCircle2,
   XCircle,
   Clock,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+  CaretDown as ChevronDown,
+  CaretUp as ChevronUp,
+} from "@phosphor-icons/react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -741,7 +741,7 @@ export function AdminBookings() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5" />
+            <CalendarIcon size={20} />
             Booking Management
           </CardTitle>
           <CardDescription>
@@ -892,15 +892,15 @@ export function AdminBookings() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
                       <div className="flex items-center gap-2">
-                        <CalendarIcon className="w-4 h-4 text-gray-500" />
+                        <CalendarIcon size={16} className="text-gray-500" />
                         <span>{booking.shootDate} at {booking.shootTime}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <MapPinIcon className="w-4 h-4 text-gray-500" />
+                        <MapPinIcon size={16} className="text-gray-500" />
                         <span>{booking.location}, {booking.parish}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <UsersIcon className="w-4 h-4 text-gray-500" />
+                        <UsersIcon size={16} className="text-gray-500" />
                         <span>{booking.numberOfPeople} people</span>
                       </div>
                     </div>
@@ -938,7 +938,7 @@ export function AdminBookings() {
                         onClick={() => updateStatusMutation.mutate({ id: selectedBooking.id, status: "confirmed" })}
                         disabled={updateStatusMutation.isPending}
                       >
-                        <Check className="w-4 h-4 mr-1" />
+                        <Check size={16} className="mr-1" />
                         Accept
                       </Button>
                       <Button
@@ -947,7 +947,7 @@ export function AdminBookings() {
                         onClick={() => updateStatusMutation.mutate({ id: selectedBooking.id, status: "declined" })}
                         disabled={updateStatusMutation.isPending}
                       >
-                        <X className="w-4 h-4 mr-1" />
+                        <X size={16} className="mr-1" />
                         Decline
                       </Button>
                     </div>
@@ -974,7 +974,7 @@ export function AdminBookings() {
                   onClick={() => setActiveTab(key as any)}
                   className="flex-1"
                 >
-                  <Icon className="w-4 h-4 mr-1" />
+                  <Icon size={16} className="mr-1" />
                   {label}
                 </Button>
               ))}
@@ -1064,7 +1064,7 @@ export function AdminBookings() {
                             onClick={() => markPaidMutation.mutate({ bookingId: selectedBooking.id, paymentType: 'deposit' })}
                             disabled={markPaidMutation.isPending}
                           >
-                            <Check className="w-3 h-3 mr-1" />
+                            <Check size={12} className="mr-1" />
                             Mark as Paid
                           </Button>
                           <Button
@@ -1095,7 +1095,7 @@ export function AdminBookings() {
                               }
                             }}
                           >
-                            <Copy className="w-3 h-3 mr-1" />
+                            <Copy size={12} className="mr-1" />
                             Copy Link
                           </Button>
                           <Button
@@ -1104,7 +1104,7 @@ export function AdminBookings() {
                             onClick={() => sendPaymentLinkMutation.mutate({ bookingId: selectedBooking.id, paymentType: 'deposit' })}
                             disabled={sendPaymentLinkMutation.isPending}
                           >
-                            <Send className="w-3 h-3 mr-1" />
+                            <Send size={12} className="mr-1" />
                             Send by Email
                           </Button>
                         </div>
@@ -1121,7 +1121,7 @@ export function AdminBookings() {
                             onClick={() => markPaidMutation.mutate({ bookingId: selectedBooking.id, paymentType: 'balance' })}
                             disabled={markPaidMutation.isPending}
                           >
-                            <Check className="w-3 h-3 mr-1" />
+                            <Check size={12} className="mr-1" />
                             Mark as Paid
                           </Button>
                           <Button
@@ -1150,7 +1150,7 @@ export function AdminBookings() {
                               }
                             }}
                           >
-                            <Copy className="w-3 h-3 mr-1" />
+                            <Copy size={12} className="mr-1" />
                             Copy Link
                           </Button>
                           <Button
@@ -1159,7 +1159,7 @@ export function AdminBookings() {
                             onClick={() => sendPaymentLinkMutation.mutate({ bookingId: selectedBooking.id, paymentType: 'balance' })}
                             disabled={sendPaymentLinkMutation.isPending}
                           >
-                            <Send className="w-3 h-3 mr-1" />
+                            <Send size={12} className="mr-1" />
                             Send by Email
                           </Button>
                         </div>
@@ -1202,7 +1202,7 @@ export function AdminBookings() {
                         onClick={() => refundMutation.mutate(selectedBooking.id)}
                         disabled={refundMutation.isPending}
                       >
-                        <CreditCard className="w-4 h-4 mr-1" />
+                        <CreditCard size={16} className="mr-1" />
                         Issue Refund
                       </Button>
                     )}
@@ -1247,7 +1247,7 @@ export function AdminBookings() {
                       <div className="border rounded-lg p-4 space-y-4">
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold flex items-center gap-2">
-                            <Radio className="w-4 h-4 text-primary" />
+                            <Radio size={16} className="text-primary" />
                             Active Broadcast
                           </h3>
                           <div className="flex gap-2">
@@ -1293,7 +1293,7 @@ export function AdminBookings() {
                             onClick={() => raiseOfferMutation.mutate(activeBroadcast.id)}
                             disabled={raiseOfferMutation.isPending || !newOfferAmount || newOfferAmount <= activeBroadcast.offerAmount}
                           >
-                            <TrendingUp className="w-4 h-4 mr-1" />
+                            <TrendingUp size={16} className="mr-1" />
                             Raise Offer
                           </Button>
                         </div>
@@ -1306,9 +1306,9 @@ export function AdminBookings() {
                               <div key={r.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
                                 <span>{r.photographer?.firstName || r.photographer?.email || 'Unknown'}</span>
                                 <span className={`flex items-center gap-1 font-medium ${r.response === 'accepted' ? 'text-emerald-600 dark:text-emerald-400' : r.response === 'declined' ? 'text-red-500' : 'text-muted-foreground'}`}>
-                                  {r.response === 'accepted' && <CheckCircle2 className="w-3 h-3" />}
-                                  {r.response === 'declined' && <XCircle className="w-3 h-3" />}
-                                  {r.response === 'pending' && <Clock className="w-3 h-3" />}
+                                  {r.response === 'accepted' && <CheckCircle2 size={12} />}
+                                  {r.response === 'declined' && <XCircle size={12} />}
+                                  {r.response === 'pending' && <Clock size={12} />}
                                   {r.response}
                                 </span>
                               </div>
@@ -1403,7 +1403,7 @@ export function AdminBookings() {
                             (!broadcastTargetAll && broadcastSelectedIds.length === 0)
                           }
                         >
-                          <Radio className="w-4 h-4 mr-2" />
+                          <Radio size={16} className="mr-2" />
                           {createBroadcastMutation.isPending ? 'Sending...' : `Broadcast Offer – ${broadcastOffer ? formatCurrency(broadcastOffer, currency) : '$0'}`}
                         </Button>
                       </div>
@@ -1684,14 +1684,14 @@ export function AdminBookings() {
                                     className="w-full h-24 object-cover"
                                   />
                                   <div className="absolute top-0.5 left-0.5 opacity-0 group-hover:opacity-100 pointer-events-none">
-                                    <GripVertical className="w-3 h-3 text-white drop-shadow" />
+                                    <GripVertical size={12} className="text-white drop-shadow" />
                                   </div>
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
                                     <button
                                       onClick={(e) => { e.stopPropagation(); window.open(url, '_blank'); }}
                                       className="p-1 bg-white/90 rounded-full shadow"
                                     >
-                                      <Eye className="w-3 h-3 text-gray-700" />
+                                      <Eye size={12} className="text-gray-700" />
                                     </button>
                                     <button
                                       onClick={(e) => {
@@ -1701,7 +1701,7 @@ export function AdminBookings() {
                                       }}
                                       className="p-1 bg-white/90 rounded-full shadow"
                                     >
-                                      <X className="w-3 h-3 text-red-500" />
+                                      <X size={12} className="text-red-500" />
                                     </button>
                                   </div>
                                 </div>
@@ -1744,14 +1744,14 @@ export function AdminBookings() {
                           }}
                           data-testid="button-view-gallery"
                         >
-                          <Eye className="w-4 h-4 mr-1" />
+                          <Eye size={16} className="mr-1" />
                           View Client Gallery
                         </Button>
                       </div>
                     </>
                   ) : (
                     <div className="text-center py-8">
-                      <Camera className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                      <Camera size={48} className="mx-auto text-gray-400 mb-3" />
                       <h4 className="text-lg font-medium text-gray-600 mb-2">No Gallery Found</h4>
                       <p className="text-sm text-gray-500">
                         Gallery will be created automatically when you upload the first images.
@@ -1793,7 +1793,7 @@ export function AdminBookings() {
                     htmlFor="booking-upload-input"
                     className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border-2 border-dashed border-green-300 text-emerald-700 dark:text-emerald-400 hover:bg-green-50 cursor-pointer transition-colors font-medium select-none"
                   >
-                    <Upload className="w-4 h-4" />
+                    <Upload size={16} />
                     {isEnsuring ? "Setting up gallery…" : "Select Photos to Upload"}
                   </label>
                   {!selectedGallery && !isEnsuring && (
@@ -1813,7 +1813,7 @@ export function AdminBookings() {
                             <img src={item.url} className="w-10 h-10 object-cover rounded shrink-0" />
                           ) : (
                             <div className="w-10 h-10 bg-muted rounded shrink-0 flex items-center justify-center">
-                              <Upload className="w-4 h-4 text-gray-400" />
+                              <Upload size={16} className="text-gray-400" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
@@ -1889,13 +1889,13 @@ export function AdminBookings() {
                           <img src={catCoverUrl} className="w-full h-full object-cover" />
                           <button type="button" onClick={() => setCatCoverUrl("")}
                             className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80">
-                            <X className="w-3 h-3" />
+                            <X size={12} />
                           </button>
                         </div>
                       ) : (
                         <label className="flex flex-col items-center justify-center w-full h-28 rounded-lg border-2 border-dashed border-border cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => catCoverRef.current?.click()}>
-                          <Upload className="w-5 h-5 text-gray-400 mb-1" />
+                          <Upload size={20} className="text-gray-400 mb-1" />
                           <span className="text-sm text-gray-500">{isUploadingCatCover ? "Uploading…" : "Upload cover image"}</span>
                         </label>
                       )}
@@ -1924,7 +1924,7 @@ export function AdminBookings() {
                               <img src={url} className="w-full h-full object-cover" />
                               <button type="button" onClick={() => setCatImageUrls(prev => prev.filter((_, j) => j !== i))}
                                 className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80">
-                                <X className="w-2.5 h-2.5" />
+                                <X size={10} />
                               </button>
                             </div>
                           ))}
@@ -1932,7 +1932,7 @@ export function AdminBookings() {
                       )}
                       <label className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400 cursor-pointer hover:text-emerald-800 dark:text-emerald-300"
                         onClick={() => catImagesRef.current?.click()}>
-                        <Upload className="w-4 h-4" />
+                        <Upload size={16} />
                         {isUploadingCatImages ? "Uploading…" : `Add images${catImageUrls.length > 0 ? ` (${catImageUrls.length} added)` : ""}`}
                       </label>
                     </div>

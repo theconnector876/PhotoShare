@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BookOpen, Calendar, Star } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarBlank, Star, Camera, Heart, Confetti, Users, VideoCamera, Aperture } from "@phosphor-icons/react";
 import PortfolioGrid from "@/components/portfolio-grid";
 import ReviewDisplay from "@/components/review-display";
 import { useSiteConfig } from "@/context/site-config";
@@ -22,7 +22,13 @@ const SERVICE_GRADIENTS = [
   "from-emerald-500/90 to-teal-600/90",
   "from-violet-500/90 to-purple-600/90",
 ];
-const SERVICE_EMOJIS = ["📸", "💍", "🎉", "👨‍👩‍👧", "🎬"];
+const SERVICE_ICONS_LIST = [
+  <Camera size={52} weight="duotone" className="text-white drop-shadow-lg" />,
+  <Heart size={52} weight="duotone" className="text-white drop-shadow-lg" />,
+  <Confetti size={52} weight="duotone" className="text-white drop-shadow-lg" />,
+  <Users size={52} weight="duotone" className="text-white drop-shadow-lg" />,
+  <VideoCamera size={52} weight="duotone" className="text-white drop-shadow-lg" />,
+];
 
 export default function Home() {
   const { config } = useSiteConfig();
@@ -148,7 +154,7 @@ export default function Home() {
               <div>
                 <div className="flex gap-0.5 mb-0.5">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                    <Star key={i} size={10} weight="fill" className="text-amber-400" />
                   ))}
                 </div>
                 <p className="text-white/50 text-[11px]">500+ happy clients</p>
@@ -237,12 +243,12 @@ export default function Home() {
         <StaggerReveal className="grid grid-cols-2 gap-3 sm:gap-4">
           {home.services.items.map((item, i) => {
             const gradient = SERVICE_GRADIENTS[i % SERVICE_GRADIENTS.length];
-            const emoji = SERVICE_EMOJIS[i % SERVICE_EMOJIS.length];
+            const iconEl = SERVICE_ICONS_LIST[i % SERVICE_ICONS_LIST.length];
             return (
               <RevealItem key={`${item.title}-${i}`} variant="scale-in">
                 <Link href={item.href} data-testid={`link-service-${i}`}>
                   <motion.div
-                    className={`category-card bg-gradient-to-br ${gradient} p-5 relative overflow-hidden`}
+                    className={`category-card bg-gradient-to-br ${gradient} p-5 relative overflow-hidden group`}
                     whileHover={{ scale: 1.02, rotate: -0.5 }}
                     whileTap={{ scale: 0.97 }}
                     data-testid={`service-${i}`}
@@ -255,19 +261,15 @@ export default function Home() {
                         backgroundSize: '200px 200px',
                       }}
                     />
-                    {/* 3D emoji */}
+                    {/* Phosphor icon — floated top-right */}
                     <div className="flex justify-end mb-2">
-                      <span
-                        className="text-5xl leading-none"
-                        style={{
-                          filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3)) drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
-                          display: 'inline-block',
-                          transform: 'translateY(-4px) rotate(-6deg)',
-                        }}
+                      <div
+                        className="opacity-80 group-hover:opacity-100 transition-all duration-300"
+                        style={{ transform: 'translateY(-4px) rotate(-6deg)', filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.25))' }}
                         aria-hidden="true"
                       >
-                        {emoji}
-                      </span>
+                        {iconEl}
+                      </div>
                     </div>
                     <div className="mt-auto">
                       <h3 className="text-white font-bold text-[15px] leading-tight mb-1 drop-shadow-sm">{item.title}</h3>
@@ -354,7 +356,7 @@ export default function Home() {
           <p className="eyebrow mb-2">Client Stories</p>
           <div className="flex items-center gap-2 mb-2">
             {[...Array(5)].map((_, i) => (
-              <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <Star key={i} size={16} weight="fill" className="text-amber-400" />
             ))}
             <span className="text-muted-foreground text-[13px] ml-1">4.9 average</span>
           </div>
@@ -386,7 +388,7 @@ export default function Home() {
             <div className="flex items-end justify-between">
               <div>
                 <p className="eyebrow mb-2 flex items-center gap-1.5">
-                  <BookOpen className="w-3.5 h-3.5 text-amber-500" /> Editorial
+                  <BookOpen size={14} className="text-amber-500" /> Editorial
                 </p>
                 <h2
                   className="font-extrabold text-foreground tracking-tight"
@@ -421,12 +423,12 @@ export default function Home() {
                       />
                     ) : (
                       <div className="w-20 h-20 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-                        <BookOpen className="w-7 h-7 text-amber-400/60" />
+                        <BookOpen size={28} className="text-amber-400/60" />
                       </div>
                     )}
                     <div className="flex flex-col justify-center min-w-0">
                       <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
+                        <CalendarBlank size={12} />
                         {new Date(post.publishedAt || post.createdAt).toLocaleDateString("en-US", {
                           month: "short", day: "numeric", year: "numeric",
                         })}
@@ -539,7 +541,7 @@ export default function Home() {
               className="bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-full px-5 py-3 shadow-2xl shadow-amber-500/35 text-[13px] transition-all hover:shadow-amber-500/50 hover:shadow-xl"
               data-testid="floating-book-button"
             >
-              <Calendar className="w-4 h-4 mr-2" />
+              <CalendarBlank size={16} className="mr-2" />
               Book Now
             </Button>
           </Link>

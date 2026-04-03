@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Star, MessageCircle } from "lucide-react";
+import { Star, ChatCircle } from "@phosphor-icons/react";
 import { useState } from "react";
 import ReviewForm from "./review-form";
 
@@ -47,9 +47,9 @@ export default function ReviewDisplay({
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`w-4 h-4 ${
-              star <= rating ? "fill-amber-400 text-amber-400" : "text-white/20"
-            }`}
+            size={16}
+            weight={star <= rating ? "fill" : "regular"}
+            className={star <= rating ? "text-amber-400" : "text-white/20"}
           />
         ))}
       </div>
@@ -107,7 +107,7 @@ export default function ReviewDisplay({
               className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500"
               data-testid="button-write-review"
             >
-              <MessageCircle className="w-4 h-4 mr-2" />
+              <ChatCircle size={16} className="mr-2" />
               Write a Review
             </Button>
           ) : (
@@ -160,7 +160,7 @@ export default function ReviewDisplay({
         ) : (
           <Card>
             <CardContent className="p-12 text-center">
-              <Star className="mx-auto text-muted-foreground mb-4" size={48} />
+              <Star size={48} className="mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No reviews yet</h3>
               <p className="text-muted-foreground">
                 Be the first to share your experience!

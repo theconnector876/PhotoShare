@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { defaultSiteConfig, type SiteConfig } from "@shared/site-config";
 import { DEFAULT_BOOKING_TERMS, type BookingTerms } from "@shared/booking-terms";
 import { TermsEditor } from "@/components/terms-editor";
-import { ChevronUp, ChevronDown, Trash2, Plus, Upload, X } from "lucide-react";
+import { CaretUp as ChevronUp, CaretDown as ChevronDown, Trash, Plus, Upload, X } from "@phosphor-icons/react";
 
 // ── Cloudinary upload helper ──────────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ function ImageUploadField({ label, value, onChange }: { label: string; value: st
             onClick={() => onChange("")}
             className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-destructive text-white flex items-center justify-center"
           >
-            <X className="w-3 h-3" />
+            <X size={12} />
           </button>
         </div>
       ) : (
@@ -76,7 +76,7 @@ function ImageUploadField({ label, value, onChange }: { label: string; value: st
             <span className="text-xs text-muted-foreground">Uploading…</span>
           ) : (
             <>
-              <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+              <Upload size={20} className="text-muted-foreground mb-1" />
               <span className="text-xs text-muted-foreground">Drag & drop or click to upload</span>
             </>
           )}
@@ -470,8 +470,8 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                     {sections.map((section, i) => (
                       <div key={section} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${hidden.includes(section) ? "opacity-50 bg-muted" : "bg-card"}`}>
                         <div className="flex flex-col gap-0.5">
-                          <button type="button" onClick={() => moveSection(i, -1)} disabled={i === 0} className="hover:text-primary disabled:opacity-20 leading-none"><ChevronUp className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => moveSection(i, 1)} disabled={i === sections.length - 1} className="hover:text-primary disabled:opacity-20 leading-none"><ChevronDown className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => moveSection(i, -1)} disabled={i === 0} className="hover:text-primary disabled:opacity-20 leading-none"><ChevronUp size={14} /></button>
+                          <button type="button" onClick={() => moveSection(i, 1)} disabled={i === sections.length - 1} className="hover:text-primary disabled:opacity-20 leading-none"><ChevronDown size={14} /></button>
                         </div>
                         <Checkbox id={`${page}-${section}`} checked={!hidden.includes(section)} onCheckedChange={() => toggleHidden(section)} />
                         <label htmlFor={`${page}-${section}`} className="flex-1 cursor-pointer capitalize">{section}</label>
@@ -560,7 +560,7 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-medium text-muted-foreground">Service {index + 1}</span>
                           <Button variant="ghost" size="sm" onClick={() => removeServiceItem(index)} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash size={14} />
                           </Button>
                         </div>
                         <div className="grid md:grid-cols-2 gap-2">
@@ -573,7 +573,7 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                     ))}
                   </div>
                   <Button variant="outline" size="sm" onClick={addServiceItem} className="gap-2">
-                    <Plus className="w-3.5 h-3.5" /> Add Service
+                    <Plus size={14} /> Add Service
                   </Button>
                 </div>
               )}
@@ -653,7 +653,7 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                     <div className="flex items-center justify-between mb-2">
                       <Label>Stats</Label>
                       <Button variant="outline" size="sm" onClick={addStat} className="gap-1 h-7 text-xs">
-                        <Plus className="w-3 h-3" /> Add Stat
+                        <Plus size={12} /> Add Stat
                       </Button>
                     </div>
                     <div className="space-y-2">
@@ -662,7 +662,7 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                           <Input value={stat.value} onChange={(e) => { const next = [...config.about.stats]; next[index] = { ...next[index], value: e.target.value }; updateConfig("about.stats", next); }} placeholder="Value (e.g. 500+)" className="flex-1" />
                           <Input value={stat.label} onChange={(e) => { const next = [...config.about.stats]; next[index] = { ...next[index], label: e.target.value }; updateConfig("about.stats", next); }} placeholder="Label" className="flex-1" />
                           <Button variant="ghost" size="sm" onClick={() => removeStat(index)} className="h-9 w-9 p-0 text-destructive hover:text-destructive shrink-0">
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash size={14} />
                           </Button>
                         </div>
                       ))}
@@ -710,7 +710,7 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-medium text-muted-foreground">Highlight {index + 1}</span>
                           <Button variant="ghost" size="sm" onClick={() => removeHighlight(index)} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash size={14} />
                           </Button>
                         </div>
                         <div className="grid md:grid-cols-2 gap-2">
@@ -722,7 +722,7 @@ export function AdminSite({ onlySection }: { onlySection?: string | null } = {})
                     ))}
                   </div>
                   <Button variant="outline" size="sm" onClick={addHighlight} className="gap-2">
-                    <Plus className="w-3.5 h-3.5" /> Add Highlight
+                    <Plus size={14} /> Add Highlight
                   </Button>
                 </div>
               )}

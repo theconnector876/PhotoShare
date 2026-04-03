@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { CheckCircle, AlertTriangle, Clock, DollarSign, Camera, Shield } from "lucide-react";
+import { CheckCircle, Warning, Clock, CurrencyDollar, Camera, ShieldCheck } from "@phosphor-icons/react";
 
 export default function Terms() {
   return (
@@ -40,7 +40,7 @@ export default function Terms() {
 
           <Card className="p-6 hover-3d">
             <div className="flex items-center mb-4">
-              <DollarSign className="text-jamaica-gold mr-3" size={20} />
+              <CurrencyDollar className="text-jamaica-gold mr-3" size={20} />
               <h3 className="text-lg font-semibold">Payment Terms</h3>
             </div>
             <p className="text-muted-foreground text-sm">
@@ -62,7 +62,7 @@ export default function Terms() {
 
           <Card className="p-6 hover-3d">
             <div className="flex items-center mb-4">
-              <AlertTriangle className="text-orange-500 mr-3" size={20} />
+              <Warning className="text-orange-500 mr-3" size={20} />
               <h3 className="text-lg font-semibold">Overtime Charges</h3>
             </div>
             <p className="text-muted-foreground text-sm">
@@ -75,7 +75,7 @@ export default function Terms() {
         {/* Complete Terms & Conditions */}
         <Card className="p-8 hover-3d">
           <div className="flex items-center mb-6">
-            <Shield className="text-primary mr-3" size={24} />
+            <ShieldCheck className="text-primary mr-3" size={24} />
             <h2 className="text-2xl font-bold">Complete Terms & Conditions</h2>
           </div>
           
