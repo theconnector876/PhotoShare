@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, CalendarBlank, CheckCircle, Star, Ticket, User, Envelope, Phone, MapPin, Clock } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -53,7 +55,7 @@ interface BookingForm {
   clientName: string;
   email: string;
   contactNumber: string;
-  shootDate: string;
+  shootDate: Date | undefined;
   shootTime: string;
   location: string;
   parish: string;
@@ -65,7 +67,7 @@ interface BookingForm {
 function emptyForm(): BookingForm {
   return {
     clientName: "", email: "", contactNumber: "",
-    shootDate: "", shootTime: "", location: "", parish: "",
+    shootDate: undefined, shootTime: "", location: "", parish: "",
     clientInitials: "", selectedAddons: [], contractAccepted: false,
   };
 }
@@ -145,7 +147,7 @@ export default function PromotionPage() {
       serviceType: "photoshoot",
       packageType: `promo-${promo.id}-${selectedPkg.tier.toLowerCase()}`,
       numberOfPeople: 1,
-      shootDate: form.shootDate,
+      shootDate: form.shootDate ? form.shootDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "",
       shootTime: form.shootTime,
       location: form.location,
       parish: form.parish,
@@ -179,10 +181,6 @@ export default function PromotionPage() {
   const badgeColor = BADGE_COLORS[promo.badge] ?? "bg-amber-500";
   const validFrom  = promo.validFrom  ? new Date(promo.validFrom)  : null;
   const validUntil = promo.validUntil ? new Date(promo.validUntil) : null;
-
-  // Date range strings for the date input
-  const minDate = promo.validFrom  ? promo.validFrom.slice(0, 10)  : undefined;
-  const maxDate = promo.validUntil ? promo.validUntil.slice(0, 10) : undefined;
 
   if (submitted) {
     return (
@@ -362,15 +360,41 @@ export default function PromotionPage() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="flex items-center gap-1.5 mb-1.5"><CalendarBlank size={14} /> Shoot Date</Label>
-                      <Input required type="date" value={form.shootDate}
-                        min={minDate} max={maxDate}
-                        onChange={e => setForm(f => ({ ...f, shootDate: e.target.value }))} />
-                      {(minDate || maxDate) && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Available: {validFrom?.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          {validUntil ? ` – ${validUntil.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}
-                        </p>
-                      )}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start text-left font-normal">
+                            <CalendarBlank size={15} className="mr-2 text-muted-foreground" />
+                            {form.shootDate
+                              ? form.shootDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+                              : <span className="text-muted-foreground">Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={form.shootDate}
+                            onSelect={d => setForm(f => ({ ...f, shootDate: d }))}
+                            disabled={(date) => {
+                              if (validFrom && date < validFrom) return true;
+                              if (validUntil) {
+                                const end = new Date(validUntil);
+                                end.setHours(23, 59, 59, 999);
+                                if (date > end) return true;
+                              }
+                              return false;
+                            }}
+                            defaultMonth={validFrom ?? undefined}
+                            initialFocus
+                          />
+                          {(validFrom || validUntil) && (
+                            <p className="text-xs text-muted-foreground text-center pb-3">
+                              Available:{" "}
+                              {validFrom?.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              {validUntil ? ` – ${validUntil.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}
+                            </p>
+                          )}
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div>
                       <Label className="flex items-center gap-1.5 mb-1.5"><Clock size={14} /> Shoot Time</Label>
@@ -467,7 +491,7 @@ export default function PromotionPage() {
 
                   <Button
                     type="submit"
-                    disabled={bookMutation.isPending || !form.shootTime || !form.parish || !form.contractAccepted}
+                    disabled={bookMutation.isPending || !form.shootDate || !form.shootTime || !form.parish || !form.contractAccepted}
                     className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold text-base py-5"
                   >
                     {bookMutation.isPending ? "Submitting..." : `Request Booking — $${Math.ceil((selectedPkg.price + (promo.addons ?? []).filter((a: PromotionAddon) => form.selectedAddons.includes(a.name)).reduce((s: number, a: PromotionAddon) => s + a.price, 0)) * 0.5)} Deposit`}
