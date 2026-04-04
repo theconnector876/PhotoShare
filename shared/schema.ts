@@ -384,6 +384,26 @@ export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, c
 export type Coupon = typeof coupons.$inferSelect;
 export type InsertCoupon = z.infer<typeof insertCouponSchema>;
 
+// ── Promotions / Seasonal Specials ──────────────────────────────────────────
+export const promotions = pgTable("promotions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  subtitle: text("subtitle"),
+  badge: text("badge").notNull().default("special"), // deal | new | sale | special | seasonal | hot
+  imageUrl: text("image_url"),
+  packages: jsonb("packages").default([]),   // [{tier, price, currency, features:[]}]
+  addons: jsonb("addons").default([]),       // [{name, price, currency, description}]
+  validFrom: timestamp("valid_from"),
+  validUntil: timestamp("valid_until"),
+  terms: text("terms"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPromotionSchema = createInsertSchema(promotions).omit({ id: true, createdAt: true });
+export type Promotion = typeof promotions.$inferSelect;
+export type InsertPromotion = z.infer<typeof insertPromotionSchema>;
+
 export const insertConversationSchema = createInsertSchema(conversations).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertConversationParticipantSchema = createInsertSchema(conversationParticipants).omit({ id: true, joinedAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });

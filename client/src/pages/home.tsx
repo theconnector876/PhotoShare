@@ -14,6 +14,87 @@ import { ScrollReveal, StaggerReveal, RevealItem } from "@/components/scroll-rev
 import { CountUp } from "@/components/count-up";
 import { MarqueeTicker } from "@/components/marquee-ticker";
 
+/* ─── Promotions strip ──────────────────────────────────────────────────── */
+const BADGE_COLORS: Record<string, string> = {
+  deal: "bg-blue-500", new: "bg-emerald-500", sale: "bg-red-500",
+  special: "bg-amber-500", seasonal: "bg-purple-500", hot: "bg-orange-500",
+};
+
+function PromotionsStrip({ promotions }: { promotions: any[] }) {
+  return (
+    <section className="px-4 py-8 md:px-6 relative z-10">
+      <div className="max-w-7xl mx-auto">
+        <ScrollReveal variant="fade-up" className="mb-5">
+          <p className="eyebrow mb-1">Limited Time</p>
+          <h2 className="font-extrabold text-foreground tracking-tight"
+            style={{ fontFamily: 'var(--font-display, var(--font-sans))', fontSize: 'clamp(1.4rem, 3.5vw, 2rem)' }}>
+            Specials & Deals
+          </h2>
+        </ScrollReveal>
+        <StaggerReveal className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {promotions.map((promo: any) => (
+            <RevealItem key={promo.id} variant="scale-in">
+              <Link href={`/promotions/${promo.id}`}>
+                <motion.div
+                  className="relative rounded-2xl overflow-hidden border border-border bg-card group cursor-pointer"
+                  whileHover={{ scale: 1.02, rotate: -0.3 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {/* Badge sticker */}
+                  <span className={`absolute top-3 left-3 z-20 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full text-white shadow-lg ${BADGE_COLORS[promo.badge] ?? "bg-amber-500"}`}>
+                    {promo.badge}
+                  </span>
+
+                  {/* Image */}
+                  {promo.imageUrl ? (
+                    <div className="relative h-40 overflow-hidden">
+                      <img
+                        src={promo.imageUrl}
+                        alt={promo.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                    </div>
+                  ) : (
+                    <div className="h-24 bg-gradient-to-br from-amber-500/20 to-amber-700/10" />
+                  )}
+
+                  {/* Content */}
+                  <div className="p-4">
+                    {promo.subtitle && (
+                      <p className="text-xs text-muted-foreground mb-0.5">{promo.subtitle}</p>
+                    )}
+                    <h3 className="font-bold text-base leading-tight mb-2">{promo.title}</h3>
+
+                    {/* Price range */}
+                    {(promo.packages ?? []).length > 0 && (
+                      <p className="text-sm text-amber-500 font-semibold mb-2">
+                        From ${Math.min(...promo.packages.map((p: any) => p.price))} {promo.packages[0]?.currency}
+                      </p>
+                    )}
+
+                    {/* Date */}
+                    {promo.validUntil && (
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <CalendarBlank size={12} />
+                        Ends {new Date(promo.validUntil).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    )}
+
+                    <div className="mt-3 text-xs font-semibold text-amber-500 flex items-center gap-1">
+                      Book Now <ArrowRight size={12} />
+                    </div>
+                  </div>
+                </motion.div>
+              </Link>
+            </RevealItem>
+          ))}
+        </StaggerReveal>
+      </div>
+    </section>
+  );
+}
+
 /* ─── Service card palette ──────────────────────── */
 const SERVICE_GRADIENTS = [
   "from-amber-500/90 to-orange-600/90",
@@ -45,6 +126,16 @@ export default function Home() {
       if (!res.ok) return [];
       return res.json();
     },
+  });
+
+  const { data: activePromotions = [] } = useQuery<any[]>({
+    queryKey: ["/api/promotions"],
+    queryFn: async () => {
+      const res = await fetch("/api/promotions", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   // ── Section: Hero ──────────────────────────────────────────────────────────
@@ -521,6 +612,7 @@ export default function Home() {
                 <>
                   <MarqueeTicker />
                   {statsBar}
+                  {activePromotions.length > 0 && <PromotionsStrip promotions={activePromotions} />}
                 </>
               )}
             </div>

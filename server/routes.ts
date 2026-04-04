@@ -6,7 +6,7 @@ import webpush from "web-push";
 import { setupPasswordAuth, hashPassword } from "./auth";
 import { getSession } from "./session";
 import passport from "passport";
-import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema, insertUserSchema, insertCouponSchema, insertBlogPostSchema, type Coupon } from "@shared/schema";
+import { insertBookingSchema, insertGallerySchema, insertContactMessageSchema, insertCatalogueSchema, insertReviewSchema, insertUserSchema, insertCouponSchema, insertBlogPostSchema, insertPromotionSchema, type Coupon } from "@shared/schema";
 import { defaultPricingConfig } from "@shared/pricing";
 import { defaultSiteConfig } from "@shared/site-config";
 import { z } from "zod";
@@ -290,7 +290,33 @@ const normalizeEmail = (email: string) => email.toLowerCase().trim();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Version probe — lets us verify which bundle Vercel is serving
-  app.get('/api/version', (_req, res) => res.json({ v: 7, schema: 'wipay' }));
+  app.get('/api/version', (_req, res) => res.json({ v: 8, schema: 'promotions' }));
+
+  // ── Auto-migrate: promotions table ────────────────────────────────────────
+  try {
+    const { Client: PgMigClient } = await import("pg");
+    const mc = new PgMigClient({ connectionString: process.env.DATABASE_URL });
+    await mc.connect();
+    await mc.query(`
+      CREATE TABLE IF NOT EXISTS promotions (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        title text NOT NULL,
+        subtitle text,
+        badge text NOT NULL DEFAULT 'special',
+        image_url text,
+        packages jsonb DEFAULT '[]'::jsonb,
+        addons jsonb DEFAULT '[]'::jsonb,
+        valid_from timestamp,
+        valid_until timestamp,
+        terms text,
+        is_active boolean NOT NULL DEFAULT true,
+        created_at timestamp DEFAULT now()
+      );
+    `);
+    await mc.end();
+  } catch (e) {
+    console.error("Promotions table migration error:", e);
+  }
 
   // Setup session and passport authentication
   app.use(getSession());
@@ -985,6 +1011,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!ok) return res.status(404).json({ error: "Coupon not found" });
       res.json({ success: true });
     } catch { res.status(500).json({ error: "Failed to delete coupon" }); }
+  });
+
+  // Promotions: public
+  app.get("/api/promotions", async (_req, res) => {
+    try { res.json(await storage.getActivePromotions()); }
+    catch { res.status(500).json({ error: "Failed to fetch promotions" }); }
+  });
+
+  app.get("/api/promotions/:id", async (req, res) => {
+    try {
+      const promo = await storage.getPromotionById(req.params.id);
+      if (!promo) return res.status(404).json({ error: "Promotion not found" });
+      res.json(promo);
+    } catch { res.status(500).json({ error: "Failed to fetch promotion" }); }
+  });
+
+  // Promotions: admin CRUD
+  app.get("/api/admin/promotions", isAdmin, async (_req, res) => {
+    try { res.json(await storage.getAllPromotions()); }
+    catch { res.status(500).json({ error: "Failed to fetch promotions" }); }
+  });
+
+  app.post("/api/admin/promotions", isAdmin, async (req, res) => {
+    try {
+      const data = insertPromotionSchema.parse(req.body);
+      res.json(await storage.createPromotion(data));
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: error.errors });
+      res.status(500).json({ error: "Failed to create promotion" });
+    }
+  });
+
+  app.put("/api/admin/promotions/:id", isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.updatePromotion(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ error: "Promotion not found" });
+      res.json(updated);
+    } catch { res.status(500).json({ error: "Failed to update promotion" }); }
+  });
+
+  app.delete("/api/admin/promotions/:id", isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deletePromotion(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Promotion not found" });
+      res.json({ success: true });
+    } catch { res.status(500).json({ error: "Failed to delete promotion" }); }
   });
 
   // Contact routes

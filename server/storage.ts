@@ -10,6 +10,7 @@ import {
   pricingConfigs,
   siteConfigs,
   coupons,
+  promotions,
   inboundEmails,
   conversations,
   conversationParticipants,
@@ -37,6 +38,8 @@ import {
   type SiteConfigRow,
   type Coupon,
   type InsertCoupon,
+  type Promotion,
+  type InsertPromotion,
   type InboundEmail,
   type Conversation,
   type Message,
@@ -164,6 +167,14 @@ export interface IStorage {
   updateCoupon(id: string, data: Partial<Coupon>): Promise<Coupon | undefined>;
   deleteCoupon(id: string): Promise<boolean>;
   incrementCouponUsage(id: string): Promise<void>;
+
+  // Promotion operations
+  getActivePromotions(): Promise<Promotion[]>;
+  getAllPromotions(): Promise<Promotion[]>;
+  getPromotionById(id: string): Promise<Promotion | undefined>;
+  createPromotion(data: InsertPromotion): Promise<Promotion>;
+  updatePromotion(id: string, data: Partial<Promotion>): Promise<Promotion | undefined>;
+  deletePromotion(id: string): Promise<boolean>;
 
   // Inbound email operations
   saveInboundEmail(data: { resendEmailId?: string; from: string; to: string; subject?: string; textBody?: string; htmlBody?: string; inReplyToHeader?: string; messageIdHeader?: string; senderName?: string }): Promise<InboundEmail>;
@@ -913,6 +924,41 @@ export class DatabaseStorage implements IStorage {
 
   async incrementCouponUsage(id: string): Promise<void> {
     await db.update(coupons).set({ usageCount: sql`${coupons.usageCount} + 1` }).where(eq(coupons.id, id));
+  }
+
+  // ── Promotions ──────────────────────────────────────────────────────────────
+  async getActivePromotions(): Promise<Promotion[]> {
+    const now = new Date();
+    const all = await db.select().from(promotions).where(eq(promotions.isActive, true)).orderBy(promotions.createdAt);
+    return all.filter(p => {
+      if (p.validFrom && p.validFrom > now) return false;
+      if (p.validUntil && p.validUntil < now) return false;
+      return true;
+    });
+  }
+
+  async getAllPromotions(): Promise<Promotion[]> {
+    return db.select().from(promotions).orderBy(promotions.createdAt);
+  }
+
+  async getPromotionById(id: string): Promise<Promotion | undefined> {
+    const [promo] = await db.select().from(promotions).where(eq(promotions.id, id));
+    return promo;
+  }
+
+  async createPromotion(data: InsertPromotion): Promise<Promotion> {
+    const [promo] = await db.insert(promotions).values(data).returning();
+    return promo;
+  }
+
+  async updatePromotion(id: string, data: Partial<Promotion>): Promise<Promotion | undefined> {
+    const [promo] = await db.update(promotions).set(data).where(eq(promotions.id, id)).returning();
+    return promo;
+  }
+
+  async deletePromotion(id: string): Promise<boolean> {
+    const result = await db.delete(promotions).where(eq(promotions.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   async saveInboundEmail(data: { resendEmailId?: string; from: string; to: string; subject?: string; textBody?: string; htmlBody?: string; inReplyToHeader?: string; messageIdHeader?: string; senderName?: string }): Promise<InboundEmail> {

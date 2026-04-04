@@ -28777,6 +28777,41 @@ var require_lib4 = __commonJS({
   }
 });
 
+// node_modules/pg/esm/index.mjs
+var esm_exports = {};
+__export(esm_exports, {
+  Client: () => Client,
+  Connection: () => Connection,
+  DatabaseError: () => DatabaseError,
+  Pool: () => Pool,
+  Query: () => Query,
+  Result: () => Result,
+  TypeOverrides: () => TypeOverrides,
+  default: () => esm_default,
+  defaults: () => defaults,
+  escapeIdentifier: () => escapeIdentifier,
+  escapeLiteral: () => escapeLiteral,
+  types: () => types
+});
+var import_lib, Client, Pool, Connection, types, Query, DatabaseError, escapeIdentifier, escapeLiteral, Result, TypeOverrides, defaults, esm_default;
+var init_esm = __esm({
+  "node_modules/pg/esm/index.mjs"() {
+    import_lib = __toESM(require_lib4(), 1);
+    Client = import_lib.default.Client;
+    Pool = import_lib.default.Pool;
+    Connection = import_lib.default.Connection;
+    types = import_lib.default.types;
+    Query = import_lib.default.Query;
+    DatabaseError = import_lib.default.DatabaseError;
+    escapeIdentifier = import_lib.default.escapeIdentifier;
+    escapeLiteral = import_lib.default.escapeLiteral;
+    Result = import_lib.default.Result;
+    TypeOverrides = import_lib.default.TypeOverrides;
+    defaults = import_lib.default.defaults;
+    esm_default = import_lib.default;
+  }
+});
+
 // node_modules/ws/lib/stream.js
 var require_stream2 = __commonJS({
   "node_modules/ws/lib/stream.js"(exports2, module2) {
@@ -114722,22 +114757,8 @@ __export(vercel_exports, {
 module.exports = __toCommonJS(vercel_exports);
 var import_express = __toESM(require_express2(), 1);
 
-// node_modules/pg/esm/index.mjs
-var import_lib = __toESM(require_lib4(), 1);
-var Client = import_lib.default.Client;
-var Pool = import_lib.default.Pool;
-var Connection = import_lib.default.Connection;
-var types = import_lib.default.types;
-var Query = import_lib.default.Query;
-var DatabaseError = import_lib.default.DatabaseError;
-var escapeIdentifier = import_lib.default.escapeIdentifier;
-var escapeLiteral = import_lib.default.escapeLiteral;
-var Result = import_lib.default.Result;
-var TypeOverrides = import_lib.default.TypeOverrides;
-var defaults = import_lib.default.defaults;
-var esm_default = import_lib.default;
-
 // server/routes.ts
+init_esm();
 var import_http = require("http");
 
 // shared/schema.ts
@@ -114771,6 +114792,7 @@ __export(schema_exports, {
   insertPayoutSchema: () => insertPayoutSchema,
   insertPhotographerProfileSchema: () => insertPhotographerProfileSchema,
   insertPricingConfigSchema: () => insertPricingConfigSchema,
+  insertPromotionSchema: () => insertPromotionSchema,
   insertReviewSchema: () => insertReviewSchema,
   insertSiteConfigSchema: () => insertSiteConfigSchema,
   insertUserSchema: () => insertUserSchema,
@@ -114780,6 +114802,7 @@ __export(schema_exports, {
   payouts: () => payouts,
   photographerProfiles: () => photographerProfiles,
   pricingConfigs: () => pricingConfigs,
+  promotions: () => promotions,
   pushSubscriptions: () => pushSubscriptions,
   reviews: () => reviews,
   sessions: () => sessions,
@@ -125844,6 +125867,24 @@ var insertSiteConfigSchema = createInsertSchema(siteConfigs).omit({
   updatedAt: true
 });
 var insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usageCount: true });
+var promotions = pgTable("promotions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  subtitle: text("subtitle"),
+  badge: text("badge").notNull().default("special"),
+  // deal | new | sale | special | seasonal | hot
+  imageUrl: text("image_url"),
+  packages: jsonb("packages").default([]),
+  // [{tier, price, currency, features:[]}]
+  addons: jsonb("addons").default([]),
+  // [{name, price, currency, description}]
+  validFrom: timestamp("valid_from"),
+  validUntil: timestamp("valid_until"),
+  terms: text("terms"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow()
+});
+var insertPromotionSchema = createInsertSchema(promotions).omit({ id: true, createdAt: true });
 var insertConversationSchema = createInsertSchema(conversations).omit({ id: true, createdAt: true, updatedAt: true });
 var insertConversationParticipantSchema = createInsertSchema(conversationParticipants).omit({ id: true, joinedAt: true });
 var insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
@@ -131322,6 +131363,9 @@ var export_Query = Qe.Query;
 var export_defaults = Qe.defaults;
 var export_types = Qe.types;
 
+// server/db.ts
+init_esm();
+
 // node_modules/drizzle-orm/neon-serverless/session.js
 var NeonPreparedQuery = class extends PgPreparedQuery {
   constructor(client, queryString, params, logger2, fields, name, _isResponseInArrayMode, customResultMapper) {
@@ -131550,7 +131594,11 @@ function drizzle(...params) {
   drizzle22.mock = mock;
 })(drizzle || (drizzle = {}));
 
+// node_modules/drizzle-orm/node-postgres/driver.js
+init_esm();
+
 // node_modules/drizzle-orm/node-postgres/session.js
+init_esm();
 var { Pool: Pool2, types: types2 } = esm_default;
 var NodePgPreparedQuery = class extends PgPreparedQuery {
   constructor(client, queryString, params, logger2, fields, name, _isResponseInArrayMode, customResultMapper) {
@@ -132210,6 +132258,35 @@ var DatabaseStorage = class {
   }
   async incrementCouponUsage(id) {
     await db.update(coupons).set({ usageCount: sql`${coupons.usageCount} + 1` }).where(eq(coupons.id, id));
+  }
+  // ── Promotions ──────────────────────────────────────────────────────────────
+  async getActivePromotions() {
+    const now = /* @__PURE__ */ new Date();
+    const all = await db.select().from(promotions).where(eq(promotions.isActive, true)).orderBy(promotions.createdAt);
+    return all.filter((p6) => {
+      if (p6.validFrom && p6.validFrom > now) return false;
+      if (p6.validUntil && p6.validUntil < now) return false;
+      return true;
+    });
+  }
+  async getAllPromotions() {
+    return db.select().from(promotions).orderBy(promotions.createdAt);
+  }
+  async getPromotionById(id) {
+    const [promo] = await db.select().from(promotions).where(eq(promotions.id, id));
+    return promo;
+  }
+  async createPromotion(data2) {
+    const [promo] = await db.insert(promotions).values(data2).returning();
+    return promo;
+  }
+  async updatePromotion(id, data2) {
+    const [promo] = await db.update(promotions).set(data2).where(eq(promotions.id, id)).returning();
+    return promo;
+  }
+  async deletePromotion(id) {
+    const result = await db.delete(promotions).where(eq(promotions.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
   async saveInboundEmail(data2) {
     let threadId = null;
@@ -138387,7 +138464,31 @@ var createSafeReviewDTO = (review) => ({
 });
 var normalizeEmail = (email) => email.toLowerCase().trim();
 async function registerRoutes(app2) {
-  app2.get("/api/version", (_req, res) => res.json({ v: 7, schema: "wipay" }));
+  app2.get("/api/version", (_req, res) => res.json({ v: 8, schema: "promotions" }));
+  try {
+    const { Client: PgMigClient } = await Promise.resolve().then(() => (init_esm(), esm_exports));
+    const mc = new PgMigClient({ connectionString: process.env.DATABASE_URL });
+    await mc.connect();
+    await mc.query(`
+      CREATE TABLE IF NOT EXISTS promotions (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        title text NOT NULL,
+        subtitle text,
+        badge text NOT NULL DEFAULT 'special',
+        image_url text,
+        packages jsonb DEFAULT '[]'::jsonb,
+        addons jsonb DEFAULT '[]'::jsonb,
+        valid_from timestamp,
+        valid_until timestamp,
+        terms text,
+        is_active boolean NOT NULL DEFAULT true,
+        created_at timestamp DEFAULT now()
+      );
+    `);
+    await mc.end();
+  } catch (e5) {
+    console.error("Promotions table migration error:", e5);
+  }
   app2.use(getSession());
   app2.use(import_passport2.default.initialize());
   app2.use(import_passport2.default.session());
@@ -138988,6 +139089,56 @@ async function registerRoutes(app2) {
       res.json({ success: true });
     } catch {
       res.status(500).json({ error: "Failed to delete coupon" });
+    }
+  });
+  app2.get("/api/promotions", async (_req, res) => {
+    try {
+      res.json(await storage.getActivePromotions());
+    } catch {
+      res.status(500).json({ error: "Failed to fetch promotions" });
+    }
+  });
+  app2.get("/api/promotions/:id", async (req, res) => {
+    try {
+      const promo = await storage.getPromotionById(req.params.id);
+      if (!promo) return res.status(404).json({ error: "Promotion not found" });
+      res.json(promo);
+    } catch {
+      res.status(500).json({ error: "Failed to fetch promotion" });
+    }
+  });
+  app2.get("/api/admin/promotions", isAdmin, async (_req, res) => {
+    try {
+      res.json(await storage.getAllPromotions());
+    } catch {
+      res.status(500).json({ error: "Failed to fetch promotions" });
+    }
+  });
+  app2.post("/api/admin/promotions", isAdmin, async (req, res) => {
+    try {
+      const data2 = insertPromotionSchema.parse(req.body);
+      res.json(await storage.createPromotion(data2));
+    } catch (error2) {
+      if (error2 instanceof z.ZodError) return res.status(400).json({ error: "Invalid data", details: error2.errors });
+      res.status(500).json({ error: "Failed to create promotion" });
+    }
+  });
+  app2.put("/api/admin/promotions/:id", isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.updatePromotion(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ error: "Promotion not found" });
+      res.json(updated);
+    } catch {
+      res.status(500).json({ error: "Failed to update promotion" });
+    }
+  });
+  app2.delete("/api/admin/promotions/:id", isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deletePromotion(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Promotion not found" });
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ error: "Failed to delete promotion" });
     }
   });
   app2.post("/api/contact", async (req, res) => {

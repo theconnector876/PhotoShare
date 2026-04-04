@@ -38,6 +38,7 @@ import { AdminPhotographers } from "@/components/admin-photographers";
 import { AdminPricing } from "@/components/admin-pricing";
 import { AdminSite } from "@/components/admin-site";
 import { AdminCoupons } from "@/components/admin-coupons";
+import { AdminPromotions } from "@/components/admin-promotions";
 import { AdminBlog } from "@/components/admin-blog";
 import { AdminPayouts } from "@/components/admin-payouts";
 import { ChatPanel } from "@/components/chat-panel";
@@ -238,6 +239,10 @@ export function AdminDashboard() {
                 <Tag size={16} className="shrink-0" />
                 <span>Coupons</span>
               </TabsTrigger>
+              <TabsTrigger value="specials" data-testid="tab-specials" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                <Tag size={16} className="shrink-0" />
+                <span>Specials</span>
+              </TabsTrigger>
               <TabsTrigger value="site" data-testid="tab-site" className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
                 <Settings size={16} className="shrink-0" />
                 <span>Site</span>
@@ -295,6 +300,9 @@ export function AdminDashboard() {
           </TabsContent>
           <TabsContent value="coupons">
             <AdminCoupons />
+          </TabsContent>
+          <TabsContent value="specials">
+            <AdminPromotions />
           </TabsContent>
           <TabsContent value="site">
             <AdminSite />

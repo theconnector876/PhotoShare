@@ -38,6 +38,7 @@ const BlogPost              = lazy(() => import("@/pages/blog-post"));
 const Terms                 = lazy(() => import("@/pages/terms"));
 const Privacy               = lazy(() => import("@/pages/privacy"));
 const NotFound              = lazy(() => import("@/pages/not-found"));
+const PromotionPage         = lazy(() => import("@/pages/promotion"));
 
 function Router() {
   return (
@@ -52,6 +53,7 @@ function Router() {
         <Route path="/contact" component={Contact} />
         <Route path="/gallery" component={Gallery} />
         <Route path="/gallery/:email/:code" component={Gallery} />
+        <Route path="/promotions/:id" component={PromotionPage} />
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/terms" component={Terms} />
