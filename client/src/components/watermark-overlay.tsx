@@ -18,22 +18,25 @@ interface WatermarkOverlayProps {
 export function WatermarkOverlay({ rawSettings, category, preview }: WatermarkOverlayProps) {
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
 
-  // Use a callback ref so the ResizeObserver is set up when the div
-  // actually mounts — not necessarily on the component's first render
-  // (which may return null while gallery data is loading).
+  // Callback ref: sets up a ResizeObserver to keep containerSize in sync.
+  // Returns a cleanup function so React can disconnect it on unmount.
   const containerRef = useCallback((el: HTMLDivElement | null) => {
     if (!el) return;
     const measure = () => setContainerSize({ w: el.offsetWidth, h: el.offsetHeight });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    // No cleanup needed — element is being removed when this fires with null
+    return () => ro.disconnect();
   }, []);
 
   if (!rawSettings || typeof rawSettings !== "object") return null;
   const s: WatermarkSettings = { ...DEFAULT_WATERMARK_SETTINGS, ...(rawSettings as Partial<WatermarkSettings>) };
   if (!preview && !s.enabled?.[category]) return null;
-  if (s.type === "text" && !s.text?.trim()) return null;
+  // In preview mode, show a placeholder so the user can see positioning/sizing
+  const displayText = s.type === "text"
+    ? (s.text?.trim() || (preview ? "© Your Studio Name" : ""))
+    : "";
+  if (s.type === "text" && !displayText) return null;
   if (s.type === "image" && !s.imageUrl?.trim()) return null;
 
   // Resolve x/y — fall back to legacy position if not set
@@ -72,7 +75,7 @@ export function WatermarkOverlay({ rawSettings, category, preview }: WatermarkOv
               display: "block",
             }}
           >
-            {s.text}
+            {displayText}
           </span>
         ) : (
           <img
