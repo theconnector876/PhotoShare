@@ -50,7 +50,6 @@ export function WatermarkOverlay({ rawSettings, category, preview }: WatermarkOv
           left: `${effX}%`,
           top: `${effY}%`,
           transform: `translate(-${effX}%, -${effY}%)`,
-          maxWidth: "90%",
         }}
       >
         {s.type === "text" ? (
