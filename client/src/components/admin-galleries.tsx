@@ -1535,11 +1535,11 @@ export function AdminGalleries() {
                                     <div>
                                       <div className="flex items-center justify-between mb-1">
                                         <label className="text-xs font-medium text-muted-foreground">Opacity</label>
-                                        <span className="text-xs text-muted-foreground">{wm.opacity ?? 50}%</span>
+                                        <span className="text-xs text-muted-foreground">{wm.opacity ?? 70}%</span>
                                       </div>
                                       <Slider
                                         min={0} max={100} step={1}
-                                        value={[wm.opacity ?? 50]}
+                                        value={[wm.opacity ?? 70]}
                                         onValueChange={([v]) => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], opacity: v } }))}
                                       />
                                     </div>
@@ -1547,12 +1547,12 @@ export function AdminGalleries() {
                                     {/* Scale slider */}
                                     <div>
                                       <div className="flex items-center justify-between mb-1">
-                                        <label className="text-xs font-medium text-muted-foreground">Size (%)</label>
-                                        <span className="text-xs text-muted-foreground">{wm.scale ?? 30}%</span>
+                                        <label className="text-xs font-medium text-muted-foreground">Size</label>
+                                        <span className="text-xs text-muted-foreground">{wm.scale ?? 8}</span>
                                       </div>
                                       <Slider
-                                        min={5} max={500} step={1}
-                                        value={[wm.scale ?? 30]}
+                                        min={1} max={25} step={1}
+                                        value={[wm.scale ?? 8]}
                                         onValueChange={([v]) => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], scale: v } }))}
                                       />
                                     </div>

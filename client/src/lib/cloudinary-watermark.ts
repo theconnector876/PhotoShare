@@ -35,7 +35,7 @@ export const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
   imageUrl: '',
   imagePublicId: '',
   opacity: 70,
-  scale: 5,
+  scale: 8,
   position: 'bottom-right',
   x: 100,
   y: 100,
