@@ -73,11 +73,15 @@ function PromotionsStrip({ promotions }: { promotions: any[] }) {
                       </p>
                     )}
 
-                    {/* Date */}
-                    {promo.validUntil && (
+                    {/* Shoot date window */}
+                    {(promo.validFrom || promo.validUntil) && (
                       <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                         <CalendarBlank size={12} />
-                        Ends {new Date(promo.validUntil).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        {promo.validFrom && promo.validUntil
+                          ? `${new Date(promo.validFrom).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(promo.validUntil).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                          : promo.validUntil
+                          ? `Until ${new Date(promo.validUntil).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                          : `From ${new Date(promo.validFrom).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
                       </p>
                     )}
 

@@ -132261,9 +132261,7 @@ var DatabaseStorage = class {
   }
   // ── Promotions ──────────────────────────────────────────────────────────────
   async getActivePromotions() {
-    const now = /* @__PURE__ */ new Date();
-    const all = await db.select().from(promotions).where(eq(promotions.isActive, true)).orderBy(promotions.createdAt);
-    return all.filter((p6) => !(p6.validUntil && p6.validUntil < now));
+    return db.select().from(promotions).where(eq(promotions.isActive, true)).orderBy(promotions.createdAt);
   }
   async getAllPromotions() {
     return db.select().from(promotions).orderBy(promotions.createdAt);

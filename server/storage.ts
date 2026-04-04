@@ -928,10 +928,9 @@ export class DatabaseStorage implements IStorage {
 
   // ── Promotions ──────────────────────────────────────────────────────────────
   async getActivePromotions(): Promise<Promotion[]> {
-    const now = new Date();
-    const all = await db.select().from(promotions).where(eq(promotions.isActive, true)).orderBy(promotions.createdAt);
-    // Only hide promotions that have already expired; upcoming ones still show as teasers
-    return all.filter(p => !(p.validUntil && p.validUntil < now));
+    // validFrom/validUntil are shoot date windows, not offer activation dates
+    // Visibility is controlled solely by isActive
+    return db.select().from(promotions).where(eq(promotions.isActive, true)).orderBy(promotions.createdAt);
   }
 
   async getAllPromotions(): Promise<Promotion[]> {
