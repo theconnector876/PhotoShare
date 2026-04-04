@@ -1,4 +1,3 @@
-import { useCallback, useState } from "react";
 import {
   type WatermarkSettings,
   DEFAULT_WATERMARK_SETTINGS,
@@ -16,63 +15,58 @@ interface WatermarkOverlayProps {
 }
 
 export function WatermarkOverlay({ rawSettings, category, preview }: WatermarkOverlayProps) {
-  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
-
-  // Callback ref: sets up a ResizeObserver to keep containerSize in sync.
-  // Returns a cleanup function so React can disconnect it on unmount.
-  const containerRef = useCallback((el: HTMLDivElement | null) => {
-    if (!el) return;
-    const measure = () => setContainerSize({ w: el.offsetWidth, h: el.offsetHeight });
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
   if (!rawSettings || typeof rawSettings !== "object") return null;
   const s: WatermarkSettings = { ...DEFAULT_WATERMARK_SETTINGS, ...(rawSettings as Partial<WatermarkSettings>) };
   if (!preview && !s.enabled?.[category]) return null;
-  // In preview mode, show a placeholder so the user can see positioning/sizing
+
+  // In preview mode show a placeholder so position/size is always visible
   const displayText = s.type === "text"
     ? (s.text?.trim() || (preview ? "© Your Studio Name" : ""))
     : "";
   if (s.type === "text" && !displayText) return null;
   if (s.type === "image" && !s.imageUrl?.trim()) return null;
 
-  // Resolve x/y — fall back to legacy position if not set
-  const effX = s.x ?? positionToXY(s.position ?? 'bottom-right').x;
-  const effY = s.y ?? positionToXY(s.position ?? 'bottom-right').y;
+  const effX = s.x ?? positionToXY(s.position ?? "bottom-right").x;
+  const effY = s.y ?? positionToXY(s.position ?? "bottom-right").y;
 
-  // Compute sizes from measured container.
-  // scale is a direct percentage: scale=30 → 30% of container's min dimension (text)
-  // or 30% of container width (image). Both use the same percentage concept.
-  const cMin = Math.min(containerSize.w, containerSize.h);
-  const cW = containerSize.w;
-  const fontSize = cMin * (s.scale ?? 30) / 100;
-  const imgWidth = cW * (s.scale ?? 30) / 100;
+  // Font size: scale% of the container's smaller dimension via CSS clamp.
+  // We use a CSS custom property so the browser handles it without JS measurement.
+  // cqmin = 1% of the smaller of the container's inline/block size.
+  // Fallback: vmin (viewport-relative) is a reasonable substitute.
+  const scale = s.scale ?? 5;
+  const opacity = (s.opacity ?? 70) / 100;
 
   return (
+    // No overflow-hidden here — parent containers (gallery card, lightbox)
+    // already clip their contents. Removing it prevents text being cropped
+    // when positioned near edges.
     <div
-      ref={containerRef}
-      className="absolute inset-0 pointer-events-none overflow-hidden"
+      className="absolute inset-0 pointer-events-none"
+      style={{ containerType: "size" } as React.CSSProperties}
     >
-      <div style={{
-        position: "absolute",
-        left: `${effX}%`,
-        top: `${effY}%`,
-        transform: `translate(-${effX}%, -${effY}%)`,
-      }}>
+      <div
+        style={{
+          position: "absolute",
+          left: `${effX}%`,
+          top: `${effY}%`,
+          transform: `translate(-${effX}%, -${effY}%)`,
+          maxWidth: "90%",
+        }}
+      >
         {s.type === "text" ? (
           <span
             style={{
-              fontSize: containerSize.w > 0 ? `${fontSize}px` : undefined,
+              // cqmin = 1% of the container's smaller dimension (width or height)
+              fontSize: `${scale}cqmin`,
               color: "white",
-              textShadow: "0 0 4px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.8)",
-              opacity: (s.opacity ?? 50) / 100,
+              textShadow:
+                "0 0 6px rgba(0,0,0,1), 0 0 12px rgba(0,0,0,0.9), 1px 1px 3px rgba(0,0,0,0.8)",
+              opacity,
               fontFamily: "Arial, sans-serif",
               fontWeight: "bold",
               whiteSpace: "nowrap",
               display: "block",
+              lineHeight: 1.2,
             }}
           >
             {displayText}
@@ -82,9 +76,9 @@ export function WatermarkOverlay({ rawSettings, category, preview }: WatermarkOv
             src={s.imageUrl}
             alt="watermark"
             style={{
-              width: containerSize.w > 0 ? `${imgWidth}px` : `${s.scale ?? 30}%`,
+              width: `${scale}cqmin`,
               height: "auto",
-              opacity: (s.opacity ?? 50) / 100,
+              opacity,
               display: "block",
             }}
           />
@@ -95,7 +89,6 @@ export function WatermarkOverlay({ rawSettings, category, preview }: WatermarkOv
 }
 
 // ─── Live CSS preview (used in settings panel) ───────────────────────────────
-// Uses the exact same WatermarkOverlay as the gallery — perfectly accurate.
 
 interface WatermarkPreviewCanvasProps {
   settings: WatermarkSettings;
@@ -104,7 +97,7 @@ interface WatermarkPreviewCanvasProps {
 
 export function WatermarkPreviewCanvas({ settings, sampleImageUrl }: WatermarkPreviewCanvasProps) {
   return (
-    <div className="rounded-lg overflow-hidden border border-muted aspect-square relative bg-muted">
+    <div className="rounded-lg overflow-hidden border border-muted aspect-video relative bg-zinc-800">
       {sampleImageUrl ? (
         <img
           src={sampleImageUrl}
@@ -113,7 +106,7 @@ export function WatermarkPreviewCanvas({ settings, sampleImageUrl }: WatermarkPr
           crossOrigin="anonymous"
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
+        <div className="w-full h-full flex items-center justify-center text-xs text-zinc-400">
           No sample image
         </div>
       )}
