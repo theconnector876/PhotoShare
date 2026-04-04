@@ -485,7 +485,6 @@ export default function PromotionPage() {
                     <span className="text-sm text-muted-foreground">
                       I agree to the{" "}
                       <Link href="/terms" className="text-amber-500 underline">terms & conditions</Link>
-                      {promo.terms ? ` · ${promo.terms}` : ""}
                     </span>
                   </label>
 
