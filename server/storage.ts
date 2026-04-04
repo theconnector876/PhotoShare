@@ -106,7 +106,7 @@ export interface IStorage {
   getGalleryByBookingId(bookingId: string): Promise<Gallery | undefined>;
   updateGallery(id: string, data: Partial<Gallery>): Promise<Gallery | undefined>;
   updateGalleryImages(id: string, images: string[], type: 'gallery' | 'selected' | 'final'): Promise<Gallery | undefined>;
-  updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string; watermarkSettings?: Record<string, any>; requireAccessCode?: boolean; requireEmail?: boolean; shareEnabled?: boolean }): Promise<Gallery | undefined>;
+  updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string; watermarkSettings?: Record<string, any>; requireAccessCode?: boolean; requireEmail?: boolean; shareEnabled?: boolean; }): Promise<Gallery | undefined>;
   deleteGallery(id: string): Promise<void>;
   updateEmailSelections(id: string, email: string, images: string[]): Promise<Gallery | undefined>;
   // Gallery logs
@@ -534,10 +534,31 @@ export class DatabaseStorage implements IStorage {
     return gallery;
   }
 
-  async updateGallerySettings(id: string, settings: { galleryDownloadEnabled?: boolean; selectedDownloadEnabled?: boolean; finalDownloadEnabled?: boolean; status?: string }): Promise<Gallery | undefined> {
+  async updateGallerySettings(id: string, settings: {
+    galleryDownloadEnabled?: boolean;
+    selectedDownloadEnabled?: boolean;
+    finalDownloadEnabled?: boolean;
+    status?: string;
+    watermarkSettings?: Record<string, any>;
+    requireAccessCode?: boolean;
+    requireEmail?: boolean;
+    shareEnabled?: boolean;
+  }): Promise<Gallery | undefined> {
+    // Build the update object explicitly so every supported field is typed
+    // correctly for Drizzle (avoids silent omission of jsonb/boolean fields).
+    const updateData: Partial<typeof galleries.$inferInsert> = {};
+    if (settings.galleryDownloadEnabled !== undefined) updateData.galleryDownloadEnabled = settings.galleryDownloadEnabled;
+    if (settings.selectedDownloadEnabled !== undefined) updateData.selectedDownloadEnabled = settings.selectedDownloadEnabled;
+    if (settings.finalDownloadEnabled !== undefined) updateData.finalDownloadEnabled = settings.finalDownloadEnabled;
+    if (settings.status !== undefined) updateData.status = settings.status;
+    if (settings.watermarkSettings !== undefined) updateData.watermarkSettings = settings.watermarkSettings;
+    if (settings.requireAccessCode !== undefined) updateData.requireAccessCode = settings.requireAccessCode;
+    if (settings.requireEmail !== undefined) updateData.requireEmail = settings.requireEmail;
+    if (settings.shareEnabled !== undefined) updateData.shareEnabled = settings.shareEnabled;
+
     const [gallery] = await db
       .update(galleries)
-      .set(settings)
+      .set(updateData)
       .where(eq(galleries.id, id))
       .returning();
     return gallery;

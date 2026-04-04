@@ -131981,7 +131981,16 @@ var DatabaseStorage = class {
     return gallery;
   }
   async updateGallerySettings(id, settings) {
-    const [gallery] = await db.update(galleries).set(settings).where(eq(galleries.id, id)).returning();
+    const updateData = {};
+    if (settings.galleryDownloadEnabled !== void 0) updateData.galleryDownloadEnabled = settings.galleryDownloadEnabled;
+    if (settings.selectedDownloadEnabled !== void 0) updateData.selectedDownloadEnabled = settings.selectedDownloadEnabled;
+    if (settings.finalDownloadEnabled !== void 0) updateData.finalDownloadEnabled = settings.finalDownloadEnabled;
+    if (settings.status !== void 0) updateData.status = settings.status;
+    if (settings.watermarkSettings !== void 0) updateData.watermarkSettings = settings.watermarkSettings;
+    if (settings.requireAccessCode !== void 0) updateData.requireAccessCode = settings.requireAccessCode;
+    if (settings.requireEmail !== void 0) updateData.requireEmail = settings.requireEmail;
+    if (settings.shareEnabled !== void 0) updateData.shareEnabled = settings.shareEnabled;
+    const [gallery] = await db.update(galleries).set(updateData).where(eq(galleries.id, id)).returning();
     return gallery;
   }
   async updateGalleryComment(id, comment) {
