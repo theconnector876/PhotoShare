@@ -1783,7 +1783,7 @@ export default function PhotographerDashboard() {
                                       <span className="text-xs text-muted-foreground">{wm.scale ?? 8}</span>
                                     </div>
                                     <Slider
-                                      min={1} max={25} step={1}
+                                      min={1} max={150} step={1}
                                       value={[wm.scale ?? 8]}
                                       onValueChange={([v]) => setWatermarkForms(prev => ({ ...prev, [gallery.id]: { ...prev[gallery.id], scale: v } }))}
                                     />

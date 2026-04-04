@@ -22,7 +22,7 @@ export interface WatermarkSettings {
   imageUrl: string;
   imagePublicId: string;
   opacity: number;       // 0–100
-  scale: number;         // 5–500 (% of image width; >100 extends beyond image, clipped at edge)
+  scale: number;         // 1–150 (cqmin units; >100 overscales beyond container, clipped at edge)
   position: WatermarkPosition; // kept for legacy / quick-select grid
   x: number;             // 0–100: horizontal anchor (0=left edge, 100=right edge)
   y: number;             // 0–100: vertical anchor (0=top edge, 100=bottom edge)
