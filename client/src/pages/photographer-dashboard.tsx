@@ -139,6 +139,8 @@ const SOCIAL_PLATFORMS = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function isVideoFile(file: File) { return file.type.startsWith('video/'); }
+
 function compressPhotoImage(file: File, maxDimension = 4096, quality = 0.88): Promise<File> {
   return new Promise((resolve) => {
     const objectUrl = URL.createObjectURL(file);
@@ -190,7 +192,8 @@ function uploadPhotoWithProgress(file: File, config: SignedConfig, onProgress: (
     if (config.folder) fd.append("folder", config.folder);
     if (config.useFilename) fd.append("use_filename", "true");
     if (config.uniqueFilename === false) fd.append("unique_filename", "false");
-    xhr.open("POST", `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`);
+    const resourceType = (config as any).resourceType || 'image';
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${config.cloudName}/${resourceType}/upload`);
     xhr.send(fd);
   });
 }
@@ -754,8 +757,10 @@ export default function PhotographerDashboard() {
       if (!item) return;
       updateGalItem(item.id, { status: "uploading", progress: 0 });
       try {
-        const compressed = await compressPhotoImage(item.file);
-        const url = await uploadPhotoWithProgress(compressed, config, (pct) => updateGalItem(item.id, { progress: pct }));
+        const isVid = isVideoFile(item.file);
+        const fileToUpload = isVid ? item.file : await compressPhotoImage(item.file);
+        const uploadConfig = isVid ? { ...config, resourceType: 'video' } : config;
+        const url = await uploadPhotoWithProgress(fileToUpload, uploadConfig, (pct) => updateGalItem(item.id, { progress: pct }));
         updateGalItem(item.id, { status: "done", progress: 100 });
         await addImageMutation.mutateAsync({ galleryId: gallery.id, imageURL: url, type });
         queryClient.invalidateQueries({ queryKey: ["/api/photographer/galleries"] });
@@ -1882,7 +1887,7 @@ export default function PhotographerDashboard() {
                                 </div>
                               </div>
 
-                              <input id={fileInputId} type="file" accept="image/*" multiple className="sr-only"
+                              <input id={fileInputId} type="file" accept="image/*,video/*" multiple className="sr-only"
                                 onChange={e => { if (e.target.files?.length) { handleGalFilesSelected(Array.from(e.target.files), gallery, type); e.target.value = ""; } }} />
 
                               {/* Content — only when open */}

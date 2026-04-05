@@ -50,9 +50,18 @@ interface GalleryInfo {
   shareEnabled: boolean;
 }
 
+function isVideoUrl(url: string): boolean {
+  return url.includes('/video/upload/') || /\.(mp4|mov|webm|avi|mkv)(\?|$)/i.test(url);
+}
+
 // Serve a smaller Cloudinary thumbnail for the grid view (saves bandwidth on mobile)
 function cloudinaryThumb(url: string, width = 400): string {
-  if (!url.includes('res.cloudinary.com') || url.includes('/upload/c_') || url.includes('/upload/w_')) return url;
+  if (!url.includes('res.cloudinary.com')) return url;
+  if (isVideoUrl(url)) {
+    // Generate a video poster thumbnail from Cloudinary
+    return url.replace('/video/upload/', `/video/upload/c_fill,w_${width},so_0,f_jpg/`).replace(/\.(mp4|mov|webm|avi|mkv)(\?|$)/i, '.jpg');
+  }
+  if (url.includes('/upload/c_') || url.includes('/upload/w_')) return url;
   return url.replace('/image/upload/', `/image/upload/c_fill,w_${width},q_auto,f_auto/`);
 }
 
@@ -520,16 +529,26 @@ export default function Gallery() {
             </button>
           )}
 
-          {/* Image */}
+          {/* Image or Video */}
           <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={lightboxImage}
-              alt={`Image ${lightboxIndex + 1}`}
-              className="max-h-[72vh] max-w-[85vw] object-contain rounded-lg pointer-events-none select-none"
-              draggable={false}
-              onDragStart={(e) => e.preventDefault()}
-              style={{ WebkitUserDrag: 'none' as any, WebkitTouchCallout: 'none' as any }}
-            />
+            {isVideoUrl(lightboxImage) ? (
+              <video
+                src={lightboxImage}
+                controls
+                autoPlay
+                className="max-h-[72vh] max-w-[85vw] rounded-lg"
+                style={{ outline: 'none' }}
+              />
+            ) : (
+              <img
+                src={lightboxImage}
+                alt={`Image ${lightboxIndex + 1}`}
+                className="max-h-[72vh] max-w-[85vw] object-contain rounded-lg pointer-events-none select-none"
+                draggable={false}
+                onDragStart={(e) => e.preventDefault()}
+                style={{ WebkitUserDrag: 'none' as any, WebkitTouchCallout: 'none' as any }}
+              />
+            )}
             <WatermarkOverlay rawSettings={gallery?.watermarkSettings} category={viewMode} />
           </div>
 
@@ -748,6 +767,13 @@ export default function Gallery() {
                   onDragStart={(e) => e.preventDefault()}
                   style={{ WebkitUserDrag: 'none' as any, WebkitUserSelect: 'none', WebkitTouchCallout: 'none' as any, userSelect: 'none' }}
                 />
+                {isVideoUrl(imageUrl) && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center">
+                      <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6 ml-1"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                  </div>
+                )}
                 <WatermarkOverlay rawSettings={gallery?.watermarkSettings} category={viewMode} />
 
                 {/* Hover overlay */}
