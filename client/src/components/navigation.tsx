@@ -370,8 +370,8 @@ export default function Navigation() {
             {/* Close button + logo */}
             <div className="flex items-center justify-between px-5 py-5">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-500/25">
-                  <CameraIcon size={16} className="text-black" weight="duotone" />
+                <div className="w-8 h-8 flex items-center justify-center overflow-hidden shrink-0">
+                  <img src="/logo.png" alt="ConnectAGrapher" className="w-8 h-8 object-contain" />
                 </div>
                 <span
                   className={`font-bold text-[15px] tracking-tight ${menuOnLight ? 'text-gray-900' : 'text-white'}`}

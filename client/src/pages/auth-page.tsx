@@ -276,8 +276,8 @@ export default function AuthPage() {
           style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%)' }} />
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-[12px] bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
-            <Camera className="w-4.5 h-4.5 text-black" />
+          <div className="w-9 h-9 flex items-center justify-center">
+            <img src="/logo.png" alt="ConnectAGrapher" className="w-9 h-9 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
           </div>
           <span className="text-white font-bold text-[15px]" style={{ fontFamily: 'var(--font-display, sans-serif)' }}>ConnectAGrapher</span>
         </div>
@@ -311,8 +311,13 @@ export default function AuthPage() {
       <div className="flex-1 flex items-center justify-center p-6 md:p-12 overflow-y-auto">
         <Card className="w-full max-w-md p-8 border-border/60 shadow-xl">
           <div className="text-center mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-4">
-              <Camera className="w-5 h-5 text-amber-500" />
+            <div className="w-14 h-14 flex items-center justify-center mx-auto mb-4">
+              <img
+                src="/logo.png"
+                alt="ConnectAGrapher"
+                className="w-14 h-14 object-contain"
+                style={{ filter: 'sepia(1) saturate(8) hue-rotate(5deg) brightness(0.95)' }}
+              />
             </div>
             <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'var(--font-display, var(--font-serif))' }}>
               {mode === 'login' && 'Welcome Back'}
