@@ -37,6 +37,7 @@ const Blog                  = lazy(() => import("@/pages/blog"));
 const BlogPost              = lazy(() => import("@/pages/blog-post"));
 const Terms                 = lazy(() => import("@/pages/terms"));
 const Privacy               = lazy(() => import("@/pages/privacy"));
+const DeleteAccount         = lazy(() => import("@/pages/delete-account"));
 const NotFound              = lazy(() => import("@/pages/not-found"));
 const PromotionPage         = lazy(() => import("@/pages/promotion"));
 
@@ -58,6 +59,7 @@ function Router() {
         <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/terms" component={Terms} />
         <Route path="/privacy" component={Privacy} />
+        <Route path="/delete-account" component={DeleteAccount} />
         <Route path="/auth" component={AuthPage} />
         <ProtectedRoute path="/dashboard" component={Dashboard} />
         <ProtectedRoute path="/photographer" component={PhotographerDashboard} />
