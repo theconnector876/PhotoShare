@@ -74,6 +74,11 @@ export function ApertureLoader({ size = 80, className = '' }: { size?: number; c
 export function FullPageLoader() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+      <img
+        src="/logo.png"
+        alt="ConnectAGrapher"
+        className="w-16 h-16 object-contain mb-6 opacity-90"
+      />
       <ApertureLoader size={72} />
       <p className="mt-6 text-[11px] tracking-[0.3em] uppercase text-muted-foreground font-medium">
         Loading

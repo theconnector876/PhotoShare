@@ -137537,6 +137537,23 @@ var FROM_BOOKINGS = `ConnectAGrapher Bookings <bookings@${BASE_DOMAIN}>`;
 var FROM_SUPPORT = `ConnectAGrapher Support <support@${BASE_DOMAIN}>`;
 var FROM_TEAM = `ConnectAGrapher Team <team@${BASE_DOMAIN}>`;
 var APP_URL = process.env.APP_URL || `https://${BASE_DOMAIN}`;
+var emailHeader = `
+  <div style="text-align: center; padding: 28px 0 20px; border-bottom: 1px solid #e5e5e5; margin-bottom: 24px;">
+    <a href="${APP_URL}" style="display: inline-block;">
+      <img src="${APP_URL}/logo.png" alt="ConnectAGrapher" style="width: 56px; height: 56px; object-fit: contain;" />
+    </a>
+    <div style="margin-top: 8px; font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: #0d2137; text-transform: uppercase;">ConnectAGrapher</div>
+  </div>
+`;
+var emailFooter = `
+  <div style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #e5e5e5; text-align: center;">
+    <a href="${APP_URL}" style="display: inline-block; margin-bottom: 8px;">
+      <img src="${APP_URL}/logo.png" alt="ConnectAGrapher" style="width: 32px; height: 32px; object-fit: contain; opacity: 0.7;" />
+    </a>
+    <p style="margin: 0; font-family: Arial, sans-serif; font-size: 11px; color: #999; letter-spacing: 0.05em;">\xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} ConnectAGrapher. All rights reserved.</p>
+    <p style="margin: 4px 0 0; font-family: Arial, sans-serif; font-size: 11px; color: #bbb;"><a href="${APP_URL}" style="color: #bbb; text-decoration: none;">${APP_URL}</a></p>
+  </div>
+`;
 async function sendEmail(to2, subject, html, from) {
   if (!resend) {
     console.log(`[Email not configured] To: ${to2}, Subject: ${subject}`);
@@ -137554,7 +137571,8 @@ async function sendEmail(to2, subject, html, from) {
 async function sendBookingReceived(booking, accessCode) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Booking Request Received!</h1>
+      ${emailHeader}
+      <h1 style="color: #1a1a1a; font-size: 20px; margin-bottom: 12px;">Booking Request Received!</h1>
       <p>Hi ${booking.clientName},</p>
       <p>We've received your booking request. Your session will be <strong>confirmed once the deposit is received</strong>. Here are your details:</p>
 
@@ -137574,6 +137592,7 @@ async function sendBookingReceived(booking, accessCode) {
       </div>
 
       <p style="color: #666; font-size: 13px; margin-top: 30px;">If you have any questions, reply to this email or visit <a href="${APP_URL}">${APP_URL}</a>.</p>
+      ${emailFooter}
     </div>
   `;
   return sendEmail(booking.email, "Booking Request Received \u2014 ConnectAGrapher", html, FROM_BOOKINGS);
@@ -137581,7 +137600,8 @@ async function sendBookingReceived(booking, accessCode) {
 async function sendBookingConfirmation(booking, accessCode) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Booking Confirmed! \u{1F389}</h1>
+      ${emailHeader}
+      <h1 style="color: #1a1a1a; font-size: 20px; margin-bottom: 12px;">Booking Confirmed! \u{1F389}</h1>
       <p>Hi ${booking.clientName},</p>
       <p>Your deposit has been received and your photography session is now <strong>confirmed</strong>. Here are your details:</p>
 
@@ -137601,6 +137621,7 @@ async function sendBookingConfirmation(booking, accessCode) {
       </div>
 
       <p style="color: #666; font-size: 13px; margin-top: 30px;">If you have any questions, reply to this email or visit <a href="${APP_URL}">${APP_URL}</a>.</p>
+      ${emailFooter}
     </div>
   `;
   return sendEmail(booking.email, "Your Photography Session is Confirmed! \u{1F389}", html, FROM_BOOKINGS);
@@ -137609,7 +137630,8 @@ async function sendPaymentConfirmation(booking, paymentType, amount) {
   const isDeposit = paymentType === "deposit";
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Payment Received!</h1>
+      ${emailHeader}
+      <h1 style="color: #1a1a1a; font-size: 20px; margin-bottom: 12px;">Payment Received!</h1>
       <p>Hi ${booking.clientName},</p>
       <p>We've received your ${isDeposit ? "deposit" : "final balance"} payment.</p>
 
@@ -137623,6 +137645,7 @@ async function sendPaymentConfirmation(booking, paymentType, amount) {
       ${isDeposit ? `<p>Your remaining balance will be due before or on the day of your shoot.</p>` : `<p>Your booking is now fully paid. We look forward to your session!</p>`}
 
       <p style="color: #666; font-size: 13px; margin-top: 30px;">If you have any questions, reply to this email or visit <a href="${APP_URL}">${APP_URL}</a>.</p>
+      ${emailFooter}
     </div>
   `;
   return sendEmail(booking.email, `Payment Received \u2014 ${isDeposit ? "Deposit" : "Balance"} for Your Session`, html, FROM_BOOKINGS);
@@ -137631,13 +137654,15 @@ async function sendPasswordReset(email, resetToken) {
   const resetLink = `${APP_URL}/auth?reset=${resetToken}`;
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Reset Your Password</h1>
+      ${emailHeader}
+      <h1 style="color: #1a1a1a; font-size: 20px; margin-bottom: 12px;">Reset Your Password</h1>
       <p>We received a request to reset your password. Click the button below to choose a new one:</p>
 
       <a href="${resetLink}" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 20px 0;">Reset Password</a>
 
       <p style="color: #666; font-size: 13px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
       <p style="color: #999; font-size: 12px; margin-top: 20px;">Link: ${resetLink}</p>
+      ${emailFooter}
     </div>
   `;
   return sendEmail(email, "Reset Your Password \u2014 ConnectAGrapher", html, FROM_SUPPORT);
@@ -137645,7 +137670,8 @@ async function sendPasswordReset(email, resetToken) {
 async function sendPhotographerApproved(email, firstName) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">You're Approved!</h1>
+      ${emailHeader}
+      <h1 style="color: #1a1a1a; font-size: 20px; margin-bottom: 12px;">You're Approved!</h1>
       <p>Hi ${firstName},</p>
       <p>Great news \u2014 your photographer application has been approved! You can now receive bookings on ConnectAGrapher.</p>
 
@@ -137653,6 +137679,7 @@ async function sendPhotographerApproved(email, firstName) {
 
       <p>Make sure your profile and pricing are up to date so clients can find you.</p>
       <p style="color: #666; font-size: 13px; margin-top: 30px;">Welcome to the team!</p>
+      ${emailFooter}
     </div>
   `;
   return sendEmail(email, "Your Photographer Application is Approved!", html, FROM_TEAM);
@@ -137660,11 +137687,13 @@ async function sendPhotographerApproved(email, firstName) {
 async function sendPhotographerRejected(email, firstName) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h1 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">Application Update</h1>
+      ${emailHeader}
+      <h1 style="color: #1a1a1a; font-size: 20px; margin-bottom: 12px;">Application Update</h1>
       <p>Hi ${firstName},</p>
       <p>Thank you for your interest in joining ConnectAGrapher. After reviewing your application, we're unable to approve it at this time.</p>
       <p>You're welcome to reapply in the future with an updated portfolio. If you have questions, feel free to reach out.</p>
       <p style="color: #666; font-size: 13px; margin-top: 30px;">\u2014 The ConnectAGrapher Team</p>
+      ${emailFooter}
     </div>
   `;
   return sendEmail(email, "Photographer Application Update \u2014 ConnectAGrapher", html, FROM_TEAM);
@@ -137672,7 +137701,8 @@ async function sendPhotographerRejected(email, firstName) {
 async function sendInboundEmailNotification(adminEmail, from, to2, subject, preview) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-      <h2 style="color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px;">New Inbound Email Received</h2>
+      ${emailHeader}
+      <h2 style="color: #1a1a1a; font-size: 18px; margin-bottom: 12px;">New Inbound Email Received</h2>
       <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <p><strong>From:</strong> ${from}</p>
         <p><strong>To:</strong> ${to2}</p>
@@ -137684,6 +137714,7 @@ async function sendInboundEmailNotification(adminEmail, from, to2, subject, prev
       <p style="color: #666; font-size: 13px; margin-top: 30px;">
         <a href="${APP_URL}/admin?tab=inbox">View in Admin Dashboard</a>
       </p>
+      ${emailFooter}
     </div>
   `;
   return sendEmail(adminEmail, `New email from ${from}: ${subject || "(no subject)"}`, html, FROM_SUPPORT);
@@ -137691,9 +137722,10 @@ async function sendInboundEmailNotification(adminEmail, from, to2, subject, prev
 async function sendAdminEmail(to2, clientName, subject, message) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      ${emailHeader}
       <p>Hi ${clientName},</p>
       <div style="white-space: pre-wrap;">${message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
-      <p style="color: #666; font-size: 13px; margin-top: 30px; border-top: 1px solid #e5e5e5; padding-top: 12px;">\u2014 ConnectAGrapher</p>
+      ${emailFooter}
     </div>
   `;
   return sendEmail(to2, subject, html, FROM_SUPPORT);

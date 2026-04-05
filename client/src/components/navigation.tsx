@@ -140,16 +140,16 @@ export default function Navigation() {
             {/* ── Logo ── */}
             <Link href="/">
               <div className="flex items-center gap-2.5 cursor-pointer shrink-0" data-testid="logo-link">
-                <div className="w-8 h-8 rounded-[10px] bg-amber-500 flex items-center justify-center overflow-hidden shadow-lg shadow-amber-500/25">
+                <div className="w-10 h-10 flex items-center justify-center overflow-hidden shrink-0">
                   <img
-                    src="/logo-white.png"
+                    src="/logo.png"
                     alt={config.branding.appName}
-                    className="w-12 h-12 object-contain scale-[1.6]"
+                    className="w-10 h-10 object-contain"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
-                  <CameraIcon size={16} className="text-black absolute opacity-0" />
+                  <CameraIcon size={20} className="text-amber-400 hidden" />
                 </div>
                 <span
                   className={`font-bold text-[15px] tracking-tight transition-colors duration-300 ${
