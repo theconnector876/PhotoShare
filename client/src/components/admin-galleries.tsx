@@ -494,7 +494,7 @@ function ImageSection({
       <input
         id={fileInputId}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
         multiple
         className="sr-only"
         onChange={(e) => {
@@ -1140,7 +1140,7 @@ export function AdminGalleries() {
       if (!item) return;
       updateItem(item.id, { status: "uploading", progress: 0 });
       try {
-        const toUpload = await compressImage(item.file);
+        const toUpload = item.file.type.startsWith('video/') ? item.file : await compressImage(item.file);
         const url = await uploadFileToR2(toUpload, gallery.id, (pct) => updateItem(item.id, { progress: pct }));
         updateItem(item.id, { status: "done", progress: 100, cloudUrl: url });
         uploadedUrls.push(url);
